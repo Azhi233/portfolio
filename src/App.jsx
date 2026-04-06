@@ -32,6 +32,16 @@ function App() {
   const isProjectDetail = location.pathname.startsWith('/project/');
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const { hash } = window.location;
+    if (hash.startsWith('#/')) {
+      const normalizedPath = hash.slice(1);
+      window.history.replaceState(null, '', normalizedPath);
+    }
+  }, []);
+
+  useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, [location.pathname]);
 
@@ -50,7 +60,7 @@ function App() {
         <Route path="/toys" element={<Toys />} />
         <Route path="/industrial" element={<Industrial />} />
         <Route path="/misc" element={<Misc />} />
-        <Route path="/lab" element={<InteractiveLab />} />
+        <Route path="/lab/*" element={<InteractiveLab />} />
         <Route path="/console" element={<DirectorConsole />} />
         <Route path="/project/:id" element={<ProjectDetail />} />
         <Route path="*" element={<Navigate to="/" replace />} />

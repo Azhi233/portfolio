@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 
 const NAV_ITEMS = [
@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { label: 'TOYS', to: '/toys' },
   { label: 'INDUSTRIAL', to: '/industrial' },
   { label: 'MISC', to: '/misc' },
+  { label: 'INTERACTIVE LAB', to: '/lab' },
 ];
 
 const HEADER_BASE_CLASS = 'fixed left-0 right-0 top-0 z-[120] transition-all duration-500 ease-out';
@@ -18,18 +19,13 @@ const NAV_LINK_BASE_CLASS =
 const NAV_LINK_ACTIVE_CLASS = 'text-zinc-100';
 const NAV_LINK_INACTIVE_CLASS = 'text-zinc-500 hover:text-zinc-100 focus-visible:text-zinc-100';
 
-const LAB_BUTTON_BASE_CLASS =
-  'group/lab relative overflow-hidden rounded-full border px-3 py-1.5 text-[10px] tracking-[0.14em] transition-all duration-500 ease-out md:px-4 md:py-2 md:text-xs';
-const LAB_BUTTON_ACTIVE_CLASS =
-  'border-cyan-300/70 bg-cyan-100/20 text-cyan-100 shadow-[0_0_0_1px_rgba(186,230,253,0.35),inset_0_0_18px_rgba(56,189,248,0.25),0_0_26px_rgba(14,116,144,0.35)]';
-const LAB_BUTTON_INACTIVE_CLASS =
-  'border-cyan-200/35 bg-cyan-500/10 text-cyan-100/90 hover:border-cyan-200/60 hover:bg-cyan-300/15 hover:text-cyan-50 hover:shadow-[inset_0_0_12px_rgba(34,211,238,0.18),0_0_24px_rgba(6,182,212,0.22)]';
 
 function NavBar() {
   const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const navRef = useRef(null);
   const location = useLocation();
 
-  const isLabActive = location.pathname.startsWith('/lab');
 
   useEffect(() => {
     const onScroll = () => {
@@ -42,12 +38,44 @@ function NavBar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event) => {
+      const target = event.target;
+      if (navRef.current && !navRef.current.contains(target)) {
+        setMobileOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setMobileOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [mobileOpen]);
+
   return (
     <header className={`${HEADER_BASE_CLASS} ${scrolled ? HEADER_SCROLLED_CLASS : HEADER_TOP_CLASS}`}>
-      <nav className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 md:px-12">
-        <p className="font-serif text-sm tracking-[0.22em] text-zinc-100 md:text-base">DIRECTOR.VISION</p>
-
-        <div className="flex items-center gap-3 md:gap-5">
+      <nav
+        ref={navRef}
+        className="relative mx-auto flex h-14 w-full max-w-7xl items-center justify-end px-3 md:h-16 md:justify-center md:px-12"
+      >
+        <div className="hidden md:flex">
           <ul className="flex items-center gap-4 md:gap-7">
             {NAV_ITEMS.map((item) => {
               const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);
@@ -70,33 +98,47 @@ function NavBar() {
               );
             })}
           </ul>
-
-          <NavLink
-            to="/lab"
-            className={`${LAB_BUTTON_BASE_CLASS} ${isLabActive ? LAB_BUTTON_ACTIVE_CLASS : LAB_BUTTON_INACTIVE_CLASS}`}
-          >
-            <span
-              className={`pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(90%_140%_at_50%_50%,rgba(103,232,249,0.28)_0%,rgba(6,182,212,0.05)_56%,rgba(0,0,0,0)_100%)] transition-opacity duration-500 ${
-                isLabActive ? 'opacity-100' : 'opacity-70 group-hover/lab:opacity-100'
-              }`}
-            />
-            <span className="relative z-10 flex items-center gap-2">
-              <span>📽️ Interactive Lab</span>
-              <span className="relative inline-flex h-2 w-2">
-                <span
-                  className={`absolute inline-flex h-full w-full rounded-full bg-cyan-300/70 ${
-                    isLabActive ? 'animate-ping' : 'animate-pulse'
-                  }`}
-                />
-                <span
-                  className={`relative inline-flex h-2 w-2 rounded-full ${
-                    isLabActive ? 'bg-cyan-100' : 'bg-cyan-300/80'
-                  }`}
-                />
-              </span>
-            </span>
-          </NavLink>
         </div>
+
+        <div className="flex items-center md:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileOpen((prev) => !prev)}
+            aria-expanded={mobileOpen}
+            aria-label="Toggle navigation"
+            className="touch-manipulation inline-flex min-h-10 items-center gap-2 rounded-full border border-white/35 bg-zinc-900/85 px-4 py-2 text-xs tracking-[0.2em] text-zinc-100 shadow-[0_8px_20px_rgba(0,0,0,0.35)] transition active:scale-[0.98]"
+          >
+            <span aria-hidden className="text-sm leading-none">☰</span>
+            <span>MENU</span>
+          </button>
+        </div>
+
+        {mobileOpen ? (
+          <div className="absolute left-2 right-2 top-[calc(100%-2px)] z-[130] rounded-2xl border border-white/15 bg-[#080a10]/95 p-3 shadow-[0_20px_45px_rgba(0,0,0,0.5)] backdrop-blur-xl md:hidden">
+            <ul className="flex flex-col gap-2">
+              {NAV_ITEMS.map((item) => {
+                const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);
+
+                return (
+                  <li key={`mobile-${item.to}`}>
+                    <NavLink
+                      to={item.to}
+                      end={item.to === '/'}
+                      onClick={() => setMobileOpen(false)}
+                      className={`block w-full touch-manipulation rounded-lg px-3 py-2 text-left text-xs tracking-[0.16em] transition ${
+                        isActive
+                          ? 'bg-white/10 text-zinc-100'
+                          : 'text-zinc-300 hover:bg-white/5 hover:text-zinc-100 active:bg-white/10'
+                      }`}
+                    >
+                      {item.label}
+                    </NavLink>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
       </nav>
     </header>
   );
