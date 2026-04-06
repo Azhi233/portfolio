@@ -7,8 +7,6 @@ const DEFAULT_CONFIG = {
   vignetteIntensity: 0.8,
   filmGrainOpacity: 0.03,
   spotlightRadius: 600,
-  parallaxSpeed: 1.5,
-  defaultRatio: '2.35:1',
   showHUD: true,
 };
 
@@ -146,10 +144,6 @@ export function ConfigProvider({ children }) {
     setConfig((prev) => ({ ...prev, [key]: value }));
   };
 
-  const updateMany = (partial) => {
-    setConfig((prev) => ({ ...prev, ...partial }));
-  };
-
   const resetConfig = () => {
     setConfig(DEFAULT_CONFIG);
   };
@@ -203,7 +197,6 @@ export function ConfigProvider({ children }) {
       config,
       projects,
       updateConfig,
-      updateMany,
       resetConfig,
       addProject,
       updateProject,

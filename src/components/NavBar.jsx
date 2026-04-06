@@ -8,9 +8,28 @@ const NAV_ITEMS = [
   { label: 'MISC', to: '/misc' },
 ];
 
+const HEADER_BASE_CLASS = 'fixed left-0 right-0 top-0 z-[120] transition-all duration-500 ease-out';
+const HEADER_SCROLLED_CLASS =
+  'border-b border-white/10 bg-[#07080c]/75 shadow-[0_10px_45px_rgba(0,0,0,0.42)] backdrop-blur-md';
+const HEADER_TOP_CLASS = 'border-b border-white/0 bg-[#07080c]/42 backdrop-blur-md';
+
+const NAV_LINK_BASE_CLASS =
+  'group/nav relative inline-block text-[10px] tracking-[0.2em] transition-colors duration-500 ease-out md:text-sm';
+const NAV_LINK_ACTIVE_CLASS = 'text-zinc-100';
+const NAV_LINK_INACTIVE_CLASS = 'text-zinc-500 hover:text-zinc-100 focus-visible:text-zinc-100';
+
+const LAB_BUTTON_BASE_CLASS =
+  'group/lab relative overflow-hidden rounded-full border px-3 py-1.5 text-[10px] tracking-[0.14em] transition-all duration-500 ease-out md:px-4 md:py-2 md:text-xs';
+const LAB_BUTTON_ACTIVE_CLASS =
+  'border-cyan-300/70 bg-cyan-100/20 text-cyan-100 shadow-[0_0_0_1px_rgba(186,230,253,0.35),inset_0_0_18px_rgba(56,189,248,0.25),0_0_26px_rgba(14,116,144,0.35)]';
+const LAB_BUTTON_INACTIVE_CLASS =
+  'border-cyan-200/35 bg-cyan-500/10 text-cyan-100/90 hover:border-cyan-200/60 hover:bg-cyan-300/15 hover:text-cyan-50 hover:shadow-[inset_0_0_12px_rgba(34,211,238,0.18),0_0_24px_rgba(6,182,212,0.22)]';
+
 function NavBar() {
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+
+  const isLabActive = location.pathname.startsWith('/lab');
 
   useEffect(() => {
     const onScroll = () => {
@@ -24,13 +43,7 @@ function NavBar() {
   }, []);
 
   return (
-    <header
-      className={`fixed left-0 right-0 top-0 z-[120] transition-all duration-500 ease-out ${
-        scrolled
-          ? 'border-b border-white/10 bg-[#07080c]/75 shadow-[0_10px_45px_rgba(0,0,0,0.42)] backdrop-blur-md'
-          : 'border-b border-white/0 bg-[#07080c]/42 backdrop-blur-md'
-      }`}
-    >
+    <header className={`${HEADER_BASE_CLASS} ${scrolled ? HEADER_SCROLLED_CLASS : HEADER_TOP_CLASS}`}>
       <nav className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 md:px-12">
         <p className="font-serif text-sm tracking-[0.22em] text-zinc-100 md:text-base">DIRECTOR.VISION</p>
 
@@ -44,11 +57,7 @@ function NavBar() {
                   <NavLink
                     to={item.to}
                     end={item.to === '/'}
-                    className={`group/nav relative inline-block text-[10px] tracking-[0.2em] transition-colors duration-500 ease-out md:text-sm ${
-                      isActive
-                        ? 'text-zinc-100'
-                        : 'text-zinc-500 hover:text-zinc-100 focus-visible:text-zinc-100'
-                    }`}
+                    className={`${NAV_LINK_BASE_CLASS} ${isActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS}`}
                   >
                     <span className="relative z-10">{item.label}</span>
                     <span
@@ -64,28 +73,24 @@ function NavBar() {
 
           <NavLink
             to="/lab"
-            className={`group/lab relative overflow-hidden rounded-full border px-3 py-1.5 text-[10px] tracking-[0.14em] transition-all duration-500 ease-out md:px-4 md:py-2 md:text-xs ${
-              location.pathname.startsWith('/lab')
-                ? 'border-cyan-300/70 bg-cyan-100/20 text-cyan-100 shadow-[0_0_0_1px_rgba(186,230,253,0.35),inset_0_0_18px_rgba(56,189,248,0.25),0_0_26px_rgba(14,116,144,0.35)]'
-                : 'border-cyan-200/35 bg-cyan-500/10 text-cyan-100/90 hover:border-cyan-200/60 hover:bg-cyan-300/15 hover:text-cyan-50 hover:shadow-[inset_0_0_12px_rgba(34,211,238,0.18),0_0_24px_rgba(6,182,212,0.22)]'
-            }`}
+            className={`${LAB_BUTTON_BASE_CLASS} ${isLabActive ? LAB_BUTTON_ACTIVE_CLASS : LAB_BUTTON_INACTIVE_CLASS}`}
           >
             <span
-              className={`pointer-events-none absolute inset-0 rounded-full transition-opacity duration-500 ${
-                location.pathname.startsWith('/lab') ? 'opacity-100' : 'opacity-70 group-hover/lab:opacity-100'
-              } bg-[radial-gradient(90%_140%_at_50%_50%,rgba(103,232,249,0.28)_0%,rgba(6,182,212,0.05)_56%,rgba(0,0,0,0)_100%)]`}
+              className={`pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(90%_140%_at_50%_50%,rgba(103,232,249,0.28)_0%,rgba(6,182,212,0.05)_56%,rgba(0,0,0,0)_100%)] transition-opacity duration-500 ${
+                isLabActive ? 'opacity-100' : 'opacity-70 group-hover/lab:opacity-100'
+              }`}
             />
             <span className="relative z-10 flex items-center gap-2">
               <span>📽️ Interactive Lab</span>
               <span className="relative inline-flex h-2 w-2">
                 <span
                   className={`absolute inline-flex h-full w-full rounded-full bg-cyan-300/70 ${
-                    location.pathname.startsWith('/lab') ? 'animate-ping' : 'animate-pulse'
+                    isLabActive ? 'animate-ping' : 'animate-pulse'
                   }`}
                 />
                 <span
                   className={`relative inline-flex h-2 w-2 rounded-full ${
-                    location.pathname.startsWith('/lab') ? 'bg-cyan-100' : 'bg-cyan-300/80'
+                    isLabActive ? 'bg-cyan-100' : 'bg-cyan-300/80'
                   }`}
                 />
               </span>

@@ -7,7 +7,6 @@ const STATUS_OPTIONS = ['Draft', 'Published'];
 const FILTER_STATUS = ['All', ...STATUS_OPTIONS];
 const ITEMS_PER_PAGE = 6;
 
-const AUTH_STORAGE_KEY = 'director_auth_status';
 const AUTH_SESSION_KEY = 'director_auth_session';
 const DIRECTOR_CONSOLE_PASSWORD = 'zhizhi233';
 
@@ -23,6 +22,41 @@ const EMPTY_FORM = {
   credits: '',
   publishStatus: 'Draft',
 };
+
+const FORM_INPUT_CLASS =
+  'w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-400 transition focus:ring-2';
+const FILTER_INPUT_CLASS =
+  'w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-400 transition focus:ring-2';
+const FORM_TEXTAREA_CLASS =
+  'min-h-24 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-400 transition focus:ring-2';
+
+const PAGE_BUTTON_BASE_CLASS = 'rounded-md border px-3 py-1.5 text-xs tracking-[0.1em] transition';
+const PAGE_BUTTON_ENABLED_CLASS = 'border-zinc-600 bg-zinc-900 text-zinc-200 hover:border-zinc-400';
+const PAGE_BUTTON_DISABLED_CLASS = 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500';
+
+const BULK_BUTTON_BASE_CLASS = 'rounded-md border px-3 py-1.5 text-xs tracking-[0.1em] transition';
+const BULK_BUTTON_DISABLED_CLASS = 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500';
+const BULK_SHOW_CLASS = 'border-emerald-300/70 bg-emerald-300/10 text-emerald-200 hover:bg-emerald-300/20';
+const BULK_HIDE_CLASS = 'border-amber-300/70 bg-amber-300/10 text-amber-200 hover:bg-amber-300/20';
+const BULK_PUBLISH_CLASS = 'border-sky-300/70 bg-sky-300/10 text-sky-200 hover:bg-sky-300/20';
+const BULK_DRAFT_CLASS = 'border-purple-300/70 bg-purple-300/10 text-purple-200 hover:bg-purple-300/20';
+
+const SELECT_BUTTON_BASE_CLASS = 'rounded-md border px-3 py-1.5 text-xs tracking-[0.1em] transition';
+const SELECT_BUTTON_DEFAULT_CLASS = 'border-zinc-600 bg-zinc-900 text-zinc-200 hover:border-zinc-400';
+const SELECT_BUTTON_MUTED_CLASS = 'border-zinc-500 bg-zinc-800 text-zinc-100';
+const SELECT_BUTTON_DISABLED_CLASS = 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500';
+const SELECT_TOGGLE_ACTIVE_CLASS = 'border-sky-300/70 bg-sky-300/20 text-sky-100';
+const SELECT_TOGGLE_INACTIVE_CLASS = 'border-sky-300/70 bg-sky-300/10 text-sky-200 hover:bg-sky-300/20';
+
+const ACTIVE_ACTION_CLASS = 'border-emerald-300/70 bg-emerald-300/10 text-emerald-200 hover:bg-emerald-300/20';
+const DISABLED_ACTION_CLASS = 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500';
+const HUD_ON_CLASS = 'border-emerald-300/70 bg-emerald-300/15 text-emerald-200';
+const HUD_OFF_CLASS = 'border-zinc-600 bg-zinc-800 text-zinc-300';
+
+const getActionButtonClass = (isEnabled) =>
+  `rounded-md border px-3 py-2 text-xs tracking-[0.12em] transition ${
+    isEnabled ? ACTIVE_ACTION_CLASS : DISABLED_ACTION_CLASS
+  }`;
 
 function FieldLabel({ title, value }) {
   return (
@@ -83,7 +117,7 @@ function ProjectForm({ mode, formState, onChange, onSubmit, onCancel }) {
             required
             value={formState.title}
             onChange={(event) => onChange('title', event.target.value)}
-            className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-400 transition focus:ring-2"
+            className={FORM_INPUT_CLASS}
             placeholder="Project title"
           />
         </label>
@@ -167,7 +201,7 @@ function ProjectForm({ mode, formState, onChange, onSubmit, onCancel }) {
           <textarea
             value={formState.description}
             onChange={(event) => onChange('description', event.target.value)}
-            className="min-h-24 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-400 transition focus:ring-2"
+            className={FORM_TEXTAREA_CLASS}
             placeholder="Short synopsis..."
           />
         </label>
@@ -499,21 +533,16 @@ function DirectorConsole() {
                 <FieldLabel title="Spotlight Radius" value={`${config.spotlightRadius}px`} />
                 <input type="range" min="200" max="1200" step="10" value={config.spotlightRadius} onChange={(event) => updateConfig('spotlightRadius', Number(event.target.value))} className="w-full accent-emerald-400" />
               </div>
-              <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4">
-                <FieldLabel title="Parallax Speed" value={config.parallaxSpeed.toFixed(2)} />
-                <input type="range" min="0.2" max="3" step="0.05" value={config.parallaxSpeed} onChange={(event) => updateConfig('parallaxSpeed', Number(event.target.value))} className="w-full accent-emerald-400" />
-              </div>
-              <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4">
-                <FieldLabel title="Default Ratio" value={config.defaultRatio} />
-                <select value={config.defaultRatio} onChange={(event) => updateConfig('defaultRatio', event.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-400 transition focus:ring-2">
-                  <option value="4:3">4:3</option>
-                  <option value="16:9">16:9</option>
-                  <option value="2.35:1">2.35:1</option>
-                </select>
-              </div>
+
               <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4">
                 <FieldLabel title="Monitor HUD" value={config.showHUD ? 'ON' : 'OFF'} />
-                <button type="button" onClick={() => updateConfig('showHUD', !config.showHUD)} className={`rounded-md border px-4 py-2 text-sm tracking-[0.08em] transition ${config.showHUD ? 'border-emerald-300/70 bg-emerald-300/15 text-emerald-200' : 'border-zinc-600 bg-zinc-800 text-zinc-300'}`}>
+                <button
+                  type="button"
+                  onClick={() => updateConfig('showHUD', !config.showHUD)}
+                  className={`rounded-md border px-4 py-2 text-sm tracking-[0.08em] transition ${
+                    config.showHUD ? HUD_ON_CLASS : HUD_OFF_CLASS
+                  }`}
+                >
                   {config.showHUD ? 'Disable HUD' : 'Enable HUD'}
                 </button>
               </div>
@@ -545,7 +574,7 @@ function DirectorConsole() {
                 <select
                   value={categoryFilter}
                   onChange={(event) => setCategoryFilter(event.target.value)}
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-400 transition focus:ring-2"
+                  className={FILTER_INPUT_CLASS}
                 >
                   {FILTER_CATEGORIES.map((category) => (
                     <option key={category} value={category}>
@@ -560,7 +589,7 @@ function DirectorConsole() {
                 <select
                   value={statusFilter}
                   onChange={(event) => setStatusFilter(event.target.value)}
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-400 transition focus:ring-2"
+                  className={FILTER_INPUT_CLASS}
                 >
                   {FILTER_STATUS.map((status) => (
                     <option key={status} value={status}>
@@ -575,7 +604,7 @@ function DirectorConsole() {
                 <input
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-400 transition focus:ring-2"
+                  className={FILTER_INPUT_CLASS}
                   placeholder="Search project title..."
                 />
               </label>
@@ -589,11 +618,7 @@ function DirectorConsole() {
                   setSearchQuery('');
                   setShowSelectedOnly(false);
                 }}
-                className={`rounded-md border px-3 py-2 text-xs tracking-[0.12em] transition ${
-                  hasActiveFilters
-                    ? 'border-emerald-300/70 bg-emerald-300/10 text-emerald-200 hover:bg-emerald-300/20'
-                    : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
-                }`}
+                className={getActionButtonClass(hasActiveFilters)}
               >
                 RESET FILTERS
               </button>
@@ -604,7 +629,7 @@ function DirectorConsole() {
                 <button
                   type="button"
                   onClick={toggleSelectCurrentPage}
-                  className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs tracking-[0.1em] text-zinc-200 transition hover:border-zinc-400"
+                  className={`${SELECT_BUTTON_BASE_CLASS} ${SELECT_BUTTON_DEFAULT_CLASS}`}
                 >
                   {selectedOnPageCount === pagedProjects.length && pagedProjects.length > 0 ? 'UNSELECT PAGE' : 'SELECT PAGE'}
                 </button>
@@ -612,12 +637,12 @@ function DirectorConsole() {
                   type="button"
                   onClick={toggleSelectAllFiltered}
                   disabled={filteredProjects.length === 0}
-                  className={`rounded-md border px-3 py-1.5 text-xs tracking-[0.1em] transition ${
+                  className={`${SELECT_BUTTON_BASE_CLASS} ${
                     filteredProjects.length > 0
                       ? allFilteredSelected
-                        ? 'border-zinc-500 bg-zinc-800 text-zinc-100'
-                        : 'border-zinc-600 bg-zinc-900 text-zinc-200 hover:border-zinc-400'
-                      : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
+                        ? SELECT_BUTTON_MUTED_CLASS
+                        : SELECT_BUTTON_DEFAULT_CLASS
+                      : SELECT_BUTTON_DISABLED_CLASS
                   }`}
                 >
                   {allFilteredSelected ? 'UNSELECT FILTERED' : 'SELECT FILTERED'}
@@ -626,12 +651,12 @@ function DirectorConsole() {
                   type="button"
                   disabled={selectedIds.length === 0}
                   onClick={() => setShowSelectedOnly((prev) => !prev)}
-                  className={`rounded-md border px-3 py-1.5 text-xs tracking-[0.1em] transition ${
+                  className={`${SELECT_BUTTON_BASE_CLASS} ${
                     selectedIds.length > 0
                       ? showSelectedOnly
-                        ? 'border-sky-300/70 bg-sky-300/20 text-sky-100'
-                        : 'border-sky-300/70 bg-sky-300/10 text-sky-200 hover:bg-sky-300/20'
-                      : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
+                        ? SELECT_TOGGLE_ACTIVE_CLASS
+                        : SELECT_TOGGLE_INACTIVE_CLASS
+                      : SELECT_BUTTON_DISABLED_CLASS
                   }`}
                 >
                   {showSelectedOnly ? 'SHOW ALL' : 'SHOW SELECTED'}
@@ -643,10 +668,8 @@ function DirectorConsole() {
                   type="button"
                   disabled={selectedIds.length === 0}
                   onClick={() => applyBulkVisibility(true)}
-                  className={`rounded-md border px-3 py-1.5 text-xs tracking-[0.1em] transition ${
-                    selectedIds.length > 0
-                      ? 'border-emerald-300/70 bg-emerald-300/10 text-emerald-200 hover:bg-emerald-300/20'
-                      : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
+                  className={`${BULK_BUTTON_BASE_CLASS} ${
+                    selectedIds.length > 0 ? BULK_SHOW_CLASS : BULK_BUTTON_DISABLED_CLASS
                   }`}
                 >
                   BULK SHOW
@@ -655,10 +678,8 @@ function DirectorConsole() {
                   type="button"
                   disabled={selectedIds.length === 0}
                   onClick={() => applyBulkVisibility(false)}
-                  className={`rounded-md border px-3 py-1.5 text-xs tracking-[0.1em] transition ${
-                    selectedIds.length > 0
-                      ? 'border-amber-300/70 bg-amber-300/10 text-amber-200 hover:bg-amber-300/20'
-                      : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
+                  className={`${BULK_BUTTON_BASE_CLASS} ${
+                    selectedIds.length > 0 ? BULK_HIDE_CLASS : BULK_BUTTON_DISABLED_CLASS
                   }`}
                 >
                   BULK HIDE
@@ -667,10 +688,8 @@ function DirectorConsole() {
                   type="button"
                   disabled={selectedIds.length === 0}
                   onClick={() => applyBulkPublishStatus('Published')}
-                  className={`rounded-md border px-3 py-1.5 text-xs tracking-[0.1em] transition ${
-                    selectedIds.length > 0
-                      ? 'border-sky-300/70 bg-sky-300/10 text-sky-200 hover:bg-sky-300/20'
-                      : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
+                  className={`${BULK_BUTTON_BASE_CLASS} ${
+                    selectedIds.length > 0 ? BULK_PUBLISH_CLASS : BULK_BUTTON_DISABLED_CLASS
                   }`}
                 >
                   BULK PUBLISH
@@ -679,10 +698,8 @@ function DirectorConsole() {
                   type="button"
                   disabled={selectedIds.length === 0}
                   onClick={() => applyBulkPublishStatus('Draft')}
-                  className={`rounded-md border px-3 py-1.5 text-xs tracking-[0.1em] transition ${
-                    selectedIds.length > 0
-                      ? 'border-purple-300/70 bg-purple-300/10 text-purple-200 hover:bg-purple-300/20'
-                      : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
+                  className={`${BULK_BUTTON_BASE_CLASS} ${
+                    selectedIds.length > 0 ? BULK_DRAFT_CLASS : BULK_BUTTON_DISABLED_CLASS
                   }`}
                 >
                   BULK DRAFT
@@ -758,10 +775,8 @@ function DirectorConsole() {
                   type="button"
                   disabled={currentPage <= 1}
                   onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                  className={`rounded-md border px-3 py-1.5 text-xs tracking-[0.1em] transition ${
-                    currentPage > 1
-                      ? 'border-zinc-600 bg-zinc-900 text-zinc-200 hover:border-zinc-400'
-                      : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
+                  className={`${PAGE_BUTTON_BASE_CLASS} ${
+                    currentPage > 1 ? PAGE_BUTTON_ENABLED_CLASS : PAGE_BUTTON_DISABLED_CLASS
                   }`}
                 >
                   PREV
@@ -770,10 +785,8 @@ function DirectorConsole() {
                   type="button"
                   disabled={currentPage >= totalPages}
                   onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                  className={`rounded-md border px-3 py-1.5 text-xs tracking-[0.1em] transition ${
-                    currentPage < totalPages
-                      ? 'border-zinc-600 bg-zinc-900 text-zinc-200 hover:border-zinc-400'
-                      : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
+                  className={`${PAGE_BUTTON_BASE_CLASS} ${
+                    currentPage < totalPages ? PAGE_BUTTON_ENABLED_CLASS : PAGE_BUTTON_DISABLED_CLASS
                   }`}
                 >
                   NEXT

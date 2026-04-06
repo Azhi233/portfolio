@@ -78,8 +78,7 @@ function ColorGradeViewer({ shutterPulseSignal = 0, onGradeChange }) {
     };
   }, []);
 
-  const handleGradeChange = async (gradeId) => {
-    // TODO: Play Cinematic SFX here
+  const handleGradeChange = (gradeId) => {
     setActiveGrade(gradeId);
     const gradeLabel = GRADE_OPTIONS.find((item) => item.id === gradeId)?.label ?? gradeId;
     onGradeChange?.(gradeLabel);
@@ -168,7 +167,7 @@ function ColorGradeViewer({ shutterPulseSignal = 0, onGradeChange }) {
               key={grade.id}
               type="button"
               onClick={() => {
-                void handleGradeChange(grade.id);
+                handleGradeChange(grade.id);
               }}
               className={`rounded-full border px-3 py-1.5 text-xs tracking-[0.08em] transition ${
                 isActive

@@ -109,9 +109,8 @@ function AspectRatioToggle({
     };
   }, [cycleMs, isAutoCycling, isMobileLocked, onRatioChange, onShutterPulse]);
 
-  const handleSwitchRatio = async (ratioId) => {
+  const handleSwitchRatio = (ratioId) => {
     if (isMobileLocked || ratioId === activeRatio) return;
-    // TODO: Play Cinematic SFX here
     setIsAutoCycling(false);
     setActiveRatio(ratioId);
     setSwitchTick((value) => value + 1);

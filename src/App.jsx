@@ -1,4 +1,5 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
+import { useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import NavBar from './components/NavBar.jsx';
 import Home from './pages/Home.jsx';
@@ -29,6 +30,10 @@ function App() {
 
   const isLab = location.pathname.startsWith('/lab');
   const isProjectDetail = location.pathname.startsWith('/project/');
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [location.pathname]);
 
   return (
     <>
