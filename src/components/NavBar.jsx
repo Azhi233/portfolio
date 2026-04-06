@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 const NAV_ITEMS = [
   { label: 'HOME', to: '/' },
@@ -25,6 +25,12 @@ function NavBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const navRef = useRef(null);
   const location = useLocation();
+
+  const handleNav = (to) => {
+    if (window.location.pathname !== to) {
+      window.location.href = to;
+    }
+  };
 
 
   useEffect(() => {
@@ -82,9 +88,9 @@ function NavBar() {
 
               return (
                 <li key={item.to}>
-                  <NavLink
-                    to={item.to}
-                    end={item.to === '/'}
+                  <button
+                    type="button"
+                    onClick={() => handleNav(item.to)}
                     className={`${NAV_LINK_BASE_CLASS} ${isActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS}`}
                   >
                     <span className="relative z-10">{item.label}</span>
@@ -93,7 +99,7 @@ function NavBar() {
                         isActive ? 'scale-x-100' : 'scale-x-0 group-hover/nav:scale-x-100'
                       }`}
                     />
-                  </NavLink>
+                  </button>
                 </li>
               );
             })}
@@ -121,10 +127,12 @@ function NavBar() {
 
                 return (
                   <li key={`mobile-${item.to}`}>
-                    <NavLink
-                      to={item.to}
-                      end={item.to === '/'}
-                      onClick={() => setMobileOpen(false)}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileOpen(false);
+                        handleNav(item.to);
+                      }}
                       className={`block w-full touch-manipulation rounded-lg px-3 py-2 text-left text-xs tracking-[0.16em] transition ${
                         isActive
                           ? 'bg-white/10 text-zinc-100'
@@ -132,7 +140,7 @@ function NavBar() {
                       }`}
                     >
                       {item.label}
-                    </NavLink>
+                    </button>
                   </li>
                 );
               })}
