@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  background: #050507;
+}
+
+body {
+  font-family: 'Times New Roman', 'Songti SC', 'Noto Serif SC', Georgia, Cambria, serif;
+  color: #f4f4f5;
+}
+
+@layer utilities {
+  .column-scroll {
+    animation-name: wall-scroll;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    will-change: transform;
+  }
+
+  .column-speed-1 {
+    animation-duration: 132s;
+  }
+
+  .column-speed-2 {
+    animation-duration: 118s;
+  }
+
+  .column-speed-3 {
+    animation-duration: 142s;
+  }
+
+  .column-speed-4 {
+    animation-duration: 126s;
+  }
+
+  .column-scroll.paused,
+  .grain-drift-1.paused,
+  .grain-drift-2.paused,
+  .grain-drift-3.paused,
+  .grain-drift-4.paused {
+    animation-play-state: paused;
+  }
+
+  .grain-drift-1,
+  .grain-drift-2,
+  .grain-drift-3,
+  .grain-drift-4 {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.4) 0.5px, transparent 0.6px);
+    background-size: 3px 3px;
+    background-repeat: repeat;
+    will-change: transform;
+  }
+
+  .grain-drift-1 {
+    animation: grain-drift-1 24s linear infinite;
+  }
+
+  .grain-drift-2 {
+    animation: grain-drift-2 31s linear infinite;
+  }
+
+  .grain-drift-3 {
+    animation: grain-drift-3 27s linear infinite;
+  }
+
+  .grain-drift-4 {
+    animation: grain-drift-4 35s linear infinite;
+  }
+}
+
+@keyframes wall-scroll {
+  0% {
+    transform: translateY(0%);
+  }
+
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes grain-drift-1 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  100% {
+    transform: translate3d(-10px, -24px, 0) scale(1.03);
+  }
+}
+
+@keyframes grain-drift-2 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  100% {
+    transform: translate3d(8px, -18px, 0) scale(1.02);
+  }
+}
+
+@keyframes grain-drift-3 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  100% {
+    transform: translate3d(-6px, -22px, 0) scale(1.025);
+  }
+}
+
+@keyframes grain-drift-4 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  100% {
+    transform: translate3d(10px, -20px, 0) scale(1.03);
+  }
+}
