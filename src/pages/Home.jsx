@@ -1,14 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Cpu } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import CinematicMasonry from '../components/CinematicMasonry.jsx';
 import { useConfig } from '../context/ConfigContext.jsx';
 
 const STAGE_DURATION_MS = 2000;
 
 function Home() {
-  const { projects } = useConfig();
+  const { projects, config } = useConfig();
 
   const [showIntro, setShowIntro] = useState(() => {
     if (typeof window === 'undefined') return true;
@@ -40,6 +38,33 @@ function Home() {
   );
 
   const wallProjects = featuredProjects.length > 0 ? featuredProjects : visibleProjects;
+
+  const awards = useMemo(
+    () =>
+      String(config.resumeAwardsText || '')
+        .split('\n')
+        .map((item) => item.trim())
+        .filter(Boolean),
+    [config.resumeAwardsText],
+  );
+
+  const experiences = useMemo(
+    () =>
+      String(config.resumeExperienceText || '')
+        .split('\n')
+        .map((item) => item.trim())
+        .filter(Boolean),
+    [config.resumeExperienceText],
+  );
+
+  const gearList = useMemo(
+    () =>
+      String(config.resumeGearText || '')
+        .split('\n')
+        .map((item) => item.trim())
+        .filter(Boolean),
+    [config.resumeGearText],
+  );
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#050507] pt-16 text-zinc-100">
@@ -106,18 +131,57 @@ function Home() {
                 用统一的电影化语言去建立节奏：克制的构图、缓慢的运动、精准的色温与材质表达。每一个镜头，
                 都是对时间和质感的一次再编排。
               </p>
+
+              <div className="mt-8 grid gap-5 md:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-xs tracking-[0.2em] text-zinc-500">AWARDS</p>
+                  {awards.length > 0 ? (
+                    <ul className="mt-3 space-y-2 text-xs leading-relaxed text-zinc-300">
+                      {awards.map((item) => (
+                        <li key={item}>• {item}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-3 text-xs text-zinc-500">No awards data yet.</p>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-xs tracking-[0.2em] text-zinc-500">EXPERIENCE</p>
+                  {experiences.length > 0 ? (
+                    <ul className="mt-3 space-y-2 text-xs leading-relaxed text-zinc-300">
+                      {experiences.map((item) => (
+                        <li key={item}>• {item}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-3 text-xs text-zinc-500">No experience data yet.</p>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-xs tracking-[0.2em] text-zinc-500">GEAR LIST</p>
+                  {gearList.length > 0 ? (
+                    <ul className="mt-3 space-y-2 text-xs leading-relaxed text-zinc-300">
+                      {gearList.map((item) => (
+                        <li key={item}>• {item}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-3 text-xs text-zinc-500">No gear data yet.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-wrap items-center gap-4 text-xs tracking-[0.12em] text-zinc-400">
+                {config.contactEmail ? <p>Email: {config.contactEmail}</p> : null}
+                {config.contactPhone ? <p>Phone: {config.contactPhone}</p> : null}
+                {config.contactLocation ? <p>Location: {config.contactLocation}</p> : null}
+              </div>
             </div>
           </div>
         </section>
       </motion.main>
-
-      <Link
-        to="/console"
-        aria-label="前往后端控制台"
-        className="fixed bottom-5 left-5 z-40 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-zinc-900/75 text-zinc-200 shadow-[0_8px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:border-white/30 hover:bg-zinc-800/85 hover:text-white"
-      >
-        <Cpu size={16} strokeWidth={2.1} />
-      </Link>
     </div>
   );
 }

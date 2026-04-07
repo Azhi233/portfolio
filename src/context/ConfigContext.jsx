@@ -8,10 +8,19 @@ const DEFAULT_CONFIG = {
   filmGrainOpacity: 0.03,
   spotlightRadius: 600,
   showHUD: true,
+  siteTitle: 'DIRECTOR.VISION',
+  siteDescription: 'Cinematic portfolio showcasing toys, industrial, and experimental visual storytelling.',
+  ogImage: '',
+  contactEmail: '',
+  contactPhone: '',
+  contactLocation: '',
+  resumeAwardsText: '',
+  resumeExperienceText: '',
+  resumeGearText: '',
 };
 
 const VALID_CATEGORIES = ['Toys', 'Industrial', 'Misc'];
-const VALID_PUBLISH_STATUS = ['Draft', 'Published'];
+const VALID_PUBLISH_STATUS = ['Draft', 'Published', 'Private'];
 
 const DEFAULT_PROJECTS = [
   {
@@ -77,18 +86,36 @@ function normalizeSortOrder(value) {
 }
 
 function normalizeProject(project) {
+  const normalizedPublishStatus = VALID_PUBLISH_STATUS.includes(project?.publishStatus)
+    ? project.publishStatus
+    : project?.isVisible === false
+      ? 'Draft'
+      : 'Published';
+
+  const visibility = VALID_PUBLISH_STATUS.includes(project?.visibility)
+    ? project.visibility
+    : normalizedPublishStatus;
+
   return {
     id: String(project?.id || ''),
     title: String(project?.title || 'Untitled Project'),
     category: VALID_CATEGORIES.includes(project?.category) ? project.category : 'Misc',
-    coverUrl: String(project?.coverUrl || ''),
-    videoUrl: String(project?.videoUrl || ''),
+    role: String(project?.role || ''),
+    releaseDate: String(project?.releaseDate || ''),
+    coverUrl: String(project?.coverUrl || project?.thumbnailUrl || ''),
+    thumbnailUrl: String(project?.thumbnailUrl || project?.coverUrl || ''),
+    videoUrl: String(project?.videoUrl || project?.mainVideoUrl || ''),
+    mainVideoUrl: String(project?.mainVideoUrl || project?.videoUrl || ''),
+    btsMedia: Array.isArray(project?.btsMedia) ? project.btsMedia.map((item) => String(item || '')) : [],
+    clientAgency: String(project?.clientAgency || ''),
     isFeatured: Boolean(project?.isFeatured),
     sortOrder: normalizeSortOrder(project?.sortOrder),
     description: String(project?.description || ''),
     credits: String(project?.credits || ''),
-    isVisible: project?.isVisible !== undefined ? Boolean(project.isVisible) : true,
-    publishStatus: VALID_PUBLISH_STATUS.includes(project?.publishStatus) ? project.publishStatus : 'Published',
+    isVisible: visibility !== 'Draft',
+    publishStatus: normalizedPublishStatus,
+    visibility,
+    accessPassword: String(project?.accessPassword || ''),
   };
 }
 
@@ -155,14 +182,22 @@ export function ConfigProvider({ children }) {
         id: createProjectId(),
         title: projectInput.title?.trim() || 'Untitled Project',
         category: projectInput.category || 'Misc',
+        role: projectInput.role?.trim() || '',
+        releaseDate: projectInput.releaseDate || '',
         coverUrl: projectInput.coverUrl?.trim() || '',
+        thumbnailUrl: projectInput.thumbnailUrl?.trim() || projectInput.coverUrl?.trim() || '',
         videoUrl: projectInput.videoUrl?.trim() || '',
+        mainVideoUrl: projectInput.mainVideoUrl?.trim() || projectInput.videoUrl?.trim() || '',
+        btsMedia: Array.isArray(projectInput.btsMedia) ? projectInput.btsMedia : [],
+        clientAgency: projectInput.clientAgency?.trim() || '',
         isFeatured: Boolean(projectInput.isFeatured),
         sortOrder: projectInput.sortOrder,
         description: projectInput.description?.trim() || '',
         credits: projectInput.credits?.trim() || '',
         isVisible: projectInput.isVisible !== undefined ? projectInput.isVisible : true,
         publishStatus: projectInput.publishStatus || 'Draft',
+        visibility: projectInput.visibility || projectInput.publishStatus || 'Draft',
+        accessPassword: projectInput.accessPassword?.trim() || '',
       }),
     ]);
   };

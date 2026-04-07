@@ -1,60 +1,40 @@
-import { useEffect, useRef, useState } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion, useScroll } from 'framer-motion';
+import { ChevronUp, Cpu } from 'lucide-react';
+import {
+  Chart as ChartJS,
+  RadialLinearScale,
+  PointElement,
+  LineElement,
+  Filler,
+  Tooltip,
+  Legend,
+} from 'chart.js';
 import SpotlightBackground from '../../components/SpotlightBackground.jsx';
+import BreakdownTab from '../../components/interactive-lab/BreakdownTab.jsx';
+import PreprodTab from '../../components/interactive-lab/PreprodTab.jsx';
+import AnalysisTab from '../../components/interactive-lab/AnalysisTab.jsx';
+import DepthIntroText from '../../components/interactive-lab/DepthIntroText.jsx';
+import { MASTERCLASS_TABS } from '../../components/interactive-lab/constants.js';
 import ParallaxDepthEffect from '../../components/ParallaxDepthEffect.jsx';
 import ColorGradeViewer from '../../components/ColorGradeViewer.jsx';
 import AspectRatioToggle from '../../components/AspectRatioToggle.jsx';
 import CinematicMoodBoard from '../../components/CinematicMoodBoard.jsx';
 import { useConfig } from '../../context/ConfigContext.jsx';
 
-function DepthIntroText() {
-  const { scrollY } = useScroll();
+ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
-  const farY = useTransform(scrollY, [0, 900], [0, 80]);
-  const midY = useTransform(scrollY, [0, 900], [0, 150]);
-  const nearY = useTransform(scrollY, [0, 900], [0, 240]);
 
-  const farScale = useTransform(scrollY, [0, 900], [0.9, 0.98]);
-  const midScale = useTransform(scrollY, [0, 900], [1, 1.06]);
-  const nearScale = useTransform(scrollY, [0, 900], [1.12, 1.24]);
-
-  return (
-    <section className="px-1 py-2 md:py-4">
-      <p className="text-xs tracking-[0.26em] text-zinc-500">DEPTH DEMO · SCROLL TEST</p>
-      <div className="relative mt-4 h-64 overflow-hidden md:h-[30rem]">
-        <motion.p
-          style={{ y: farY, scale: farScale }}
-          className="absolute left-0 top-8 font-serif text-xl tracking-[0.08em] text-zinc-600 md:text-3xl"
-        >
-          FAR FIELD / 远景层（慢速 · 小）
-        </motion.p>
-
-        <motion.p
-          style={{ y: midY, scale: midScale }}
-          className="absolute left-4 top-24 font-serif text-3xl tracking-[0.08em] text-zinc-300 md:left-12 md:text-5xl"
-        >
-          MID SUBJECT / 中景层（中速 · 中）
-        </motion.p>
-
-        <motion.p
-          style={{ y: nearY, scale: nearScale }}
-          className="absolute left-8 top-44 font-serif text-4xl tracking-[0.08em] text-zinc-100 md:left-24 md:text-7xl"
-        >
-          NEAR FOREGROUND / 前景层（快速 · 大）
-        </motion.p>
-      </div>
-      <p className="mt-3 text-sm leading-relaxed text-zinc-300">
-        向下滚动时，三行文字将以不同速度与尺度变化运动，直观看到“近大远小 + 速度差”的景深层级关系。
-      </p>
-    </section>
-  );
-}
 
 function InteractiveLab() {
   const [shutterPulseSignal, setShutterPulseSignal] = useState(0);
   const [focusTight, setFocusTight] = useState(false);
   const { config } = useConfig();
   const [hudVisible, setHudVisible] = useState(config.showHUD);
+  const [showConsoleFab, setShowConsoleFab] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const [activeTab, setActiveTab] = useState('breakdown');
+  const [sliderPos, setSliderPos] = useState(50);
   const [hudData, setHudData] = useState({
     ratio: '4:3 古典',
     grade: 'Film Look (二级/风格化)',
@@ -87,6 +67,21 @@ function InteractiveLab() {
     setHudVisible(config.showHUD);
   }, [config.showHUD]);
 
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY;
+      setShowConsoleFab(y > 280);
+      setShowBackToTop(y > 620);
+    };
+
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+    };
+  }, []);
+
   const triggerShutterPulse = () => {
     setShutterPulseSignal((value) => value + 1);
   };
@@ -99,6 +94,66 @@ function InteractiveLab() {
     };
     setHudData((prev) => ({ ...prev, ratio: map[ratioId] ?? ratioId }));
   };
+
+  const radarData = useMemo(
+    () => ({
+      labels: ['机器操作/执行', '视觉审美', '后期工业化', '项目统筹', '前期策划/叙事'],
+      datasets: [
+        {
+          label: '高阶架构 (The Director)',
+          data: [90, 95, 85, 80, 90],
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          borderColor: 'rgba(255, 255, 255, 1)',
+          pointBackgroundColor: 'rgba(255, 255, 255, 1)',
+          borderWidth: 2,
+        },
+        {
+          label: '传统视频展示 (The Operator)',
+          data: [85, 85, 50, 40, 45],
+          backgroundColor: 'rgba(100, 100, 100, 0.2)',
+          borderColor: 'rgba(100, 100, 100, 0.5)',
+          borderWidth: 1,
+          borderDash: [5, 5],
+        },
+      ],
+    }),
+    [],
+  );
+
+  const radarOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        r: {
+          angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+          grid: { color: 'rgba(255, 255, 255, 0.1)' },
+          pointLabels: {
+            color: 'rgba(255, 255, 255, 0.7)',
+            font: { size: 12, family: 'serif' },
+          },
+          ticks: { display: false, min: 0, max: 100 },
+        },
+      },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: 'rgba(255, 255, 255, 0.8)',
+            padding: 20,
+            font: { family: 'serif' },
+          },
+        },
+      },
+    }),
+    [],
+  );
+
+  const masterclassTabs = [
+    { id: 'breakdown', label: '01. 交互式拉片室 (Breakdown)' },
+    { id: 'preprod', label: '02. 导演前制台 (Pre-Prod)' },
+    { id: 'analysis', label: '03. 核心竞争力矩阵 (Analysis)' },
+  ];
 
   return (
     <div className="relative min-h-screen bg-[#040507] pt-20 text-zinc-100">
@@ -215,7 +270,95 @@ function InteractiveLab() {
             />
           </div>
         </ParallaxDepthEffect>
+
+        {/* =========================================
+            新增模块：高阶能力 Tab 导航
+           ========================================= */}
+        <section className="mt-40 border-t border-gray-800 pt-16">
+          <div className="mb-12">
+            <h2 className="font-serif text-3xl text-white md:text-4xl">The Masterclass</h2>
+            <p className="text-gray-400">超越单纯的视频展示。向面试官立体地展示你的底层逻辑、前制能力与工业化水准。</p>
+          </div>
+
+          {/* Tab 导航 */}
+          <nav className="hide-scrollbar mb-12 flex gap-8 overflow-x-auto border-b border-gray-800 pb-px md:gap-12">
+            {masterclassTabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`whitespace-nowrap border-b-2 pb-4 font-serif text-lg transition-colors duration-300 md:text-xl ${
+                  activeTab === tab.id
+                    ? 'border-white text-white'
+                    : 'border-transparent text-gray-600 hover:text-gray-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+
+          {/* Tab 内容区 */}
+          <div className="min-h-[500px]">
+            {/* 1. 拉片室 */}
+            {activeTab === 'breakdown' && <BreakdownTab sliderPos={sliderPos} setSliderPos={setSliderPos} />}
+
+            {/* 2. 前制台 */}
+            {activeTab === 'preprod' && <PreprodTab />}
+
+            {/* 3. 竞争力雷达图 */}
+            {activeTab === 'analysis' && <AnalysisTab radarData={radarData} radarOptions={radarOptions} />}
+          </div>
+        </section>
       </main>
+
+      <AnimatePresence>
+        {showConsoleFab ? (
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.9, filter: 'blur(6px)' }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, y: 10, scale: 0.94, filter: 'blur(4px)' }}
+            transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed bottom-5 left-5 z-[90]"
+          >
+            <motion.div
+              animate={{ boxShadow: ['0 0 0 rgba(34,211,238,0)', '0 0 18px rgba(34,211,238,0.22)', '0 0 0 rgba(34,211,238,0)'] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+              className="rounded-full"
+            >
+              <button
+                type="button"
+                onClick={() => window.location.assign('/console')}
+                aria-label="前往后端控制台"
+                className="pointer-events-auto touch-manipulation inline-flex h-10 w-10 items-center justify-center rounded-full border border-cyan-100/25 bg-zinc-900/78 text-zinc-100 shadow-[0_8px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:border-cyan-100/45 hover:bg-zinc-800/88 hover:text-white"
+              >
+                <Cpu size={16} strokeWidth={2.1} />
+              </button>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showBackToTop ? (
+          <motion.button
+            type="button"
+            initial={{ opacity: 0, y: 14, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.94 }}
+            transition={{ duration: 0.26, ease: 'easeOut' }}
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="fixed bottom-5 right-5 z-[90] inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/55 text-zinc-200 shadow-[0_10px_26px_rgba(0,0,0,0.35)] backdrop-blur-sm transition hover:scale-105 hover:border-white/35 hover:text-white"
+            aria-label="返回顶部"
+          >
+            <ChevronUp size={16} strokeWidth={2.2} />
+          </motion.button>
+        ) : null}
+      </AnimatePresence>
+
+      <motion.div
+        style={{ scaleX: scrollYProgress }}
+        className="pointer-events-none fixed bottom-0 left-0 right-0 z-[95] h-[2px] origin-left bg-gradient-to-r from-cyan-300/85 via-sky-300/75 to-indigo-300/80"
+      />
     </div>
   );
 }

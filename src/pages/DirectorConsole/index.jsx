@@ -1,20 +1,30 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useConfig } from '../../context/ConfigContext.jsx';
+import { clearAnalytics, getAnalyticsSnapshot, trackEvent } from '../../utils/analytics.js';
 
-const PROJECT_CATEGORIES = ['Toys', 'Industrial', 'Misc'];
+const PROJECT_CATEGORIES = ['TVC', '纪录片', 'MV', '实验短片', 'Toys', 'Industrial', 'Misc'];
 const FILTER_CATEGORIES = ['All', ...PROJECT_CATEGORIES];
-const STATUS_OPTIONS = ['Draft', 'Published'];
+const STATUS_OPTIONS = ['Draft', 'Published', 'Private'];
 const FILTER_STATUS = ['All', ...STATUS_OPTIONS];
+const ROLE_OPTIONS = ['DOP', '导演', '调色师', '摄影指导', '剪辑'];
 const ITEMS_PER_PAGE = 6;
+const ANALYTICS_TIME_RANGE_OPTIONS = ['today', '7d', '30d', 'all'];
+const ANALYTICS_METRIC_OPTIONS = ['page_view', 'video_play_clicked', 'video_watch_duration', 'layout_changed', 'theme_or_settings_changed'];
+const ANALYTICS_COMPARE_OPTIONS = ['none', ...ANALYTICS_METRIC_OPTIONS];
 
 const AUTH_SESSION_KEY = 'director_auth_session';
 const DIRECTOR_CONSOLE_PASSWORD = 'zhizhi233';
 
 const EMPTY_FORM = {
   title: '',
-  category: 'Toys',
+  category: 'TVC',
+  role: 'DOP',
+  releaseDate: '',
   coverUrl: '',
   videoUrl: '',
+  btsMediaText: '',
+  clientAgency: '',
+  accessPassword: '',
   isFeatured: false,
   isVisible: true,
   sortOrder: 0,
@@ -138,7 +148,32 @@ function ProjectForm({ mode, formState, onChange, onSubmit, onCancel }) {
         </label>
 
         <label className="block">
-          <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Publish Status</p>
+          <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Role</p>
+          <select
+            value={formState.role}
+            onChange={(event) => onChange('role', event.target.value)}
+            className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-400 transition focus:ring-2"
+          >
+            {ROLE_OPTIONS.map((role) => (
+              <option key={role} value={role}>
+                {role}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block">
+          <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Release Date</p>
+          <input
+            type="date"
+            value={formState.releaseDate}
+            onChange={(event) => onChange('releaseDate', event.target.value)}
+            className={FORM_INPUT_CLASS}
+          />
+        </label>
+
+        <label className="block">
+          <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Visibility</p>
           <select
             value={formState.publishStatus}
             onChange={(event) => onChange('publishStatus', event.target.value)}
@@ -174,7 +209,7 @@ function ProjectForm({ mode, formState, onChange, onSubmit, onCancel }) {
         </label>
 
         <label className="block md:col-span-2">
-          <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Video URL</p>
+          <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Main Video URL</p>
           <input
             value={formState.videoUrl}
             onChange={(event) => onChange('videoUrl', event.target.value)}
@@ -182,6 +217,38 @@ function ProjectForm({ mode, formState, onChange, onSubmit, onCancel }) {
             placeholder="https://vimeo.com/..."
           />
         </label>
+
+        <label className="block md:col-span-2">
+          <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Client / Agency</p>
+          <input
+            value={formState.clientAgency}
+            onChange={(event) => onChange('clientAgency', event.target.value)}
+            className={FORM_INPUT_CLASS}
+            placeholder="Client / Agency name"
+          />
+        </label>
+
+        <label className="block md:col-span-2">
+          <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">BTS Media (one URL per line)</p>
+          <textarea
+            value={formState.btsMediaText}
+            onChange={(event) => onChange('btsMediaText', event.target.value)}
+            className={FORM_TEXTAREA_CLASS}
+            placeholder="https://.../bts-1.jpg&#10;https://.../bts-2.mp4"
+          />
+        </label>
+
+        {formState.publishStatus === 'Private' ? (
+          <label className="block md:col-span-2">
+            <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Access Password</p>
+            <input
+              value={formState.accessPassword}
+              onChange={(event) => onChange('accessPassword', event.target.value)}
+              className={FORM_INPUT_CLASS}
+              placeholder="Set password for private access"
+            />
+          </label>
+        ) : null}
 
         <div className="grid gap-3 md:col-span-2 md:grid-cols-2">
           <ToggleField
@@ -246,7 +313,17 @@ function DirectorConsole() {
   const [passwordInput, setPasswordInput] = useState('');
   const [authError, setAuthError] = useState('');
 
-  const [activeTab, setActiveTab] = useState('settings');
+  const [activeTab, setActiveTab] = useState('projects');
+  const [analyticsSnapshot, setAnalyticsSnapshot] = useState(() => getAnalyticsSnapshot());
+  const [analyticsTimeRange, setAnalyticsTimeRange] = useState('7d');
+  const [analyticsEventType, setAnalyticsEventType] = useState('all');
+  const [analyticsChartMetric, setAnalyticsChartMetric] = useState('page_view');
+  const [analyticsCompareMetric, setAnalyticsCompareMetric] = useState('none');
+  const [showMetricA, setShowMetricA] = useState(true);
+  const [showMetricB, setShowMetricB] = useState(true);
+  const [analyticsHoverIndex, setAnalyticsHoverIndex] = useState(null);
+  const [analyticsSearchQuery, setAnalyticsSearchQuery] = useState('');
+  const [analyticsAutoRefresh, setAnalyticsAutoRefresh] = useState('off');
   const [formMode, setFormMode] = useState('create');
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [formState, setFormState] = useState(EMPTY_FORM);
@@ -257,6 +334,34 @@ function DirectorConsole() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState([]);
   const [showSelectedOnly, setShowSelectedOnly] = useState(false);
+  const [projectViewMode, setProjectViewMode] = useState('card');
+  const [privateFilterMode, setPrivateFilterMode] = useState('all');
+  const [settingsDraft, setSettingsDraft] = useState(() => ({
+    vignetteIntensity: config.vignetteIntensity,
+    filmGrainOpacity: config.filmGrainOpacity,
+    spotlightRadius: config.spotlightRadius,
+    showHUD: config.showHUD,
+  }));
+  const [siteConfigDraft, setSiteConfigDraft] = useState(() => ({
+    siteTitle: config.siteTitle || 'DIRECTOR.VISION',
+    siteDescription: config.siteDescription || '',
+    ogImage: config.ogImage || '',
+    contactEmail: config.contactEmail || '',
+    contactPhone: config.contactPhone || '',
+    contactLocation: config.contactLocation || '',
+    resumeAwardsText: config.resumeAwardsText || '',
+    resumeExperienceText: config.resumeExperienceText || '',
+    resumeGearText: config.resumeGearText || '',
+  }));
+  const [introProjectId, setIntroProjectId] = useState('');
+  const [introDraft, setIntroDraft] = useState({
+    title: '',
+    description: '',
+    credits: '',
+    role: '',
+    clientAgency: '',
+  });
+  const [introHistory, setIntroHistory] = useState([]);
 
   const sortedProjects = useMemo(
     () => [...projects].sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0)),
@@ -270,9 +375,16 @@ function DirectorConsole() {
       const matchCategory = categoryFilter === 'All' || project.category === categoryFilter;
       const matchStatus = statusFilter === 'All' || project.publishStatus === statusFilter;
       const matchKeyword = !keyword || project.title.toLowerCase().includes(keyword);
-      return matchCategory && matchStatus && matchKeyword;
+      const isPrivate = project.publishStatus === 'Private';
+      const matchPrivateMode =
+        privateFilterMode === 'all'
+          ? true
+          : privateFilterMode === 'private_only'
+            ? isPrivate
+            : !isPrivate;
+      return matchCategory && matchStatus && matchKeyword && matchPrivateMode;
     });
-  }, [sortedProjects, categoryFilter, statusFilter, searchQuery]);
+  }, [sortedProjects, categoryFilter, statusFilter, searchQuery, privateFilterMode]);
 
   const displayProjects = useMemo(() => {
     if (!showSelectedOnly) return filteredProjects;
@@ -287,6 +399,23 @@ function DirectorConsole() {
 
   const totalPages = Math.max(1, Math.ceil(displayProjects.length / ITEMS_PER_PAGE));
 
+  const hasUnsavedSettings =
+    Number(settingsDraft.vignetteIntensity) !== Number(config.vignetteIntensity) ||
+    Number(settingsDraft.filmGrainOpacity) !== Number(config.filmGrainOpacity) ||
+    Number(settingsDraft.spotlightRadius) !== Number(config.spotlightRadius) ||
+    Boolean(settingsDraft.showHUD) !== Boolean(config.showHUD);
+
+  const hasUnsavedSiteConfig =
+    String(siteConfigDraft.siteTitle || '') !== String(config.siteTitle || '') ||
+    String(siteConfigDraft.siteDescription || '') !== String(config.siteDescription || '') ||
+    String(siteConfigDraft.ogImage || '') !== String(config.ogImage || '') ||
+    String(siteConfigDraft.contactEmail || '') !== String(config.contactEmail || '') ||
+    String(siteConfigDraft.contactPhone || '') !== String(config.contactPhone || '') ||
+    String(siteConfigDraft.contactLocation || '') !== String(config.contactLocation || '') ||
+    String(siteConfigDraft.resumeAwardsText || '') !== String(config.resumeAwardsText || '') ||
+    String(siteConfigDraft.resumeExperienceText || '') !== String(config.resumeExperienceText || '') ||
+    String(siteConfigDraft.resumeGearText || '') !== String(config.resumeGearText || '');
+
   useEffect(() => {
     setCurrentPage(1);
   }, [categoryFilter, statusFilter, searchQuery, showSelectedOnly]);
@@ -296,6 +425,44 @@ function DirectorConsole() {
       setCurrentPage(totalPages);
     }
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    if (activeTab !== 'settings') return;
+
+    setSettingsDraft({
+      vignetteIntensity: config.vignetteIntensity,
+      filmGrainOpacity: config.filmGrainOpacity,
+      spotlightRadius: config.spotlightRadius,
+      showHUD: config.showHUD,
+    });
+  }, [activeTab, config.vignetteIntensity, config.filmGrainOpacity, config.spotlightRadius, config.showHUD]);
+
+  useEffect(() => {
+    if (activeTab !== 'siteConfig') return;
+
+    setSiteConfigDraft({
+      siteTitle: config.siteTitle || 'DIRECTOR.VISION',
+      siteDescription: config.siteDescription || '',
+      ogImage: config.ogImage || '',
+      contactEmail: config.contactEmail || '',
+      contactPhone: config.contactPhone || '',
+      contactLocation: config.contactLocation || '',
+      resumeAwardsText: config.resumeAwardsText || '',
+      resumeExperienceText: config.resumeExperienceText || '',
+      resumeGearText: config.resumeGearText || '',
+    });
+  }, [
+    activeTab,
+    config.siteTitle,
+    config.siteDescription,
+    config.ogImage,
+    config.contactEmail,
+    config.contactPhone,
+    config.contactLocation,
+    config.resumeAwardsText,
+    config.resumeExperienceText,
+    config.resumeGearText,
+  ]);
 
   useEffect(() => {
     setSelectedIds((prev) => prev.filter((id) => filteredProjects.some((project) => project.id === id)));
@@ -311,6 +478,258 @@ function DirectorConsole() {
   const allFilteredSelected =
     filteredProjects.length > 0 && filteredProjects.every((project) => selectedIds.includes(project.id));
 
+  const introTargetProject = useMemo(
+    () => sortedProjects.find((project) => project.id === introProjectId) || null,
+    [sortedProjects, introProjectId],
+  );
+
+  const hasUnsavedIntro = Boolean(
+    introTargetProject &&
+      (String(introDraft.title || '') !== String(introTargetProject.title || '') ||
+        String(introDraft.description || '') !== String(introTargetProject.description || '') ||
+        String(introDraft.credits || '') !== String(introTargetProject.credits || '') ||
+        String(introDraft.role || '') !== String(introTargetProject.role || '') ||
+        String(introDraft.clientAgency || '') !== String(introTargetProject.clientAgency || '')),
+  );
+
+  const analyticsRangeStart = useMemo(() => {
+    const now = Date.now();
+    if (analyticsTimeRange === 'today') {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      return d.getTime();
+    }
+    if (analyticsTimeRange === '7d') return now - 7 * 24 * 60 * 60 * 1000;
+    if (analyticsTimeRange === '30d') return now - 30 * 24 * 60 * 60 * 1000;
+    return 0;
+  }, [analyticsTimeRange]);
+
+  const analyticsFilteredEvents = useMemo(() => {
+    const keyword = analyticsSearchQuery.trim().toLowerCase();
+
+    return analyticsSnapshot.events.filter((event) => {
+      const ts = new Date(event.timestamp).getTime();
+      const inRange = analyticsRangeStart === 0 ? true : ts >= analyticsRangeStart;
+      const typeMatch = analyticsEventType === 'all' ? true : event.type === analyticsEventType;
+      const searchable = `${event.type} ${event.path || ''} ${JSON.stringify(event.payload || {})}`.toLowerCase();
+      const searchMatch = !keyword || searchable.includes(keyword);
+      return inRange && typeMatch && searchMatch;
+    });
+  }, [analyticsSnapshot.events, analyticsRangeStart, analyticsEventType, analyticsSearchQuery]);
+
+  const buildAnalyticsBuckets = (metricType) => {
+    const now = new Date();
+    const useHourly = analyticsTimeRange === 'today';
+    const bucketCount = useHourly ? 24 : analyticsTimeRange === '7d' ? 7 : analyticsTimeRange === '30d' ? 30 : 14;
+
+    const buckets = Array.from({ length: bucketCount }, (_, i) => {
+      if (useHourly) {
+        return {
+          label: `${i}:00`,
+          key: i,
+          value: 0,
+        };
+      }
+
+      const date = new Date(now);
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() - (bucketCount - 1 - i));
+      return {
+        label: `${date.getMonth() + 1}/${date.getDate()}`,
+        key: date.toDateString(),
+        value: 0,
+      };
+    });
+
+    analyticsSnapshot.events.forEach((event) => {
+      if (metricType !== 'all' && event.type !== metricType) return;
+
+      const ts = new Date(event.timestamp);
+      if (useHourly) {
+        const sameDay =
+          ts.getFullYear() === now.getFullYear() &&
+          ts.getMonth() === now.getMonth() &&
+          ts.getDate() === now.getDate();
+        if (!sameDay) return;
+
+        const hour = ts.getHours();
+        if (buckets[hour]) buckets[hour].value += 1;
+        return;
+      }
+
+      const dayKey = new Date(ts.getFullYear(), ts.getMonth(), ts.getDate()).toDateString();
+      const target = buckets.find((bucket) => bucket.key === dayKey);
+      if (target) target.value += 1;
+    });
+
+    return buckets;
+  };
+
+  const analyticsChartData = useMemo(
+    () => buildAnalyticsBuckets(analyticsChartMetric),
+    [analyticsSnapshot.events, analyticsTimeRange, analyticsChartMetric],
+  );
+
+  const analyticsCompareChartData = useMemo(
+    () => (analyticsCompareMetric === 'none' ? [] : buildAnalyticsBuckets(analyticsCompareMetric)),
+    [analyticsSnapshot.events, analyticsTimeRange, analyticsCompareMetric],
+  );
+
+  const analyticsChartMax = Math.max(
+    1,
+    ...analyticsChartData.map((item) => item.value),
+    ...analyticsCompareChartData.map((item) => item.value),
+  );
+
+  const analyticsKpis = useMemo(() => {
+    const now = Date.now();
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const todayEvents = analyticsSnapshot.events.filter((event) => new Date(event.timestamp).getTime() >= todayStart.getTime());
+    const sevenDayEvents = analyticsSnapshot.events.filter((event) => new Date(event.timestamp).getTime() >= now - 7 * 24 * 60 * 60 * 1000);
+
+    const todayPV = todayEvents.filter((event) => event.type === 'page_view').length;
+    const sevenDayUV = new Set(
+      sevenDayEvents.map((event) => event.sessionId).filter(Boolean),
+    ).size;
+    const videoPlayCount = analyticsFilteredEvents.filter((event) => event.type === 'video_play_clicked').length;
+    const watchDurations = analyticsFilteredEvents
+      .filter((event) => event.type === 'video_watch_duration')
+      .map((event) => Number(event.payload?.seconds || 0))
+      .filter((value) => Number.isFinite(value) && value > 0);
+    const avgWatchDuration =
+      watchDurations.length > 0
+        ? Math.round(watchDurations.reduce((sum, v) => sum + v, 0) / watchDurations.length)
+        : 0;
+
+    return { todayPV, sevenDayUV, videoPlayCount, avgWatchDuration };
+  }, [analyticsSnapshot.events, analyticsFilteredEvents]);
+
+  const pageViewTopRoutes = useMemo(() => {
+    return Object.entries(analyticsSnapshot.pageViews)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+  }, [analyticsSnapshot.pageViews]);
+
+  const topVideoPlays = useMemo(() => {
+    const map = {};
+    analyticsSnapshot.events.forEach((event) => {
+      if (event.type !== 'video_play_clicked') return;
+      const key = event.payload?.projectId || event.payload?.title || 'unknown';
+      if (!map[key]) {
+        map[key] = { key, title: event.payload?.title || key, count: 0 };
+      }
+      map[key].count += 1;
+    });
+    return Object.values(map)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [analyticsSnapshot.events]);
+
+  const analyticsSummary = useMemo(() => {
+    return `在当前筛选窗口中，视频播放 ${analyticsKpis.videoPlayCount} 次，平均观看时长 ${analyticsKpis.avgWatchDuration}s；今日 PV ${analyticsKpis.todayPV}，近7天 UV ${analyticsKpis.sevenDayUV}。`;
+  }, [analyticsKpis]);
+
+  const analyticsAnomaly = useMemo(() => {
+    if (analyticsKpis.videoPlayCount >= 10 && analyticsKpis.avgWatchDuration < 8) {
+      return '异常提示：播放次数较高但平均观看时长偏低，建议优化开场节奏或封面与内容一致性。';
+    }
+    if (analyticsKpis.todayPV > 80 && analyticsKpis.videoPlayCount === 0) {
+      return '异常提示：页面访问较高但视频点击为 0，建议检查视频入口可见性与 CTA。';
+    }
+    return '';
+  }, [analyticsKpis]);
+
+  const analyticsWoW = useMemo(() => {
+    const now = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const yesterdayStart = todayStart.getTime() - dayMs;
+
+    const todayPv = analyticsSnapshot.events.filter(
+      (event) => event.type === 'page_view' && new Date(event.timestamp).getTime() >= todayStart.getTime(),
+    ).length;
+
+    const yesterdayPv = analyticsSnapshot.events.filter((event) => {
+      if (event.type !== 'page_view') return false;
+      const ts = new Date(event.timestamp).getTime();
+      return ts >= yesterdayStart && ts < todayStart.getTime();
+    }).length;
+
+    const this7dStart = now - 7 * dayMs;
+    const prev7dStart = now - 14 * dayMs;
+
+    const this7dPlays = analyticsSnapshot.events.filter(
+      (event) => event.type === 'video_play_clicked' && new Date(event.timestamp).getTime() >= this7dStart,
+    ).length;
+
+    const prev7dPlays = analyticsSnapshot.events.filter((event) => {
+      if (event.type !== 'video_play_clicked') return false;
+      const ts = new Date(event.timestamp).getTime();
+      return ts >= prev7dStart && ts < this7dStart;
+    }).length;
+
+    const calcDelta = (current, previous) => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return Math.round(((current - previous) / previous) * 100);
+    };
+
+    return {
+      todayPv,
+      yesterdayPv,
+      todayVsYesterdayDelta: calcDelta(todayPv, yesterdayPv),
+      this7dPlays,
+      prev7dPlays,
+      playWoWDelta: calcDelta(this7dPlays, prev7dPlays),
+    };
+  }, [analyticsSnapshot.events]);
+
+  useEffect(() => {
+    if (activeTab !== 'analytics') return undefined;
+    if (analyticsAutoRefresh === 'off') return undefined;
+
+    const intervalMs = analyticsAutoRefresh === '10s' ? 10000 : 30000;
+    const timer = window.setInterval(() => {
+      setAnalyticsSnapshot(getAnalyticsSnapshot());
+    }, intervalMs);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [activeTab, analyticsAutoRefresh]);
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      const isCtrlLike = event.ctrlKey || event.metaKey;
+      if (!isCtrlLike) return;
+      if (activeTab !== 'siteConfig') return;
+      if (!introProjectId) return;
+
+      const key = event.key.toLowerCase();
+      if (key === 'z') {
+        event.preventDefault();
+        handleUndoIntro();
+        return;
+      }
+
+      if (key === 's') {
+        event.preventDefault();
+        handleApplyVideoIntro();
+      }
+
+      if (key === 'enter') {
+        event.preventDefault();
+        handleSaveAndNextIntro();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [activeTab, introProjectId, introDraft]);
+
   const handleOpenAdd = () => {
     setFormMode('create');
     setEditingProjectId(null);
@@ -324,8 +743,13 @@ function DirectorConsole() {
     setFormState({
       title: project.title,
       category: project.category,
+      role: project.role || 'DOP',
+      releaseDate: project.releaseDate || '',
       coverUrl: project.coverUrl,
       videoUrl: project.videoUrl,
+      btsMediaText: Array.isArray(project.btsMedia) ? project.btsMedia.join('\n') : '',
+      clientAgency: project.clientAgency || '',
+      accessPassword: project.accessPassword || '',
       isFeatured: project.isFeatured,
       isVisible: project.isVisible,
       sortOrder: project.sortOrder,
@@ -336,19 +760,80 @@ function DirectorConsole() {
     setShowForm(true);
   };
 
+  const handleQuickPrivatePassword = (project) => {
+    const isPrivate = project.publishStatus === 'Private';
+
+    if (isPrivate) {
+      const shouldUnlock = window.confirm('是否取消私密并改为 Published？');
+      if (!shouldUnlock) return;
+
+      updateProject(project.id, {
+        publishStatus: 'Published',
+        visibility: 'Published',
+        accessPassword: '',
+        isVisible: true,
+      });
+      return;
+    }
+
+    const current = project.accessPassword || '';
+    const input = window.prompt('设置私密项目密码（留空取消）', current);
+    if (input === null) return;
+
+    const nextPassword = String(input).trim();
+    if (!nextPassword) return;
+
+    updateProject(project.id, {
+      publishStatus: 'Private',
+      visibility: 'Private',
+      accessPassword: nextPassword,
+      isVisible: true,
+    });
+  };
+
   const handleCancelForm = () => {
     setShowForm(false);
     setEditingProjectId(null);
     setFormState(EMPTY_FORM);
   };
 
+  useEffect(() => {
+    if (!showForm) return undefined;
+
+    const { body } = document;
+    const previousOverflow = body.style.overflow;
+    body.style.overflow = 'hidden';
+
+    return () => {
+      body.style.overflow = previousOverflow;
+    };
+  }, [showForm]);
+
   const handleSubmitForm = (event) => {
     event.preventDefault();
 
+    const nextVisibility =
+      formState.publishStatus === 'Published'
+        ? 'Published'
+        : formState.publishStatus === 'Private'
+          ? 'Private'
+          : 'Draft';
+
+    const payload = {
+      ...formState,
+      btsMedia: formState.btsMediaText
+        .split('\n')
+        .map((item) => item.trim())
+        .filter(Boolean),
+      visibility: nextVisibility,
+      isVisible: nextVisibility !== 'Draft',
+      accessPassword: nextVisibility === 'Private' ? formState.accessPassword : '',
+    };
+
     if (formMode === 'edit' && editingProjectId) {
-      updateProject(editingProjectId, formState);
+      updateProject(editingProjectId, payload);
     } else {
-      addProject(formState);
+      addProject(payload);
     }
 
     handleCancelForm();
@@ -440,6 +925,121 @@ function DirectorConsole() {
     setAuthError('密码错误，请重试。');
   };
 
+  const handleApplySettings = () => {
+    updateConfig('vignetteIntensity', Number(settingsDraft.vignetteIntensity));
+    updateConfig('filmGrainOpacity', Number(settingsDraft.filmGrainOpacity));
+    updateConfig('spotlightRadius', Number(settingsDraft.spotlightRadius));
+    updateConfig('showHUD', Boolean(settingsDraft.showHUD));
+
+    trackEvent('theme_or_settings_changed', {
+      vignetteIntensity: Number(settingsDraft.vignetteIntensity),
+      filmGrainOpacity: Number(settingsDraft.filmGrainOpacity),
+      spotlightRadius: Number(settingsDraft.spotlightRadius),
+      showHUD: Boolean(settingsDraft.showHUD),
+    });
+  };
+
+  const handleResetSettingsDraft = () => {
+    resetConfig();
+    setSettingsDraft({
+      vignetteIntensity: 0.68,
+      filmGrainOpacity: 0.06,
+      spotlightRadius: 680,
+      showHUD: true,
+    });
+
+    trackEvent('theme_or_settings_changed', {
+      action: 'reset_defaults',
+    });
+  };
+
+  const handleApplySiteConfig = () => {
+    updateConfig('siteTitle', String(siteConfigDraft.siteTitle || '').trim());
+    updateConfig('siteDescription', String(siteConfigDraft.siteDescription || '').trim());
+    updateConfig('ogImage', String(siteConfigDraft.ogImage || '').trim());
+    updateConfig('contactEmail', String(siteConfigDraft.contactEmail || '').trim());
+    updateConfig('contactPhone', String(siteConfigDraft.contactPhone || '').trim());
+    updateConfig('contactLocation', String(siteConfigDraft.contactLocation || '').trim());
+    updateConfig('resumeAwardsText', String(siteConfigDraft.resumeAwardsText || '').trim());
+    updateConfig('resumeExperienceText', String(siteConfigDraft.resumeExperienceText || '').trim());
+    updateConfig('resumeGearText', String(siteConfigDraft.resumeGearText || '').trim());
+
+    trackEvent('site_config_updated', {
+      siteTitle: String(siteConfigDraft.siteTitle || '').trim(),
+    });
+  };
+
+  const handleApplyVideoIntro = () => {
+    if (!introTargetProject) return;
+
+    updateProject(introTargetProject.id, {
+      title: String(introDraft.title || '').trim(),
+      description: String(introDraft.description || '').trim(),
+      credits: String(introDraft.credits || '').trim(),
+      role: String(introDraft.role || '').trim(),
+      clientAgency: String(introDraft.clientAgency || '').trim(),
+    });
+
+    trackEvent('video_intro_updated', {
+      projectId: introTargetProject.id,
+      title: String(introDraft.title || '').trim(),
+    });
+  };
+
+  const updateIntroDraftField = (key, value) => {
+    setIntroDraft((prev) => {
+      setIntroHistory((history) => [...history.slice(-40), prev]);
+      return { ...prev, [key]: value };
+    });
+  };
+
+  const handleUndoIntro = () => {
+    setIntroHistory((history) => {
+      if (history.length === 0) return history;
+      const previous = history[history.length - 1];
+      setIntroDraft(previous);
+      return history.slice(0, -1);
+    });
+  };
+
+  const moveIntroProject = (direction) => {
+    const currentIndex = sortedProjects.findIndex((project) => project.id === introProjectId);
+    if (currentIndex === -1) return;
+
+    const nextIndex = direction === 'prev' ? currentIndex - 1 : currentIndex + 1;
+    if (nextIndex < 0 || nextIndex >= sortedProjects.length) return;
+
+    const target = sortedProjects[nextIndex];
+    setIntroProjectId(target.id);
+    setIntroDraft({
+      title: target.title || '',
+      description: target.description || '',
+      credits: target.credits || '',
+      role: target.role || '',
+      clientAgency: target.clientAgency || '',
+    });
+  };
+
+  const handleSaveAndNextIntro = () => {
+    if (!introTargetProject) return;
+
+    handleApplyVideoIntro();
+
+    const currentIndex = sortedProjects.findIndex((project) => project.id === introProjectId);
+    const nextIndex = currentIndex + 1;
+    if (nextIndex < sortedProjects.length) {
+      const target = sortedProjects[nextIndex];
+      setIntroProjectId(target.id);
+      setIntroDraft({
+        title: target.title || '',
+        description: target.description || '',
+        credits: target.credits || '',
+        role: target.role || '',
+        clientAgency: target.clientAgency || '',
+      });
+    }
+  };
+
   const handleLogout = () => {
     setIsAuthenticated(false);
     setPasswordInput('');
@@ -509,11 +1109,23 @@ function DirectorConsole() {
           </div>
 
           <div className="mt-5 flex flex-wrap items-center gap-2">
+            <PanelTab isActive={activeTab === 'projects'} onClick={() => setActiveTab('projects')}>
+              Projects (作品管理)
+            </PanelTab>
             <PanelTab isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')}>
               Site Settings (网站特效)
             </PanelTab>
-            <PanelTab isActive={activeTab === 'projects'} onClick={() => setActiveTab('projects')}>
-              Projects (作品管理)
+            <PanelTab
+              isActive={activeTab === 'analytics'}
+              onClick={() => {
+                setAnalyticsSnapshot(getAnalyticsSnapshot());
+                setActiveTab('analytics');
+              }}
+            >
+              Analytics (数据分析)
+            </PanelTab>
+            <PanelTab isActive={activeTab === 'siteConfig'} onClick={() => setActiveTab('siteConfig')}>
+              Site Config & About
             </PanelTab>
           </div>
         </header>
@@ -522,38 +1134,727 @@ function DirectorConsole() {
           <>
             <section className="mt-6 grid gap-4 rounded-2xl border border-zinc-700/60 bg-zinc-900/60 p-5 md:grid-cols-2">
               <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4">
-                <FieldLabel title="Vignette Intensity" value={config.vignetteIntensity.toFixed(2)} />
-                <input type="range" min="0" max="1" step="0.01" value={config.vignetteIntensity} onChange={(event) => updateConfig('vignetteIntensity', Number(event.target.value))} className="w-full accent-emerald-400" />
+                <FieldLabel title="Vignette Intensity" value={Number(settingsDraft.vignetteIntensity).toFixed(2)} />
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={settingsDraft.vignetteIntensity}
+                  onChange={(event) =>
+                    setSettingsDraft((prev) => ({ ...prev, vignetteIntensity: Number(event.target.value) }))
+                  }
+                  className="w-full accent-emerald-400"
+                />
               </div>
               <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4">
-                <FieldLabel title="Film Grain Opacity" value={config.filmGrainOpacity.toFixed(2)} />
-                <input type="range" min="0" max="0.2" step="0.005" value={config.filmGrainOpacity} onChange={(event) => updateConfig('filmGrainOpacity', Number(event.target.value))} className="w-full accent-emerald-400" />
+                <FieldLabel title="Film Grain Opacity" value={Number(settingsDraft.filmGrainOpacity).toFixed(2)} />
+                <input
+                  type="range"
+                  min="0"
+                  max="0.2"
+                  step="0.005"
+                  value={settingsDraft.filmGrainOpacity}
+                  onChange={(event) =>
+                    setSettingsDraft((prev) => ({ ...prev, filmGrainOpacity: Number(event.target.value) }))
+                  }
+                  className="w-full accent-emerald-400"
+                />
               </div>
               <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4">
-                <FieldLabel title="Spotlight Radius" value={`${config.spotlightRadius}px`} />
-                <input type="range" min="200" max="1200" step="10" value={config.spotlightRadius} onChange={(event) => updateConfig('spotlightRadius', Number(event.target.value))} className="w-full accent-emerald-400" />
+                <FieldLabel title="Spotlight Radius" value={`${Number(settingsDraft.spotlightRadius)}px`} />
+                <input
+                  type="range"
+                  min="200"
+                  max="1200"
+                  step="10"
+                  value={settingsDraft.spotlightRadius}
+                  onChange={(event) =>
+                    setSettingsDraft((prev) => ({ ...prev, spotlightRadius: Number(event.target.value) }))
+                  }
+                  className="w-full accent-emerald-400"
+                />
               </div>
 
               <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4">
-                <FieldLabel title="Monitor HUD" value={config.showHUD ? 'ON' : 'OFF'} />
+                <FieldLabel title="Monitor HUD" value={settingsDraft.showHUD ? 'ON' : 'OFF'} />
                 <button
                   type="button"
-                  onClick={() => updateConfig('showHUD', !config.showHUD)}
+                  onClick={() => setSettingsDraft((prev) => ({ ...prev, showHUD: !prev.showHUD }))}
                   className={`rounded-md border px-4 py-2 text-sm tracking-[0.08em] transition ${
-                    config.showHUD ? HUD_ON_CLASS : HUD_OFF_CLASS
+                    settingsDraft.showHUD ? HUD_ON_CLASS : HUD_OFF_CLASS
                   }`}
                 >
-                  {config.showHUD ? 'Disable HUD' : 'Enable HUD'}
+                  {settingsDraft.showHUD ? 'Disable HUD' : 'Enable HUD'}
                 </button>
               </div>
             </section>
 
-            <div className="mt-5 flex items-center justify-end">
-              <button type="button" onClick={resetConfig} className="rounded-md border border-zinc-600 bg-zinc-900 px-4 py-2 text-xs tracking-[0.14em] text-zinc-200 transition hover:border-zinc-400 hover:text-zinc-100">
+            <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
+              {hasUnsavedSettings ? (
+                <p className="rounded-md border border-amber-300/60 bg-amber-300/10 px-3 py-2 text-xs tracking-[0.12em] text-amber-200">
+                  UNSAVED CHANGES
+                </p>
+              ) : (
+                <p className="rounded-md border border-emerald-300/40 bg-emerald-300/10 px-3 py-2 text-xs tracking-[0.12em] text-emerald-200">
+                  ALL CHANGES SAVED
+                </p>
+              )}
+
+              <button
+                type="button"
+                onClick={handleResetSettingsDraft}
+                className="rounded-md border border-zinc-600 bg-zinc-900 px-4 py-2 text-xs tracking-[0.14em] text-zinc-200 transition hover:border-zinc-400 hover:text-zinc-100"
+              >
                 RESET DEFAULTS
+              </button>
+              <button
+                type="button"
+                onClick={handleApplySettings}
+                disabled={!hasUnsavedSettings}
+                className={`rounded-md border px-4 py-2 text-xs tracking-[0.14em] transition ${
+                  hasUnsavedSettings
+                    ? 'border-emerald-300/70 bg-emerald-300/10 text-emerald-200 hover:bg-emerald-300/20'
+                    : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
+                }`}
+              >
+                SAVE SETTINGS
               </button>
             </div>
           </>
+        ) : activeTab === 'analytics' ? (
+          <section className="mt-6 rounded-2xl border border-zinc-700/60 bg-zinc-900/60 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm tracking-[0.16em] text-zinc-100">ANALYTICS OVERVIEW</h2>
+                <p className="mt-1 text-[11px] tracking-[0.12em] text-zinc-500">
+                  PV {analyticsSnapshot.totalPV} · UV {analyticsSnapshot.totalUV}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={analyticsAutoRefresh}
+                  onChange={(event) => setAnalyticsAutoRefresh(event.target.value)}
+                  className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs tracking-[0.12em] text-zinc-200"
+                >
+                  <option value="off">AUTO: OFF</option>
+                  <option value="10s">AUTO: 10S</option>
+                  <option value="30s">AUTO: 30S</option>
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => setAnalyticsSnapshot(getAnalyticsSnapshot())}
+                  className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs tracking-[0.12em] text-zinc-200 transition hover:border-zinc-400"
+                >
+                  REFRESH
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearAnalytics();
+                    setAnalyticsSnapshot(getAnalyticsSnapshot());
+                  }}
+                  className="rounded-md border border-rose-400/60 bg-rose-400/10 px-3 py-2 text-xs tracking-[0.12em] text-rose-200 transition hover:bg-rose-400/20"
+                >
+                  CLEAR DATA
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-3 md:grid-cols-4">
+              <label className="block">
+                <p className="mb-2 text-[11px] tracking-[0.12em] text-zinc-500">TIME RANGE</p>
+                <select
+                  value={analyticsTimeRange}
+                  onChange={(event) => setAnalyticsTimeRange(event.target.value)}
+                  className={FILTER_INPUT_CLASS}
+                >
+                  {ANALYTICS_TIME_RANGE_OPTIONS.map((item) => (
+                    <option key={item} value={item}>
+                      {item.toUpperCase()}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <p className="mb-2 text-[11px] tracking-[0.12em] text-zinc-500">EVENT TYPE FILTER</p>
+                <select
+                  value={analyticsEventType}
+                  onChange={(event) => setAnalyticsEventType(event.target.value)}
+                  className={FILTER_INPUT_CLASS}
+                >
+                  <option value="all">ALL</option>
+                  {ANALYTICS_METRIC_OPTIONS.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <p className="mb-2 text-[11px] tracking-[0.12em] text-zinc-500">CHART METRIC A</p>
+                <select
+                  value={analyticsChartMetric}
+                  onChange={(event) => setAnalyticsChartMetric(event.target.value)}
+                  className={FILTER_INPUT_CLASS}
+                >
+                  {ANALYTICS_METRIC_OPTIONS.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <p className="mb-2 text-[11px] tracking-[0.12em] text-zinc-500">CHART METRIC B</p>
+                <select
+                  value={analyticsCompareMetric}
+                  onChange={(event) => setAnalyticsCompareMetric(event.target.value)}
+                  className={FILTER_INPUT_CLASS}
+                >
+                  {ANALYTICS_COMPARE_OPTIONS.map((item) => (
+                    <option key={item} value={item}>
+                      {item === 'none' ? 'NONE' : item}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="mt-3 grid gap-3 md:grid-cols-4">
+              <div className="rounded-xl border border-cyan-300/25 bg-cyan-300/5 p-3">
+                <p className="text-[10px] tracking-[0.14em] text-cyan-200">TODAY PV</p>
+                <p className="mt-1 text-lg text-cyan-100">{analyticsKpis.todayPV}</p>
+              </div>
+              <div className="rounded-xl border border-sky-300/25 bg-sky-300/5 p-3">
+                <p className="text-[10px] tracking-[0.14em] text-sky-200">7D UV</p>
+                <p className="mt-1 text-lg text-sky-100">{analyticsKpis.sevenDayUV}</p>
+              </div>
+              <div className="rounded-xl border border-violet-300/25 bg-violet-300/5 p-3">
+                <p className="text-[10px] tracking-[0.14em] text-violet-200">VIDEO PLAYS</p>
+                <p className="mt-1 text-lg text-violet-100">{analyticsKpis.videoPlayCount}</p>
+              </div>
+              <div className="rounded-xl border border-emerald-300/25 bg-emerald-300/5 p-3">
+                <p className="text-[10px] tracking-[0.14em] text-emerald-200">AVG WATCH (S)</p>
+                <p className="mt-1 text-lg text-emerald-100">{analyticsKpis.avgWatchDuration}</p>
+              </div>
+            </div>
+
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-3">
+                <p className="text-[10px] tracking-[0.14em] text-zinc-400">TODAY VS YESTERDAY (PV)</p>
+                <p className="mt-1 text-sm text-zinc-200">
+                  {analyticsWoW.todayPv} vs {analyticsWoW.yesterdayPv}
+                  <span className={`ml-2 ${analyticsWoW.todayVsYesterdayDelta >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                    {analyticsWoW.todayVsYesterdayDelta >= 0 ? '+' : ''}{analyticsWoW.todayVsYesterdayDelta}%
+                  </span>
+                </p>
+              </div>
+              <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-3">
+                <p className="text-[10px] tracking-[0.14em] text-zinc-400">LAST 7D VS PREV 7D (VIDEO PLAYS)</p>
+                <p className="mt-1 text-sm text-zinc-200">
+                  {analyticsWoW.this7dPlays} vs {analyticsWoW.prev7dPlays}
+                  <span className={`ml-2 ${analyticsWoW.playWoWDelta >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                    {analyticsWoW.playWoWDelta >= 0 ? '+' : ''}{analyticsWoW.playWoWDelta}%
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-3">
+              <p className="text-[10px] tracking-[0.14em] text-zinc-400">AUTO SUMMARY</p>
+              <p className="mt-1 text-xs text-zinc-300">{analyticsSummary}</p>
+              {analyticsAnomaly ? <p className="mt-2 text-xs text-amber-300">{analyticsAnomaly}</p> : null}
+            </div>
+
+            <div className="mt-3 rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs tracking-[0.16em] text-zinc-400">TREND LINE (COMPARISON)</p>
+                <div className="flex items-center gap-3 text-[11px] tracking-[0.12em]">
+                  <button
+                    type="button"
+                    onClick={() => setShowMetricA((v) => !v)}
+                    className={`inline-flex items-center gap-1 rounded px-2 py-1 ${showMetricA ? 'text-cyan-300' : 'text-zinc-500'}`}
+                  >
+                    <span className="inline-block h-2 w-2 rounded-full bg-cyan-300" />
+                    {analyticsChartMetric}
+                  </button>
+                  {analyticsCompareMetric !== 'none' ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowMetricB((v) => !v)}
+                      className={`inline-flex items-center gap-1 rounded px-2 py-1 ${showMetricB ? 'text-violet-300' : 'text-zinc-500'}`}
+                    >
+                      <span className="inline-block h-2 w-2 rounded-full bg-violet-300" />
+                      {analyticsCompareMetric}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="relative h-52 w-full overflow-hidden rounded-lg border border-zinc-800 bg-[linear-gradient(180deg,rgba(15,23,42,0.35)_0%,rgba(10,15,24,0.4)_100%)]">
+                <svg viewBox="0 0 100 40" className="h-full w-full transition-all duration-300">
+                  {[0, 1, 2, 3, 4].map((n) => {
+                    const y = 8 + n * 7;
+                    return <line key={n} x1="0" y1={y} x2="100" y2={y} stroke="rgba(148,163,184,0.18)" strokeWidth="0.3" />;
+                  })}
+
+                  {showMetricA ? (
+                    <polyline
+                      fill="none"
+                      stroke="rgba(56,189,248,0.95)"
+                      strokeWidth="1.3"
+                      points={analyticsChartData
+                        .map((point, index) => {
+                          const x = (index / Math.max(1, analyticsChartData.length - 1)) * 100;
+                          const y = 36 - (point.value / analyticsChartMax) * 30;
+                          return `${x},${y}`;
+                        })
+                        .join(' ')}
+                    />
+                  ) : null}
+
+                  {analyticsCompareMetric !== 'none' && showMetricB ? (
+                    <polyline
+                      fill="none"
+                      stroke="rgba(167,139,250,0.95)"
+                      strokeWidth="1.3"
+                      points={analyticsCompareChartData
+                        .map((point, index) => {
+                          const x = (index / Math.max(1, analyticsCompareChartData.length - 1)) * 100;
+                          const y = 36 - (point.value / analyticsChartMax) * 30;
+                          return `${x},${y}`;
+                        })
+                        .join(' ')}
+                    />
+                  ) : null}
+                </svg>
+              </div>
+
+              <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] tracking-[0.08em] text-zinc-500 md:grid-cols-6">
+                {analyticsChartData.map((point, index) => (
+                  <button
+                    key={point.label}
+                    type="button"
+                    onMouseEnter={() => setAnalyticsHoverIndex(index)}
+                    onMouseLeave={() => setAnalyticsHoverIndex(null)}
+                    className="rounded border border-zinc-800 bg-zinc-900/40 px-2 py-1 text-left"
+                  >
+                    <p>{point.label}</p>
+                    <p className="text-cyan-300">A {point.value}</p>
+                    {analyticsCompareMetric !== 'none' ? (
+                      <p className="text-violet-300">B {analyticsCompareChartData[index]?.value || 0}</p>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+
+              {analyticsHoverIndex !== null ? (
+                <div className="mt-2 rounded-md border border-zinc-700 bg-black/50 px-3 py-2 text-xs text-zinc-300">
+                  <p>Bucket: {analyticsChartData[analyticsHoverIndex]?.label}</p>
+                  <p>A ({analyticsChartMetric}): {analyticsChartData[analyticsHoverIndex]?.value || 0}</p>
+                  {analyticsCompareMetric !== 'none' ? (
+                    <p>B ({analyticsCompareMetric}): {analyticsCompareChartData[analyticsHoverIndex]?.value || 0}</p>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-4">
+                <p className="text-xs tracking-[0.16em] text-zinc-400">TOP ROUTES</p>
+                <div className="mt-3 space-y-2">
+                  {pageViewTopRoutes.length > 0 ? (
+                    pageViewTopRoutes.map(([path, count], idx) => (
+                      <div key={path} className="flex items-center justify-between rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-xs">
+                        <span className="tracking-[0.12em] text-zinc-300">#{idx + 1} {path}</span>
+                        <span className="text-emerald-300">{count}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs tracking-[0.12em] text-zinc-500">No data yet.</p>
+                  )}
+                </div>
+
+                <p className="mt-4 text-xs tracking-[0.16em] text-zinc-400">TOP VIDEO PLAYS</p>
+                <div className="mt-3 space-y-2">
+                  {topVideoPlays.length > 0 ? (
+                    topVideoPlays.map((item, idx) => (
+                      <div key={item.key} className="flex items-center justify-between rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-xs">
+                        <span className="tracking-[0.12em] text-zinc-300">#{idx + 1} {item.title}</span>
+                        <span className="text-violet-300">{item.count}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs tracking-[0.12em] text-zinc-500">No video play data yet.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-xs tracking-[0.16em] text-zinc-400">RECENT EVENTS (FILTERED)</p>
+                  <input
+                    value={analyticsSearchQuery}
+                    onChange={(event) => setAnalyticsSearchQuery(event.target.value)}
+                    placeholder="search event/path/payload"
+                    className="w-44 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-200"
+                  />
+                </div>
+
+                <div className="mt-3 max-h-[320px] space-y-2 overflow-y-auto pr-1">
+                  {analyticsFilteredEvents.length > 0 ? (
+                    analyticsFilteredEvents.slice(0, 40).map((event) => (
+                      <div key={event.id} className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-2">
+                        <p className={`text-[11px] tracking-[0.14em] ${
+                          event.type === 'page_view'
+                            ? 'text-cyan-300'
+                            : event.type === 'video_play_clicked'
+                              ? 'text-violet-300'
+                              : event.type === 'video_watch_duration'
+                                ? 'text-emerald-300'
+                                : event.type === 'layout_changed'
+                                  ? 'text-amber-300'
+                                  : 'text-sky-300'
+                        }`}>{event.type}</p>
+                        <p className="mt-1 text-[10px] tracking-[0.08em] text-zinc-500">{new Date(event.timestamp).toLocaleString()}</p>
+                        {event.path ? <p className="mt-1 text-[11px] text-zinc-300">path: {event.path}</p> : null}
+                        {event.payload ? (
+                          <p className="mt-1 text-[11px] text-zinc-400">{JSON.stringify(event.payload)}</p>
+                        ) : null}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs tracking-[0.12em] text-zinc-500">No events in current filter.</p>
+                  )}
+                </div>
+
+                <div className="mt-3 rounded-md border border-zinc-800 bg-zinc-900/50 px-3 py-2">
+                  <p className="text-[11px] tracking-[0.12em] text-zinc-300">{analyticsSummary}</p>
+                  {analyticsAnomaly ? <p className="mt-2 text-[11px] text-amber-300">{analyticsAnomaly}</p> : null}
+                </div>
+
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const header = 'id,type,timestamp,path,payload';
+                      const rows = analyticsFilteredEvents.map((event) =>
+                        [
+                          event.id,
+                          event.type,
+                          event.timestamp,
+                          event.path || '',
+                          JSON.stringify(event.payload || {}).replaceAll('"', '""'),
+                        ]
+                          .map((value) => `"${String(value)}"`)
+                          .join(','),
+                      );
+                      const csv = [header, ...rows].join('\n');
+                      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `analytics-${Date.now()}.csv`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs tracking-[0.12em] text-zinc-200 transition hover:border-zinc-400"
+                  >
+                    EXPORT CSV
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : activeTab === 'siteConfig' ? (
+          <section className="mt-6 rounded-2xl border border-zinc-700/60 bg-zinc-900/60 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm tracking-[0.16em] text-zinc-100">SITE CONFIG & ABOUT</h2>
+                <p className="mt-1 text-[11px] tracking-[0.12em] text-zinc-500">
+                  管理联系方式、简历数据与全局 SEO 配置
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleApplySiteConfig}
+                disabled={!hasUnsavedSiteConfig}
+                className={`rounded-md border px-4 py-2 text-xs tracking-[0.14em] transition ${
+                  hasUnsavedSiteConfig
+                    ? 'border-emerald-300/70 bg-emerald-300/10 text-emerald-200 hover:bg-emerald-300/20'
+                    : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
+                }`}
+              >
+                SAVE SITE CONFIG
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4 md:col-span-2">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs tracking-[0.18em] text-zinc-400">VIDEO INTRO EDITOR (EXISTING PROJECTS)</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => moveIntroProject('prev')}
+                      disabled={!introProjectId}
+                      className={`rounded-md border px-3 py-2 text-xs tracking-[0.14em] transition ${
+                        introProjectId
+                          ? 'border-zinc-600 bg-zinc-900 text-zinc-200 hover:border-zinc-400'
+                          : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
+                      }`}
+                    >
+                      PREV
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => moveIntroProject('next')}
+                      disabled={!introProjectId}
+                      className={`rounded-md border px-3 py-2 text-xs tracking-[0.14em] transition ${
+                        introProjectId
+                          ? 'border-zinc-600 bg-zinc-900 text-zinc-200 hover:border-zinc-400'
+                          : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
+                      }`}
+                    >
+                      NEXT
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleApplyVideoIntro}
+                      disabled={!hasUnsavedIntro || !introTargetProject}
+                      className={`rounded-md border px-3 py-2 text-xs tracking-[0.14em] transition ${
+                        hasUnsavedIntro && introTargetProject
+                          ? 'border-cyan-300/70 bg-cyan-300/10 text-cyan-200 hover:bg-cyan-300/20'
+                          : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
+                      }`}
+                    >
+                      SAVE VIDEO INTRO
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleSaveAndNextIntro}
+                      disabled={!introTargetProject}
+                      className={`rounded-md border px-3 py-2 text-xs tracking-[0.14em] transition ${
+                        introTargetProject
+                          ? 'border-emerald-300/70 bg-emerald-300/10 text-emerald-200 hover:bg-emerald-300/20'
+                          : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
+                      }`}
+                    >
+                      SAVE & NEXT
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Select Uploaded Project</p>
+                    <select
+                      value={introProjectId}
+                      onChange={(event) => {
+                        const nextId = event.target.value;
+                        setIntroProjectId(nextId);
+                        const target = sortedProjects.find((project) => project.id === nextId);
+                        setIntroDraft({
+                          title: target?.title || '',
+                          description: target?.description || '',
+                          credits: target?.credits || '',
+                          role: target?.role || '',
+                          clientAgency: target?.clientAgency || '',
+                        });
+                      }}
+                      className={FORM_INPUT_CLASS}
+                    >
+                      <option value="">-- Select one project --</option>
+                      {sortedProjects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Video Title</p>
+                    <input
+                      value={introDraft.title}
+                      onChange={(event) => updateIntroDraftField('title', event.target.value)}
+                      className={FORM_INPUT_CLASS}
+                      placeholder="Video title"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Role</p>
+                    <input
+                      value={introDraft.role}
+                      onChange={(event) => updateIntroDraftField('role', event.target.value)}
+                      className={FORM_INPUT_CLASS}
+                      placeholder="DOP / Director / Colorist"
+                    />
+                  </label>
+
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Video Description</p>
+                    <textarea
+                      value={introDraft.description}
+                      onChange={(event) => updateIntroDraftField('description', event.target.value)}
+                      className={FORM_TEXTAREA_CLASS}
+                      placeholder="Video intro / synopsis"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Copy / Credits</p>
+                    <input
+                      value={introDraft.credits}
+                      onChange={(event) => updateIntroDraftField('credits', event.target.value)}
+                      className={FORM_INPUT_CLASS}
+                      placeholder="Credits / copy"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Client / Agency</p>
+                    <input
+                      value={introDraft.clientAgency}
+                      onChange={(event) => updateIntroDraftField('clientAgency', event.target.value)}
+                      className={FORM_INPUT_CLASS}
+                      placeholder="Client / agency"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4 md:col-span-2">
+                <p className="mb-3 text-xs tracking-[0.18em] text-zinc-400">GLOBAL SEO</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Site Title</p>
+                    <input
+                      value={siteConfigDraft.siteTitle}
+                      onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, siteTitle: event.target.value }))}
+                      className={FORM_INPUT_CLASS}
+                      placeholder="DIRECTOR.VISION"
+                    />
+                  </label>
+
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Site Description</p>
+                    <textarea
+                      value={siteConfigDraft.siteDescription}
+                      onChange={(event) =>
+                        setSiteConfigDraft((prev) => ({ ...prev, siteDescription: event.target.value }))
+                      }
+                      className={FORM_TEXTAREA_CLASS}
+                      placeholder="Portfolio description for SEO"
+                    />
+                  </label>
+
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Open Graph Image URL</p>
+                    <input
+                      value={siteConfigDraft.ogImage}
+                      onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, ogImage: event.target.value }))}
+                      className={FORM_INPUT_CLASS}
+                      placeholder="https://.../og-cover.jpg"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4">
+                <p className="mb-3 text-xs tracking-[0.18em] text-zinc-400">CONTACT</p>
+                <div className="space-y-3">
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Email</p>
+                    <input
+                      value={siteConfigDraft.contactEmail}
+                      onChange={(event) =>
+                        setSiteConfigDraft((prev) => ({ ...prev, contactEmail: event.target.value }))
+                      }
+                      className={FORM_INPUT_CLASS}
+                      placeholder="you@email.com"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Phone</p>
+                    <input
+                      value={siteConfigDraft.contactPhone}
+                      onChange={(event) =>
+                        setSiteConfigDraft((prev) => ({ ...prev, contactPhone: event.target.value }))
+                      }
+                      className={FORM_INPUT_CLASS}
+                      placeholder="+86 ..."
+                    />
+                  </label>
+
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Location</p>
+                    <input
+                      value={siteConfigDraft.contactLocation}
+                      onChange={(event) =>
+                        setSiteConfigDraft((prev) => ({ ...prev, contactLocation: event.target.value }))
+                      }
+                      className={FORM_INPUT_CLASS}
+                      placeholder="Shanghai / Beijing / Remote"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4">
+                <p className="mb-3 text-xs tracking-[0.18em] text-zinc-400">RESUME / CV</p>
+                <div className="space-y-3">
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Awards (one per line)</p>
+                    <textarea
+                      value={siteConfigDraft.resumeAwardsText}
+                      onChange={(event) =>
+                        setSiteConfigDraft((prev) => ({ ...prev, resumeAwardsText: event.target.value }))
+                      }
+                      className={FORM_TEXTAREA_CLASS}
+                      placeholder="Award A&#10;Award B"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Experience (one per line)</p>
+                    <textarea
+                      value={siteConfigDraft.resumeExperienceText}
+                      onChange={(event) =>
+                        setSiteConfigDraft((prev) => ({ ...prev, resumeExperienceText: event.target.value }))
+                      }
+                      className={FORM_TEXTAREA_CLASS}
+                      placeholder="Company / Role / Year"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Gear List (one per line)</p>
+                    <textarea
+                      value={siteConfigDraft.resumeGearText}
+                      onChange={(event) =>
+                        setSiteConfigDraft((prev) => ({ ...prev, resumeGearText: event.target.value }))
+                      }
+                      className={FORM_TEXTAREA_CLASS}
+                      placeholder="ARRI / SONY / LENS ..."
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+          </section>
         ) : (
           <section className="mt-6 rounded-2xl border border-zinc-700/60 bg-zinc-900/60 p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -563,9 +1864,36 @@ function DirectorConsole() {
                   TOTAL {totalProjects} · VISIBLE {visibleProjectsCount} · PUBLISHED {publishedProjectsCount}
                 </p>
               </div>
-              <button type="button" onClick={handleOpenAdd} className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-4 py-2 text-xs tracking-[0.14em] text-emerald-200 transition hover:bg-emerald-300/20">
-                + Add New Project
-              </button>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPrivateFilterMode((prev) => (prev === 'all' ? 'private_only' : prev === 'private_only' ? 'hide_private' : 'all'))}
+                  className="rounded-md border border-amber-300/70 bg-amber-300/10 px-3 py-2 text-xs tracking-[0.14em] text-amber-200 transition hover:bg-amber-300/20"
+                >
+                  {privateFilterMode === 'all'
+                    ? 'PRIVATE: ALL'
+                    : privateFilterMode === 'private_only'
+                      ? 'PRIVATE: ONLY'
+                      : 'PRIVATE: HIDE'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextMode = projectViewMode === 'card' ? 'list' : 'card';
+                    setProjectViewMode(nextMode);
+                    trackEvent('layout_changed', { mode: nextMode });
+                  }}
+                  className="rounded-md border border-sky-300/70 bg-sky-300/10 px-3 py-2 text-xs tracking-[0.14em] text-sky-200 transition hover:bg-sky-300/20"
+                >
+                  {projectViewMode === 'card' ? 'TEXT MODE' : 'CARD MODE'}
+                </button>
+
+                <button type="button" onClick={handleOpenAdd} className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-4 py-2 text-xs tracking-[0.14em] text-emerald-200 transition hover:bg-emerald-300/20">
+                  + Add New Project
+                </button>
+              </div>
             </div>
 
             <div className="mt-4 grid gap-3 rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-3 md:grid-cols-[200px_200px_1fr_auto] md:items-end">
@@ -707,29 +2035,97 @@ function DirectorConsole() {
               </div>
             </div>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div className={`mt-5 grid gap-4 ${projectViewMode === 'card' ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
               {pagedProjects.map((project) => (
-                <article key={project.id} className="overflow-hidden rounded-xl border border-zinc-700/60 bg-zinc-950/70 shadow-[0_10px_30px_rgba(0,0,0,0.35)]">
-                  <div className="h-36 w-full bg-zinc-900">
-                    {project.coverUrl ? (
-                      <img src={project.coverUrl} alt={project.title} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-xs tracking-[0.14em] text-zinc-500">NO COVER IMAGE</div>
-                    )}
-                  </div>
+                <article
+                  key={project.id}
+                  className={`overflow-hidden rounded-xl border border-zinc-700/60 bg-zinc-950/70 shadow-[0_10px_30px_rgba(0,0,0,0.35)] ${
+                    projectViewMode === 'list' ? 'p-4' : ''
+                  }`}
+                >
+                  {projectViewMode === 'card' ? (
+                    <>
+                      <div className="h-36 w-full bg-zinc-900">
+                        {project.coverUrl ? (
+                          <img src={project.coverUrl} alt={project.title} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-xs tracking-[0.14em] text-zinc-500">NO COVER IMAGE</div>
+                        )}
+                      </div>
 
-                  <div className="space-y-2 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-2">
+                      <div className="space-y-2 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.includes(project.id)}
+                              onChange={() => toggleSelectProject(project.id)}
+                              className="mt-0.5 h-4 w-4 rounded border-zinc-600 bg-zinc-900 accent-emerald-400"
+                            />
+                            <h3 className="text-sm tracking-[0.08em] text-zinc-100">{project.title}</h3>
+                          </div>
+                          <div className="flex gap-2">
+                            {project.publishStatus === 'Draft' ? (
+                              <span className="rounded-full border border-purple-300/70 bg-purple-300/15 px-2 py-0.5 text-[10px] tracking-[0.14em] text-purple-200">DRAFT</span>
+                            ) : (
+                              <span className="rounded-full border border-sky-300/70 bg-sky-300/15 px-2 py-0.5 text-[10px] tracking-[0.14em] text-sky-200">PUBLISHED</span>
+                            )}
+                            {project.isFeatured && <span className="rounded-full border border-emerald-300/70 bg-emerald-300/15 px-2 py-0.5 text-[10px] tracking-[0.14em] text-emerald-200">FEATURED</span>}
+                            {!project.isVisible && <span className="rounded-full border border-amber-300/70 bg-amber-300/15 px-2 py-0.5 text-[10px] tracking-[0.14em] text-amber-200">HIDDEN</span>}
+                          </div>
+                        </div>
+
+                        <p className="text-xs tracking-[0.12em] text-zinc-400">{project.category}</p>
+                        <p className="text-[11px] tracking-[0.12em] text-zinc-500">ORDER #{project.sortOrder}</p>
+
+                        <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+                          <button
+                            type="button"
+                            onClick={() => moveProject(project.id, 'up')}
+                            className="rounded-md border border-zinc-600 bg-zinc-900 px-2.5 py-1.5 text-xs tracking-[0.08em] text-zinc-200 transition hover:border-zinc-400"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveProject(project.id, 'down')}
+                            className="rounded-md border border-zinc-600 bg-zinc-900 px-2.5 py-1.5 text-xs tracking-[0.08em] text-zinc-200 transition hover:border-zinc-400"
+                          >
+                            ↓
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleQuickPrivatePassword(project)}
+                            title={project.publishStatus === 'Private' ? '取消私密（改为 Published）' : '设为私密并设置密码'}
+                            className={`rounded-md border px-3 py-1.5 text-xs tracking-[0.1em] transition ${
+                              project.publishStatus === 'Private'
+                                ? 'border-amber-300/70 bg-amber-300/15 text-amber-200 hover:bg-amber-300/25'
+                                : 'border-zinc-600 bg-zinc-900 text-zinc-200 hover:border-zinc-400'
+                            }`}
+                          >
+                            {project.publishStatus === 'Private' ? '🔒' : '🔓'}
+                          </button>
+                          <button type="button" onClick={() => handleOpenEdit(project)} className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs tracking-[0.1em] text-zinc-200 transition hover:border-zinc-400">Edit</button>
+                          <button type="button" onClick={() => deleteProject(project.id)} className="rounded-md border border-rose-400/60 bg-rose-400/10 px-3 py-1.5 text-xs tracking-[0.1em] text-rose-200 transition hover:bg-rose-400/20">Delete</button>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex min-w-[220px] items-start gap-3">
                         <input
                           type="checkbox"
                           checked={selectedIds.includes(project.id)}
                           onChange={() => toggleSelectProject(project.id)}
                           className="mt-0.5 h-4 w-4 rounded border-zinc-600 bg-zinc-900 accent-emerald-400"
                         />
-                        <h3 className="text-sm tracking-[0.08em] text-zinc-100">{project.title}</h3>
+                        <div>
+                          <h3 className="text-sm tracking-[0.08em] text-zinc-100">{project.title}</h3>
+                          <p className="mt-1 text-xs tracking-[0.12em] text-zinc-400">{project.category} · ORDER #{project.sortOrder}</p>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
+
+                      <div className="flex flex-wrap items-center gap-2">
                         {project.publishStatus === 'Draft' ? (
                           <span className="rounded-full border border-purple-300/70 bg-purple-300/15 px-2 py-0.5 text-[10px] tracking-[0.14em] text-purple-200">DRAFT</span>
                         ) : (
@@ -737,31 +2133,38 @@ function DirectorConsole() {
                         )}
                         {project.isFeatured && <span className="rounded-full border border-emerald-300/70 bg-emerald-300/15 px-2 py-0.5 text-[10px] tracking-[0.14em] text-emerald-200">FEATURED</span>}
                         {!project.isVisible && <span className="rounded-full border border-amber-300/70 bg-amber-300/15 px-2 py-0.5 text-[10px] tracking-[0.14em] text-amber-200">HIDDEN</span>}
+
+                        <button
+                          type="button"
+                          onClick={() => moveProject(project.id, 'up')}
+                          className="rounded-md border border-zinc-600 bg-zinc-900 px-2.5 py-1.5 text-xs tracking-[0.08em] text-zinc-200 transition hover:border-zinc-400"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveProject(project.id, 'down')}
+                          className="rounded-md border border-zinc-600 bg-zinc-900 px-2.5 py-1.5 text-xs tracking-[0.08em] text-zinc-200 transition hover:border-zinc-400"
+                        >
+                          ↓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickPrivatePassword(project)}
+                          title={project.publishStatus === 'Private' ? '取消私密（改为 Published）' : '设为私密并设置密码'}
+                          className={`rounded-md border px-3 py-1.5 text-xs tracking-[0.1em] transition ${
+                            project.publishStatus === 'Private'
+                              ? 'border-amber-300/70 bg-amber-300/15 text-amber-200 hover:bg-amber-300/25'
+                              : 'border-zinc-600 bg-zinc-900 text-zinc-200 hover:border-zinc-400'
+                          }`}
+                        >
+                          {project.publishStatus === 'Private' ? '🔒' : '🔓'}
+                        </button>
+                        <button type="button" onClick={() => handleOpenEdit(project)} className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs tracking-[0.1em] text-zinc-200 transition hover:border-zinc-400">Edit</button>
+                        <button type="button" onClick={() => deleteProject(project.id)} className="rounded-md border border-rose-400/60 bg-rose-400/10 px-3 py-1.5 text-xs tracking-[0.1em] text-rose-200 transition hover:bg-rose-400/20">Delete</button>
                       </div>
                     </div>
-
-                    <p className="text-xs tracking-[0.12em] text-zinc-400">{project.category}</p>
-                    <p className="text-[11px] tracking-[0.12em] text-zinc-500">ORDER #{project.sortOrder}</p>
-
-                    <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
-                      <button
-                        type="button"
-                        onClick={() => moveProject(project.id, 'up')}
-                        className="rounded-md border border-zinc-600 bg-zinc-900 px-2.5 py-1.5 text-xs tracking-[0.08em] text-zinc-200 transition hover:border-zinc-400"
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveProject(project.id, 'down')}
-                        className="rounded-md border border-zinc-600 bg-zinc-900 px-2.5 py-1.5 text-xs tracking-[0.08em] text-zinc-200 transition hover:border-zinc-400"
-                      >
-                        ↓
-                      </button>
-                      <button type="button" onClick={() => handleOpenEdit(project)} className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs tracking-[0.1em] text-zinc-200 transition hover:border-zinc-400">Edit</button>
-                      <button type="button" onClick={() => deleteProject(project.id)} className="rounded-md border border-rose-400/60 bg-rose-400/10 px-3 py-1.5 text-xs tracking-[0.1em] text-rose-200 transition hover:bg-rose-400/20">Delete</button>
-                    </div>
-                  </div>
+                  )}
                 </article>
               ))}
             </div>
@@ -805,13 +2208,26 @@ function DirectorConsole() {
             )}
 
             {showForm && (
-              <ProjectForm
-                mode={formMode}
-                formState={formState}
-                onChange={(key, value) => setFormState((prev) => ({ ...prev, [key]: value }))}
-                onSubmit={handleSubmitForm}
-                onCancel={handleCancelForm}
-              />
+              <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
+                <div className="relative max-h-[88vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-zinc-700/70 bg-zinc-900/95 p-1 shadow-[0_24px_80px_rgba(0,0,0,0.65)]">
+                  <button
+                    type="button"
+                    onClick={handleCancelForm}
+                    aria-label="关闭弹窗"
+                    className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600 bg-zinc-900/90 text-zinc-300 transition hover:border-zinc-400 hover:text-zinc-100"
+                  >
+                    ×
+                  </button>
+
+                  <ProjectForm
+                    mode={formMode}
+                    formState={formState}
+                    onChange={(key, value) => setFormState((prev) => ({ ...prev, [key]: value }))}
+                    onSubmit={handleSubmitForm}
+                    onCancel={handleCancelForm}
+                  />
+                </div>
+              </div>
             )}
           </section>
         )}

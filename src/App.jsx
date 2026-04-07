@@ -10,6 +10,7 @@ import InteractiveLab from './pages/InteractiveLab/index.jsx';
 import DirectorConsole from './pages/DirectorConsole/index.jsx';
 import ProjectDetail from './pages/ProjectDetail/index.jsx';
 import { useConfig } from './context/ConfigContext.jsx';
+import { trackPageView } from './utils/analytics.js';
 
 function App() {
   const { scrollY } = useScroll();
@@ -43,7 +44,39 @@ function App() {
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });
+    trackPageView(location.pathname);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const title = config.siteTitle?.trim() || 'DIRECTOR.VISION';
+    const description =
+      config.siteDescription?.trim() ||
+      'Cinematic portfolio showcasing toys, industrial, and experimental visual storytelling.';
+
+    document.title = title;
+
+    const ensureMeta = (selector, attrs) => {
+      let el = document.head.querySelector(selector);
+      if (!el) {
+        el = document.createElement('meta');
+        Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+        document.head.appendChild(el);
+      }
+      return el;
+    };
+
+    const descMeta = ensureMeta('meta[name="description"]', { name: 'description' });
+    descMeta.setAttribute('content', description);
+
+    const ogTitleMeta = ensureMeta('meta[property="og:title"]', { property: 'og:title' });
+    ogTitleMeta.setAttribute('content', title);
+
+    const ogDescMeta = ensureMeta('meta[property="og:description"]', { property: 'og:description' });
+    ogDescMeta.setAttribute('content', description);
+
+    const ogImageMeta = ensureMeta('meta[property="og:image"]', { property: 'og:image' });
+    ogImageMeta.setAttribute('content', config.ogImage?.trim() || '');
+  }, [config.siteTitle, config.siteDescription, config.ogImage]);
 
   return (
     <>
