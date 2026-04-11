@@ -1,0 +1,19 @@
+{
+  "name": "portfolio-oss-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@alicloud/credentials": "^2.4.1",
+    "@alicloud/openapi-client": "^0.4.8",
+    "@alicloud/sts20150401": "^1.2.3",
+    "@alicloud/tea-util": "^1.4.10",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2"
+  }
+}

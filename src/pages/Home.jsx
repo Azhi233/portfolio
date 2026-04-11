@@ -1,12 +1,14 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import CinematicMasonry from '../components/CinematicMasonry.jsx';
+import ProjectShowcase from '../components/ProjectShowcase.jsx';
 import { useConfig } from '../context/ConfigContext.jsx';
 
 const STAGE_DURATION_MS = 2000;
 
-function Home() {
-  const { projects, config } = useConfig();
+function Home({ viewMode = 'expertise' }) {
+  const { assets, config } = useConfig();
+  const [expertiseCategoryFilter, setExpertiseCategoryFilter] = useState('all');
 
   const [showIntro, setShowIntro] = useState(() => {
     if (typeof window === 'undefined') return true;
@@ -24,20 +26,32 @@ function Home() {
     return () => window.clearTimeout(timer);
   }, [showIntro]);
 
-  const visibleProjects = useMemo(
+  const expertiseItems = useMemo(
     () =>
-      projects
-        .filter((project) => project.isVisible !== false && project.publishStatus === 'Published')
-        .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0)),
-    [projects],
+      assets
+        .filter((asset) => asset?.views?.expertise?.isActive)
+        .filter((asset) =>
+          expertiseCategoryFilter === 'all' ? true : asset?.views?.expertise?.category === expertiseCategoryFilter,
+        )
+        .map((asset, index) => ({
+          id: asset.id,
+          title: asset.title,
+          coverUrl: asset.url,
+          tagline: asset.views.expertise.description || `EXPERTISE · ${asset.views.expertise.category}`,
+          category:
+            asset.views.expertise.category === 'industrial'
+              ? 'Industrial'
+              : asset.views.expertise.category === 'events'
+                ? 'Misc'
+                : 'Toys',
+          sortOrder: index,
+          to:
+            asset.views.project?.projectId === 'industry_project'
+              ? '/project/industry'
+              : '/project/toy',
+        })),
+    [assets, expertiseCategoryFilter],
   );
-
-  const featuredProjects = useMemo(
-    () => visibleProjects.filter((project) => project.isFeatured === true),
-    [visibleProjects],
-  );
-
-  const wallProjects = featuredProjects.length > 0 ? featuredProjects : visibleProjects;
 
   const awards = useMemo(
     () =>
@@ -97,25 +111,48 @@ function Home() {
         transition={{ duration: showIntro ? 0.9 : 0.35, ease: 'easeOut' }}
         className="relative z-10"
       >
-        <section className="mx-auto min-h-[58vh] w-full max-w-7xl px-6 pb-10 pt-8 md:px-12 md:pt-10">
-          <div className="mb-6">
-            <p className="font-serif text-2xl tracking-[0.16em] text-zinc-100 md:text-3xl">SELECTED WORKS</p>
-            <p className="mt-2 text-sm tracking-[0.14em] text-zinc-500">CINEMATIC WALL · PARALLAX FLOW</p>
-            <p className="mt-2 text-xs tracking-[0.14em] text-zinc-500">
-              VISIBLE {visibleProjects.length} · FEATURED {featuredProjects.length}
-            </p>
-          </div>
-
-          <div className="relative overflow-hidden rounded-3xl border border-white/8 bg-zinc-950/40 p-4 backdrop-blur-sm md:p-6">
-            {wallProjects.length > 0 ? (
-              <CinematicMasonry projects={wallProjects} columns={4} />
-            ) : (
-              <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-950/70 p-10 text-center text-xs tracking-[0.16em] text-zinc-500">
-                NO VISIBLE PROJECTS. ENABLE ITEMS IN DIRECTOR CONSOLE.
+        {viewMode === 'projects' ? (
+          <ProjectShowcase />
+        ) : (
+          <section className="mx-auto min-h-[58vh] w-full max-w-7xl px-6 pb-10 pt-8 md:px-12 md:pt-10">
+            <div className="mb-6">
+              <p className="font-serif text-2xl tracking-[0.16em] text-zinc-100 md:text-3xl">SELECTED WORKS</p>
+              <p className="mt-2 text-sm tracking-[0.14em] text-zinc-500">EXPERTISE VIEW · TECHNICAL EXECUTION</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {[
+                  { id: 'all', label: 'ALL' },
+                  { id: 'commercial', label: 'COMMERCIAL' },
+                  { id: 'industrial', label: 'INDUSTRIAL' },
+                  { id: 'events', label: 'EVENTS' },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setExpertiseCategoryFilter(item.id)}
+                    className={`rounded-full border px-3 py-1 text-[10px] tracking-[0.14em] transition ${
+                      expertiseCategoryFilter === item.id
+                        ? 'border-zinc-300/70 bg-zinc-100/10 text-zinc-100'
+                        : 'border-zinc-700 bg-zinc-900/70 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
               </div>
-            )}
-          </div>
-        </section>
+              <p className="mt-2 text-xs tracking-[0.14em] text-zinc-500">ASSETS {expertiseItems.length}</p>
+            </div>
+
+            <div className="relative overflow-hidden rounded-3xl border border-white/8 bg-zinc-950/40 p-4 backdrop-blur-sm md:p-6">
+              {expertiseItems.length > 0 ? (
+                <CinematicMasonry items={expertiseItems} columns={4} />
+              ) : (
+                <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-950/70 p-10 text-center text-xs tracking-[0.16em] text-zinc-500">
+                  NO EXPERTISE ASSETS. ENABLE ITEMS IN DIRECTOR CONSOLE.
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         <section className="mx-auto w-full max-w-7xl px-6 pb-24 pt-10 md:px-12 md:pt-16">
           <div className="grid gap-10 rounded-3xl border border-white/8 bg-zinc-950/35 p-8 md:grid-cols-[220px_1fr] md:gap-14 md:p-12">
@@ -126,11 +163,6 @@ function Home() {
             <div>
               <p className="text-xs tracking-[0.22em] text-zinc-500">ABOUT THE DIRECTOR</p>
               <h2 className="mt-3 font-serif text-3xl tracking-[0.1em] text-zinc-100 md:text-5xl">Silence, Frame, Emotion.</h2>
-              <p className="mt-6 max-w-3xl text-base leading-relaxed text-zinc-300 md:text-lg">
-                我关注“光线如何推动叙事”，也关注“留白如何让情绪停留”。在玩具、工业与日常杂项之间，我尝试
-                用统一的电影化语言去建立节奏：克制的构图、缓慢的运动、精准的色温与材质表达。每一个镜头，
-                都是对时间和质感的一次再编排。
-              </p>
 
               <div className="mt-8 grid gap-5 md:grid-cols-3">
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
@@ -171,12 +203,6 @@ function Home() {
                     <p className="mt-3 text-xs text-zinc-500">No gear data yet.</p>
                   )}
                 </div>
-              </div>
-
-              <div className="mt-6 flex flex-wrap items-center gap-4 text-xs tracking-[0.12em] text-zinc-400">
-                {config.contactEmail ? <p>Email: {config.contactEmail}</p> : null}
-                {config.contactPhone ? <p>Phone: {config.contactPhone}</p> : null}
-                {config.contactLocation ? <p>Location: {config.contactLocation}</p> : null}
               </div>
             </div>
           </div>

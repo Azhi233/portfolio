@@ -1,21 +1,32 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import NavBar from './components/NavBar.jsx';
 import Home from './pages/Home.jsx';
-import Toys from './pages/Toys.jsx';
-import Industrial from './pages/Industrial.jsx';
-import Misc from './pages/Misc.jsx';
-import InteractiveLab from './pages/InteractiveLab/index.jsx';
-import DirectorConsole from './pages/DirectorConsole/index.jsx';
-import ProjectDetail from './pages/ProjectDetail/index.jsx';
+
+const Photography = lazy(() => import('./pages/Photography.jsx'));
+const Videography = lazy(() => import('./pages/Videography.jsx'));
+const AboutContact = lazy(() => import('./pages/AboutContact.jsx'));
+const Services = lazy(() => import('./pages/Services.jsx'));
+const InteractiveLab = lazy(() => import('./pages/InteractiveLab/index.jsx'));
+const DirectorConsole = lazy(() => import('./pages/DirectorConsole/index.jsx'));
+const ProjectDetail = lazy(() => import('./pages/ProjectDetail/index.jsx'));
+const HealthCheck = lazy(() => import('./pages/HealthCheck/index.jsx'));
+const ToyProjectPage = lazy(() => import('./pages/projects/ToyProjectPage.jsx'));
+const IndustryProjectPage = lazy(() => import('./pages/projects/IndustryProjectPage.jsx'));
 import { useConfig } from './context/ConfigContext.jsx';
 import { trackPageView } from './utils/analytics.js';
+import { logRuntimeEvent } from './utils/runtimeDiagnostics.js';
 
 function App() {
   const { scrollY } = useScroll();
   const { config } = useConfig();
   const location = useLocation();
+  const [viewMode, setViewMode] = useState(() => {
+    if (typeof window === 'undefined') return 'expertise';
+    const stored = window.localStorage.getItem('home.viewMode');
+    return stored === 'projects' ? 'projects' : 'expertise';
+  });
 
   // 只做非常轻微的滚动呼吸变化，避免喧宾夺主
   const vignetteOpacity = useTransform(
@@ -30,7 +41,10 @@ function App() {
   );
 
   const isLab = location.pathname.startsWith('/lab');
-  const isProjectDetail = location.pathname.startsWith('/project/');
+  const isProjectDetail =
+    location.pathname.startsWith('/project/') &&
+    !location.pathname.startsWith('/project/toy') &&
+    !location.pathname.startsWith('/project/industry');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -48,12 +62,58 @@ function App() {
   }, [location.pathname]);
 
   useEffect(() => {
-    const title = config.siteTitle?.trim() || 'DIRECTOR.VISION';
-    const description =
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('home.viewMode', viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    const onError = (event) => {
+      logRuntimeEvent('window_error', {
+        message: event.message,
+        source: event.filename,
+        line: event.lineno,
+        column: event.colno,
+      });
+    };
+
+    const onUnhandledRejection = (event) => {
+      logRuntimeEvent('unhandled_rejection', {
+        reason: String(event.reason || 'unknown'),
+      });
+    };
+
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onUnhandledRejection);
+
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onUnhandledRejection);
+    };
+  }, []);
+
+  useEffect(() => {
+    const baseTitle = config.siteTitle?.trim() || 'DIRECTOR.VISION';
+    const baseDescription =
       config.siteDescription?.trim() ||
       'Cinematic portfolio showcasing toys, industrial, and experimental visual storytelling.';
 
-    document.title = title;
+    const routeMetaMap = {
+      '/': { title: baseTitle, description: baseDescription },
+      '/photography': { title: `Photography | ${baseTitle}`, description: 'Commercial and cinematic photography portfolio.' },
+      '/videography': { title: `Videography | ${baseTitle}`, description: 'Narrative and commercial video direction showcase.' },
+      '/about': { title: `About & Contact | ${baseTitle}`, description: 'Background, collaborations and contact details.' },
+      '/services': { title: `Services | ${baseTitle}`, description: 'Service packages, scope, timeline and deliverables.' },
+      '/project/toy': { title: `Toy Project | ${baseTitle}`, description: 'Case study for toy industry visual production pipeline.' },
+      '/project/industry': { title: `Industry Project | ${baseTitle}`, description: 'Case study for industrial B2B visual communication.' },
+    };
+
+    const pathname = location.pathname;
+    const matched = routeMetaMap[pathname] || {
+      title: pathname.startsWith('/project/') ? `Project Detail | ${baseTitle}` : baseTitle,
+      description: baseDescription,
+    };
+
+    document.title = matched.title;
 
     const ensureMeta = (selector, attrs) => {
       let el = document.head.querySelector(selector);
@@ -65,18 +125,19 @@ function App() {
       return el;
     };
 
-    const descMeta = ensureMeta('meta[name="description"]', { name: 'description' });
-    descMeta.setAttribute('content', description);
+    const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
 
-    const ogTitleMeta = ensureMeta('meta[property="og:title"]', { property: 'og:title' });
-    ogTitleMeta.setAttribute('content', title);
-
-    const ogDescMeta = ensureMeta('meta[property="og:description"]', { property: 'og:description' });
-    ogDescMeta.setAttribute('content', description);
-
-    const ogImageMeta = ensureMeta('meta[property="og:image"]', { property: 'og:image' });
-    ogImageMeta.setAttribute('content', config.ogImage?.trim() || '');
-  }, [config.siteTitle, config.siteDescription, config.ogImage]);
+    ensureMeta('meta[name="description"]', { name: 'description' }).setAttribute('content', matched.description);
+    ensureMeta('meta[property="og:title"]', { property: 'og:title' }).setAttribute('content', matched.title);
+    ensureMeta('meta[property="og:description"]', { property: 'og:description' }).setAttribute('content', matched.description);
+    ensureMeta('meta[property="og:image"]', { property: 'og:image' }).setAttribute('content', config.ogImage?.trim() || '');
+    ensureMeta('meta[property="og:url"]', { property: 'og:url' }).setAttribute('content', currentUrl);
+    ensureMeta('meta[property="og:type"]', { property: 'og:type' }).setAttribute('content', 'website');
+    ensureMeta('meta[name="twitter:card"]', { name: 'twitter:card' }).setAttribute('content', 'summary_large_image');
+    ensureMeta('meta[name="twitter:title"]', { name: 'twitter:title' }).setAttribute('content', matched.title);
+    ensureMeta('meta[name="twitter:description"]', { name: 'twitter:description' }).setAttribute('content', matched.description);
+    ensureMeta('meta[name="twitter:image"]', { name: 'twitter:image' }).setAttribute('content', config.ogImage?.trim() || '');
+  }, [config.siteTitle, config.siteDescription, config.ogImage, location.pathname]);
 
   return (
     <>
@@ -84,20 +145,32 @@ function App() {
         <motion.div
           aria-hidden
           style={{ opacity: vignetteOpacity }}
-          className="pointer-events-none fixed inset-0 z-20 bg-[radial-gradient(120%_85%_at_50%_40%,rgba(0,0,0,0)_56%,rgba(0,0,0,0.22)_88%,rgba(0,0,0,0.36)_100%)] md:[background:radial-gradient(130%_92%_at_50%_42%,rgba(0,0,0,0)_54%,rgba(0,0,0,0.24)_86%,rgba(0,0,0,0.4)_100%)]"
+          className="vignette-overlay pointer-events-none fixed inset-0 z-20"
         />
       ) : null}
-      {!isProjectDetail ? <NavBar /> : null}
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<Home />} />
-        <Route path="/toys" element={<Toys />} />
-        <Route path="/industrial" element={<Industrial />} />
-        <Route path="/misc" element={<Misc />} />
-        <Route path="/lab/*" element={<InteractiveLab />} />
-        <Route path="/console" element={<DirectorConsole />} />
-        <Route path="/project/:id" element={<ProjectDetail />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      {!isProjectDetail ? <NavBar viewMode={viewMode} setViewMode={setViewMode} /> : null}
+      <Suspense
+        fallback={
+          <div className="flex min-h-screen items-center justify-center bg-[#050507] text-xs tracking-[0.2em] text-zinc-500">
+            LOADING...
+          </div>
+        }
+      >
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={<Home viewMode={viewMode} />} />
+          <Route path="/photography" element={<Photography />} />
+          <Route path="/videography" element={<Videography />} />
+          <Route path="/about" element={<AboutContact />} />
+          <Route path="/services" element={<Services />} />
+          <Route path="/lab/*" element={<InteractiveLab />} />
+          <Route path="/console" element={<DirectorConsole />} />
+          <Route path="/project/toy" element={<ToyProjectPage />} />
+          <Route path="/project/industry" element={<IndustryProjectPage />} />
+          <Route path="/project/:id" element={<ProjectDetail />} />
+          <Route path="/health" element={<HealthCheck />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </>
   );
 }

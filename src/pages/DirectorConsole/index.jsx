@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import OssUploadField from '../../components/OssUploadField.jsx';
 import { useConfig } from '../../context/ConfigContext.jsx';
+import { uploadFileToOSS } from '../../services/ossUpload.js';
 import { clearAnalytics, getAnalyticsSnapshot, trackEvent } from '../../utils/analytics.js';
 
 const PROJECT_CATEGORIES = ['TVC', '纪录片', 'MV', '实验短片', 'Toys', 'Industrial', 'Misc'];
@@ -31,6 +33,17 @@ const EMPTY_FORM = {
   description: '',
   credits: '',
   publishStatus: 'Draft',
+};
+
+const EMPTY_ASSET_FORM = {
+  title: '',
+  url: '',
+  type: 'image',
+  publishTarget: 'expertise',
+  expertiseCategory: 'commercial',
+  expertiseDescription: '',
+  projectId: 'toy_project',
+  projectDescription: '',
 };
 
 const FORM_INPUT_CLASS =
@@ -67,6 +80,126 @@ const getActionButtonClass = (isEnabled) =>
   `rounded-md border px-3 py-2 text-xs tracking-[0.12em] transition ${
     isEnabled ? ACTIVE_ACTION_CLASS : DISABLED_ACTION_CLASS
   }`;
+
+function getAssetUrlWarning(url, type) {
+  const value = String(url || '').trim();
+  if (!value) return '';
+  if (!/^https?:\/\//i.test(value)) return '建议使用 http(s) OSS 链接，当前可能无法在前台稳定访问。';
+  if (/localhost|127\.0\.0\.1|192\.168\./i.test(value)) return '检测到本地/内网地址，线上访问时可能失效。';
+  if (type === 'image' && /\.(mp4|webm|mov)(\?.*)?$/i.test(value)) return '当前类型是 Image，但 URL 更像视频资源。';
+  if (type === 'video' && /\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(value)) return '当前类型是 Video，但 URL 更像图片资源。';
+  return '';
+}
+
+function buildLegacyMigrationPreview(caseStudies = {}) {
+  const parseLines = (text) =>
+    String(text || '')
+      .split('\n')
+      .map((x) => x.trim())
+      .filter(Boolean);
+
+  const mapOne = (legacy, headline) => {
+    const targetLines = parseLines(legacy?.target);
+    const actionLines = parseLines(legacy?.action);
+    const assetLines = parseLines(legacy?.assets);
+    const reviewLines = parseLines(legacy?.review);
+
+    return {
+      targetHeadline: headline,
+      targetSummary: targetLines[0] || '',
+      targetTags: targetLines.map((x) => (x.startsWith('#') ? x : `#${x}`)).slice(0, 6),
+      actionBullets: actionLines.slice(0, 8),
+      assetUrls: assetLines.filter((x) => /^https?:\/\//i.test(x)),
+      reviewCards: reviewLines.slice(0, 3).map((line, idx) => ({
+        title: idx === 0 ? '产出规模' : idx === 1 ? '痛点解决' : '资产沉淀',
+        value: line,
+      })),
+    };
+  };
+
+  return {
+    toy: mapOne(caseStudies?.toy, 'CHALLENGE'),
+    industry: mapOne(caseStudies?.industry, 'INDUSTRY CHALLENGE'),
+  };
+}
+
+function runProjectPreflight(projects = []) {
+  const issues = [];
+
+  projects.forEach((project) => {
+    const title = String(project?.title || '').trim();
+    const coverUrl = String(project?.coverUrl || '').trim();
+    const videoUrl = String(project?.videoUrl || '').trim();
+    const publishStatus = String(project?.publishStatus || 'Draft');
+    const password = String(project?.accessPassword || '').trim();
+
+    if (!title) {
+      issues.push({
+        projectId: project?.id,
+        projectTitle: project?.title || '(untitled)',
+        severity: 'error',
+        code: 'TITLE_REQUIRED',
+        message: 'Project title is required.',
+      });
+    }
+
+    if (!coverUrl) {
+      issues.push({
+        projectId: project?.id,
+        projectTitle: project?.title || '(untitled)',
+        severity: publishStatus === 'Published' ? 'error' : 'warning',
+        code: 'COVER_REQUIRED',
+        message: 'Cover URL is empty.',
+      });
+    } else if (!/^https?:\/\//i.test(coverUrl)) {
+      issues.push({
+        projectId: project?.id,
+        projectTitle: project?.title || '(untitled)',
+        severity: publishStatus === 'Published' ? 'error' : 'warning',
+        code: 'COVER_URL_INVALID',
+        message: 'Cover URL should be http(s).',
+      });
+    }
+
+    if (videoUrl && !/^https?:\/\//i.test(videoUrl)) {
+      issues.push({
+        projectId: project?.id,
+        projectTitle: project?.title || '(untitled)',
+        severity: 'warning',
+        code: 'VIDEO_URL_INVALID',
+        message: 'Video URL should be http(s).',
+      });
+    }
+
+    if (publishStatus === 'Private') {
+      if (!password) {
+        issues.push({
+          projectId: project?.id,
+          projectTitle: project?.title || '(untitled)',
+          severity: 'error',
+          code: 'PRIVATE_PASSWORD_REQUIRED',
+          message: 'Private project requires access password.',
+        });
+      } else if (password.length < 4) {
+        issues.push({
+          projectId: project?.id,
+          projectTitle: project?.title || '(untitled)',
+          severity: 'warning',
+          code: 'PRIVATE_PASSWORD_WEAK',
+          message: 'Private password is too short (< 4 chars).',
+        });
+      }
+    }
+  });
+
+  return {
+    checkedAt: new Date().toISOString(),
+    totalProjects: projects.length,
+    errorCount: issues.filter((x) => x.severity === 'error').length,
+    warningCount: issues.filter((x) => x.severity === 'warning').length,
+    issues,
+  };
+}
 
 function FieldLabel({ title, value }) {
   return (
@@ -112,7 +245,16 @@ function ToggleField({ label, value, onToggle }) {
   );
 }
 
-function ProjectForm({ mode, formState, onChange, onSubmit, onCancel }) {
+function ProjectForm({
+  mode,
+  formState,
+  onChange,
+  onSubmit,
+  onCancel,
+  onUploadCover,
+  onUploadVideo,
+  uploadState,
+}) {
   return (
     <form
       onSubmit={onSubmit}
@@ -198,25 +340,27 @@ function ProjectForm({ mode, formState, onChange, onSubmit, onCancel }) {
           />
         </label>
 
-        <label className="block md:col-span-2">
-          <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Cover URL</p>
-          <input
-            value={formState.coverUrl}
-            onChange={(event) => onChange('coverUrl', event.target.value)}
-            className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-400 transition focus:ring-2"
-            placeholder="https://images.unsplash.com/..."
-          />
-        </label>
+        <OssUploadField
+          label="Cover URL"
+          value={formState.coverUrl}
+          placeholder="https://images.unsplash.com/..."
+          accept="image/*"
+          buttonText="上传图片到 OSS"
+          uploadState={uploadState.cover}
+          onChange={(nextValue) => onChange('coverUrl', nextValue)}
+          onUpload={onUploadCover}
+        />
 
-        <label className="block md:col-span-2">
-          <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Main Video URL</p>
-          <input
-            value={formState.videoUrl}
-            onChange={(event) => onChange('videoUrl', event.target.value)}
-            className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-400 transition focus:ring-2"
-            placeholder="https://vimeo.com/..."
-          />
-        </label>
+        <OssUploadField
+          label="Main Video URL"
+          value={formState.videoUrl}
+          placeholder="https://vimeo.com/..."
+          accept="video/*"
+          buttonText="上传视频到 OSS"
+          uploadState={uploadState.video}
+          onChange={(nextValue) => onChange('videoUrl', nextValue)}
+          onUpload={onUploadVideo}
+        />
 
         <label className="block md:col-span-2">
           <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Client / Agency</p>
@@ -304,7 +448,26 @@ function ProjectForm({ mode, formState, onChange, onSubmit, onCancel }) {
 }
 
 function DirectorConsole() {
-  const { config, projects, updateConfig, resetConfig, addProject, updateProject, deleteProject } = useConfig();
+  const {
+    config,
+    projects,
+    assets,
+    projectData,
+    updateConfig,
+    resetConfig,
+    addProject,
+    updateProject,
+    deleteProject,
+    addAsset,
+    updateAsset,
+    deleteAsset,
+    updateProjectModule,
+    updateCaseStudy,
+    resetCaseStudies,
+    migrateLegacyCaseStudiesToProjectData,
+    exportCmsBundle,
+    importCmsBundle,
+  } = useConfig();
 
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -328,6 +491,10 @@ function DirectorConsole() {
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [formState, setFormState] = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
+  const [uploadState, setUploadState] = useState({
+    cover: { status: 'idle', progress: 0 },
+    video: { status: 'idle', progress: 0 },
+  });
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -352,6 +519,17 @@ function DirectorConsole() {
     resumeAwardsText: config.resumeAwardsText || '',
     resumeExperienceText: config.resumeExperienceText || '',
     resumeGearText: config.resumeGearText || '',
+    testimonialsText: config.testimonialsText || '',
+    brandNamesText: config.brandNamesText || '',
+    servicesText: config.servicesText || '',
+    caseToyTarget: config.caseStudies?.toy?.target || '',
+    caseToyAction: config.caseStudies?.toy?.action || '',
+    caseToyAssets: config.caseStudies?.toy?.assets || '',
+    caseToyReview: config.caseStudies?.toy?.review || '',
+    caseIndustryTarget: config.caseStudies?.industry?.target || '',
+    caseIndustryAction: config.caseStudies?.industry?.action || '',
+    caseIndustryAssets: config.caseStudies?.industry?.assets || '',
+    caseIndustryReview: config.caseStudies?.industry?.review || '',
   }));
   const [introProjectId, setIntroProjectId] = useState('');
   const [introDraft, setIntroDraft] = useState({
@@ -362,6 +540,31 @@ function DirectorConsole() {
     clientAgency: '',
   });
   const [introHistory, setIntroHistory] = useState([]);
+  const [assetForm, setAssetForm] = useState(EMPTY_ASSET_FORM);
+  const [assetFormError, setAssetFormError] = useState('');
+  const [assetUrlWarning, setAssetUrlWarning] = useState('');
+  const [editingAssetId, setEditingAssetId] = useState(null);
+  const [projectModuleDraft, setProjectModuleDraft] = useState(() => ({
+    projectId: 'toy_project',
+    targetHeadline: projectData?.toy_project?.modules?.target?.headline || '',
+    targetSummary: projectData?.toy_project?.modules?.target?.summary || '',
+    targetTagsText: (projectData?.toy_project?.modules?.target?.tags || []).join('\n'),
+    actionTitle: projectData?.toy_project?.modules?.action?.title || '',
+    actionBulletsText: (projectData?.toy_project?.modules?.action?.bullets || []).join('\n'),
+    actionSupportImageUrl: projectData?.toy_project?.modules?.action?.supportImageUrl || '',
+    assetsIntro: projectData?.toy_project?.modules?.assets?.intro || '',
+    assetsUrlsText: (projectData?.toy_project?.modules?.assets?.assetUrls || []).join('\n'),
+    reviewCardsText: (projectData?.toy_project?.modules?.review?.cards || [])
+      .map((card) => `${card.title}: ${card.value}`)
+      .join('\n'),
+  }));
+  const [migrationPreviewOpen, setMigrationPreviewOpen] = useState(false);
+  const [migrationPreview, setMigrationPreview] = useState({ toy: null, industry: null });
+  const [importJsonText, setImportJsonText] = useState('');
+  const [importResult, setImportResult] = useState('');
+  const [assetFilterMode, setAssetFilterMode] = useState('all');
+  const [projectsPanelMode, setProjectsPanelMode] = useState('projects');
+  const [preflightResult, setPreflightResult] = useState(() => runProjectPreflight(projects));
 
   const sortedProjects = useMemo(
     () => [...projects].sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0)),
@@ -414,7 +617,18 @@ function DirectorConsole() {
     String(siteConfigDraft.contactLocation || '') !== String(config.contactLocation || '') ||
     String(siteConfigDraft.resumeAwardsText || '') !== String(config.resumeAwardsText || '') ||
     String(siteConfigDraft.resumeExperienceText || '') !== String(config.resumeExperienceText || '') ||
-    String(siteConfigDraft.resumeGearText || '') !== String(config.resumeGearText || '');
+    String(siteConfigDraft.resumeGearText || '') !== String(config.resumeGearText || '') ||
+    String(siteConfigDraft.testimonialsText || '') !== String(config.testimonialsText || '') ||
+    String(siteConfigDraft.brandNamesText || '') !== String(config.brandNamesText || '') ||
+    String(siteConfigDraft.servicesText || '') !== String(config.servicesText || '') ||
+    String(siteConfigDraft.caseToyTarget || '') !== String(config.caseStudies?.toy?.target || '') ||
+    String(siteConfigDraft.caseToyAction || '') !== String(config.caseStudies?.toy?.action || '') ||
+    String(siteConfigDraft.caseToyAssets || '') !== String(config.caseStudies?.toy?.assets || '') ||
+    String(siteConfigDraft.caseToyReview || '') !== String(config.caseStudies?.toy?.review || '') ||
+    String(siteConfigDraft.caseIndustryTarget || '') !== String(config.caseStudies?.industry?.target || '') ||
+    String(siteConfigDraft.caseIndustryAction || '') !== String(config.caseStudies?.industry?.action || '') ||
+    String(siteConfigDraft.caseIndustryAssets || '') !== String(config.caseStudies?.industry?.assets || '') ||
+    String(siteConfigDraft.caseIndustryReview || '') !== String(config.caseStudies?.industry?.review || '');
 
   useEffect(() => {
     setCurrentPage(1);
@@ -425,6 +639,10 @@ function DirectorConsole() {
       setCurrentPage(totalPages);
     }
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setPreflightResult(runProjectPreflight(projects));
+  }, [projects]);
 
   useEffect(() => {
     if (activeTab !== 'settings') return;
@@ -450,6 +668,17 @@ function DirectorConsole() {
       resumeAwardsText: config.resumeAwardsText || '',
       resumeExperienceText: config.resumeExperienceText || '',
       resumeGearText: config.resumeGearText || '',
+      testimonialsText: config.testimonialsText || '',
+      brandNamesText: config.brandNamesText || '',
+      servicesText: config.servicesText || '',
+      caseToyTarget: config.caseStudies?.toy?.target || '',
+      caseToyAction: config.caseStudies?.toy?.action || '',
+      caseToyAssets: config.caseStudies?.toy?.assets || '',
+      caseToyReview: config.caseStudies?.toy?.review || '',
+      caseIndustryTarget: config.caseStudies?.industry?.target || '',
+      caseIndustryAction: config.caseStudies?.industry?.action || '',
+      caseIndustryAssets: config.caseStudies?.industry?.assets || '',
+      caseIndustryReview: config.caseStudies?.industry?.review || '',
     });
   }, [
     activeTab,
@@ -603,7 +832,26 @@ function DirectorConsole() {
         ? Math.round(watchDurations.reduce((sum, v) => sum + v, 0) / watchDurations.length)
         : 0;
 
-    return { todayPV, sevenDayUV, videoPlayCount, avgWatchDuration };
+    const filteredPageViews = analyticsFilteredEvents.filter((event) => event.type === 'page_view').length;
+    const ctaEvents = analyticsFilteredEvents.filter((event) => event.type === 'cta_click');
+    const ctaConsultCount = ctaEvents.filter((event) => event.payload?.action === 'consult').length;
+    const ctaProposalCount = ctaEvents.filter((event) => event.payload?.action === 'proposal').length;
+    const ctaCopyEmailCount = ctaEvents.filter((event) => event.payload?.action === 'copy_email').length;
+    const ctaTotal = ctaConsultCount + ctaProposalCount + ctaCopyEmailCount;
+    const ctaConversionRate = filteredPageViews > 0 ? Number(((ctaTotal / filteredPageViews) * 100).toFixed(1)) : 0;
+
+    return {
+      todayPV,
+      sevenDayUV,
+      videoPlayCount,
+      avgWatchDuration,
+      ctaConsultCount,
+      ctaProposalCount,
+      ctaCopyEmailCount,
+      ctaTotal,
+      filteredPageViews,
+      ctaConversionRate,
+    };
   }, [analyticsSnapshot.events, analyticsFilteredEvents]);
 
   const pageViewTopRoutes = useMemo(() => {
@@ -795,6 +1043,10 @@ function DirectorConsole() {
     setShowForm(false);
     setEditingProjectId(null);
     setFormState(EMPTY_FORM);
+    setUploadState({
+      cover: { status: 'idle', progress: 0 },
+      video: { status: 'idle', progress: 0 },
+    });
   };
 
   useEffect(() => {
@@ -830,6 +1082,20 @@ function DirectorConsole() {
       accessPassword: nextVisibility === 'Private' ? formState.accessPassword : '',
     };
 
+    if (payload.publishStatus === 'Published') {
+      const check = runProjectPreflight([{ ...payload, id: editingProjectId || 'new' }]);
+      if (check.errorCount > 0 || check.warningCount > 0) {
+        const preview = check.issues
+          .slice(0, 5)
+          .map((x) => `- [${x.severity.toUpperCase()}] ${x.message}`)
+          .join('\n');
+        const continueSubmit = window.confirm(
+          `Preflight found ${check.errorCount} error(s), ${check.warningCount} warning(s).\n\n${preview}\n\nContinue saving?`,
+        );
+        if (!continueSubmit) return;
+      }
+    }
+
     if (formMode === 'edit' && editingProjectId) {
       updateProject(editingProjectId, payload);
     } else {
@@ -837,6 +1103,70 @@ function DirectorConsole() {
     }
 
     handleCancelForm();
+  };
+
+  const handleUploadCover = async (file) => {
+    setUploadState((prev) => ({
+      ...prev,
+      cover: { status: 'uploading', progress: 0 },
+    }));
+
+    try {
+      const result = await uploadFileToOSS({
+        file,
+        dir: 'images/cover',
+        onProgress: (progress) => {
+          setUploadState((prev) => ({
+            ...prev,
+            cover: { status: 'uploading', progress },
+          }));
+        },
+      });
+
+      setFormState((prev) => ({ ...prev, coverUrl: result.url }));
+      setUploadState((prev) => ({
+        ...prev,
+        cover: { status: 'success', progress: 100 },
+      }));
+    } catch (error) {
+      console.error(error);
+      setUploadState((prev) => ({
+        ...prev,
+        cover: { status: 'error', progress: 0 },
+      }));
+    }
+  };
+
+  const handleUploadVideo = async (file) => {
+    setUploadState((prev) => ({
+      ...prev,
+      video: { status: 'uploading', progress: 0 },
+    }));
+
+    try {
+      const result = await uploadFileToOSS({
+        file,
+        dir: 'videos/main',
+        onProgress: (progress) => {
+          setUploadState((prev) => ({
+            ...prev,
+            video: { status: 'uploading', progress },
+          }));
+        },
+      });
+
+      setFormState((prev) => ({ ...prev, videoUrl: result.url }));
+      setUploadState((prev) => ({
+        ...prev,
+        video: { status: 'success', progress: 100 },
+      }));
+    } catch (error) {
+      console.error(error);
+      setUploadState((prev) => ({
+        ...prev,
+        video: { status: 'error', progress: 0 },
+      }));
+    }
   };
 
   const moveProject = (projectId, direction) => {
@@ -903,6 +1233,23 @@ function DirectorConsole() {
   const applyBulkPublishStatus = (publishStatus) => {
     if (selectedIds.length === 0) return;
 
+    if (publishStatus === 'Published') {
+      const selectedProjects = projects.filter((project) => selectedIds.includes(project.id));
+      const check = runProjectPreflight(selectedProjects);
+      if (check.errorCount > 0) {
+        const preview = check.issues
+          .filter((x) => x.severity === 'error')
+          .slice(0, 5)
+          .map((x) => `- [${x.projectTitle}] ${x.message}`)
+          .join('\n');
+
+        const forcePublish = window.confirm(
+          `Preflight found ${check.errorCount} error(s).\n\n${preview}\n\nStill continue publishing selected items?`,
+        );
+        if (!forcePublish) return;
+      }
+    }
+
     const label = publishStatus === 'Published' ? 'publish' : 'move to draft';
     const confirmed = window.confirm(`Confirm ${label} ${selectedIds.length} selected project(s)?`);
     if (!confirmed) return;
@@ -963,6 +1310,19 @@ function DirectorConsole() {
     updateConfig('resumeAwardsText', String(siteConfigDraft.resumeAwardsText || '').trim());
     updateConfig('resumeExperienceText', String(siteConfigDraft.resumeExperienceText || '').trim());
     updateConfig('resumeGearText', String(siteConfigDraft.resumeGearText || '').trim());
+    updateConfig('testimonialsText', String(siteConfigDraft.testimonialsText || '').trim());
+    updateConfig('brandNamesText', String(siteConfigDraft.brandNamesText || '').trim());
+    updateConfig('servicesText', String(siteConfigDraft.servicesText || '').trim());
+
+    updateCaseStudy('toy', 'target', String(siteConfigDraft.caseToyTarget || '').trim());
+    updateCaseStudy('toy', 'action', String(siteConfigDraft.caseToyAction || '').trim());
+    updateCaseStudy('toy', 'assets', String(siteConfigDraft.caseToyAssets || '').trim());
+    updateCaseStudy('toy', 'review', String(siteConfigDraft.caseToyReview || '').trim());
+
+    updateCaseStudy('industry', 'target', String(siteConfigDraft.caseIndustryTarget || '').trim());
+    updateCaseStudy('industry', 'action', String(siteConfigDraft.caseIndustryAction || '').trim());
+    updateCaseStudy('industry', 'assets', String(siteConfigDraft.caseIndustryAssets || '').trim());
+    updateCaseStudy('industry', 'review', String(siteConfigDraft.caseIndustryReview || '').trim());
 
     trackEvent('site_config_updated', {
       siteTitle: String(siteConfigDraft.siteTitle || '').trim(),
@@ -1111,6 +1471,12 @@ function DirectorConsole() {
           <div className="mt-5 flex flex-wrap items-center gap-2">
             <PanelTab isActive={activeTab === 'projects'} onClick={() => setActiveTab('projects')}>
               Projects (作品管理)
+            </PanelTab>
+            <PanelTab isActive={activeTab === 'assets'} onClick={() => setActiveTab('assets')}>
+              Assets CMS (双视角分发)
+            </PanelTab>
+            <PanelTab isActive={activeTab === 'projectModules'} onClick={() => setActiveTab('projectModules')}>
+              Project Modules (复盘模块)
             </PanelTab>
             <PanelTab isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')}>
               Site Settings (网站特效)
@@ -1343,6 +1709,25 @@ function DirectorConsole() {
                 <p className="text-[10px] tracking-[0.14em] text-emerald-200">AVG WATCH (S)</p>
                 <p className="mt-1 text-lg text-emerald-100">{analyticsKpis.avgWatchDuration}</p>
               </div>
+              <div className="rounded-xl border border-amber-300/25 bg-amber-300/5 p-3">
+                <p className="text-[10px] tracking-[0.14em] text-amber-200">CTA CONSULT</p>
+                <p className="mt-1 text-lg text-amber-100">{analyticsKpis.ctaConsultCount}</p>
+              </div>
+              <div className="rounded-xl border border-fuchsia-300/25 bg-fuchsia-300/5 p-3">
+                <p className="text-[10px] tracking-[0.14em] text-fuchsia-200">CTA PROPOSAL</p>
+                <p className="mt-1 text-lg text-fuchsia-100">{analyticsKpis.ctaProposalCount}</p>
+              </div>
+              <div className="rounded-xl border border-lime-300/25 bg-lime-300/5 p-3">
+                <p className="text-[10px] tracking-[0.14em] text-lime-200">CTA COPY EMAIL</p>
+                <p className="mt-1 text-lg text-lime-100">{analyticsKpis.ctaCopyEmailCount}</p>
+              </div>
+              <div className="rounded-xl border border-rose-300/25 bg-rose-300/5 p-3">
+                <p className="text-[10px] tracking-[0.14em] text-rose-200">CTA TOTAL</p>
+                <p className="mt-1 text-lg text-rose-100">{analyticsKpis.ctaTotal}</p>
+                <p className="mt-1 text-[11px] text-rose-200/80">
+                  CVR {analyticsKpis.ctaConversionRate}% · PV {analyticsKpis.filteredPageViews}
+                </p>
+              </div>
             </div>
 
             <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -1465,6 +1850,148 @@ function DirectorConsole() {
               ) : null}
             </div>
 
+            {migrationPreviewOpen ? (
+              <div className="mt-4 rounded-xl border border-amber-300/40 bg-amber-300/5 p-4">
+                <p className="text-xs tracking-[0.16em] text-amber-200">LEGACY MIGRATION PREVIEW</p>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <div className="rounded-lg border border-white/10 bg-black/25 p-3">
+                    <p className="text-[11px] tracking-[0.14em] text-zinc-400">TOY_PREVIEW</p>
+                    <p className="mt-1 text-xs text-zinc-300">Tags: {migrationPreview?.toy?.targetTags?.length || 0}</p>
+                    <p className="text-xs text-zinc-300">Action bullets: {migrationPreview?.toy?.actionBullets?.length || 0}</p>
+                    <p className="text-xs text-zinc-300">Asset URLs: {migrationPreview?.toy?.assetUrls?.length || 0}</p>
+                    <p className="text-xs text-zinc-300">Review cards: {migrationPreview?.toy?.reviewCards?.length || 0}</p>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-black/25 p-3">
+                    <p className="text-[11px] tracking-[0.14em] text-zinc-400">INDUSTRY_PREVIEW</p>
+                    <p className="mt-1 text-xs text-zinc-300">Tags: {migrationPreview?.industry?.targetTags?.length || 0}</p>
+                    <p className="text-xs text-zinc-300">Action bullets: {migrationPreview?.industry?.actionBullets?.length || 0}</p>
+                    <p className="text-xs text-zinc-300">Asset URLs: {migrationPreview?.industry?.assetUrls?.length || 0}</p>
+                    <p className="text-xs text-zinc-300">Review cards: {migrationPreview?.industry?.reviewCards?.length || 0}</p>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMigrationPreviewOpen(false)}
+                    className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300"
+                  >
+                    CLOSE
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      migrateLegacyCaseStudiesToProjectData();
+                      const pid = projectModuleDraft.projectId;
+                      const modules = projectData?.[pid]?.modules;
+                      if (modules) {
+                        setProjectModuleDraft((prev) => ({
+                          ...prev,
+                          targetHeadline: modules?.target?.headline || '',
+                          targetSummary: modules?.target?.summary || '',
+                          targetTagsText: (modules?.target?.tags || []).join('\n'),
+                          actionTitle: modules?.action?.title || '',
+                          actionBulletsText: (modules?.action?.bullets || []).join('\n'),
+                          actionSupportImageUrl: modules?.action?.supportImageUrl || '',
+                          assetsIntro: modules?.assets?.intro || '',
+                          assetsUrlsText: (modules?.assets?.assetUrls || []).join('\n'),
+                          reviewCardsText: (modules?.review?.cards || []).map((c) => `${c.title}: ${c.value}`).join('\n'),
+                        }));
+                      }
+                      setMigrationPreviewOpen(false);
+                    }}
+                    className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-3 py-1.5 text-xs text-emerald-200"
+                  >
+                    CONFIRM MIGRATION
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {migrationPreviewOpen ? (
+              <div className="mt-4 rounded-xl border border-amber-300/50 bg-amber-300/10 p-4">
+                <p className="text-xs tracking-[0.16em] text-amber-200">LEGACY MIGRATION PREVIEW</p>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <div className="rounded-lg border border-amber-200/20 bg-black/20 p-3 text-xs text-zinc-200">
+                    <p className="mb-2 tracking-[0.12em] text-amber-100">TOY</p>
+                    <p>TAGS: {migrationPreview?.toy?.targetTags?.length || 0}</p>
+                    <p>ACTION BULLETS: {migrationPreview?.toy?.actionBullets?.length || 0}</p>
+                    <p>ASSET URLS: {migrationPreview?.toy?.assetUrls?.length || 0}</p>
+                    <p>REVIEW CARDS: {migrationPreview?.toy?.reviewCards?.length || 0}</p>
+                  </div>
+
+                  <div className="rounded-lg border border-amber-200/20 bg-black/20 p-3 text-xs text-zinc-200">
+                    <p className="mb-2 tracking-[0.12em] text-amber-100">INDUSTRY</p>
+                    <p>TAGS: {migrationPreview?.industry?.targetTags?.length || 0}</p>
+                    <p>ACTION BULLETS: {migrationPreview?.industry?.actionBullets?.length || 0}</p>
+                    <p>ASSET URLS: {migrationPreview?.industry?.assetUrls?.length || 0}</p>
+                    <p>REVIEW CARDS: {migrationPreview?.industry?.reviewCards?.length || 0}</p>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMigrationPreviewOpen(false)}
+                    className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs text-zinc-300"
+                  >
+                    CLOSE
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      migrateLegacyCaseStudiesToProjectData();
+                      setMigrationPreviewOpen(false);
+                    }}
+                    className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-3 py-2 text-xs text-emerald-200"
+                  >
+                    CONFIRM MIGRATION
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-4 rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-4">
+              <p className="text-xs tracking-[0.16em] text-zinc-400">IMPORT CMS JSON</p>
+              <textarea
+                value={importJsonText}
+                onChange={(event) => {
+                  setImportJsonText(event.target.value);
+                  if (importResult) setImportResult('');
+                }}
+                className="mt-3 min-h-28 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-200"
+                placeholder="Paste exported cms-bundle JSON here..."
+              />
+              {importResult ? <p className="mt-2 text-xs text-zinc-300">{importResult}</p> : null}
+              <div className="mt-3 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImportJsonText('');
+                    setImportResult('');
+                  }}
+                  className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs text-zinc-300"
+                >
+                  CLEAR
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      const parsed = JSON.parse(importJsonText || '{}');
+                      const result = importCmsBundle(parsed);
+                      setImportResult(result?.message || 'Import finished.');
+                    } catch {
+                      setImportResult('Invalid JSON format.');
+                    }
+                  }}
+                  className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-3 py-2 text-xs text-emerald-200"
+                >
+                  IMPORT JSON
+                </button>
+              </div>
+            </div>
+
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-4">
                 <p className="text-xs tracking-[0.16em] text-zinc-400">TOP ROUTES</p>
@@ -1572,6 +2099,694 @@ function DirectorConsole() {
               </div>
             </div>
           </section>
+        ) : activeTab === 'assets' ? (
+          <section className="mt-6 rounded-2xl border border-zinc-700/60 bg-zinc-900/60 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm tracking-[0.16em] text-zinc-100">ASSETS CMS · VIEW DISTRIBUTION</h2>
+                <p className="mt-1 text-[11px] tracking-[0.12em] text-zinc-500">
+                  仅保存 URL 字符串，按双视角分发到 Expertise / Project 页面
+                </p>
+                <p className="mt-2 text-[11px] tracking-[0.12em] text-zinc-500">
+                  TOTAL {assets.length} · EXPERTISE {assets.filter((a) => a.views?.expertise?.isActive).length} · PROJECT {assets.filter((a) => a.views?.project?.isActive).length}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { id: 'all', label: `ALL (${assets.length})` },
+                  {
+                    id: 'expertise_only',
+                    label: `EXPERTISE ONLY (${assets.filter((a) => a.views?.expertise?.isActive && !a.views?.project?.isActive).length})`,
+                  },
+                  {
+                    id: 'project_only',
+                    label: `PROJECT ONLY (${assets.filter((a) => !a.views?.expertise?.isActive && a.views?.project?.isActive).length})`,
+                  },
+                  {
+                    id: 'both',
+                    label: `BOTH (${assets.filter((a) => a.views?.expertise?.isActive && a.views?.project?.isActive).length})`,
+                  },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    aria-pressed={assetFilterMode === m.id}
+                    onClick={() => setAssetFilterMode(m.id)}
+                    className={`rounded-full border px-3 py-1 text-[10px] tracking-[0.14em] transition ${
+                      assetFilterMode === m.id
+                        ? 'border-zinc-300/80 bg-zinc-100/15 text-zinc-100 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]'
+                        : 'border-zinc-700 bg-zinc-900/70 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-4 md:grid-cols-2">
+              <label className="block">
+                <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Asset Title</p>
+                <input
+                  value={assetForm.title}
+                  onChange={(event) => {
+                    setAssetForm((prev) => ({ ...prev, title: event.target.value }));
+                    if (assetFormError) setAssetFormError('');
+                  }}
+                  className={FORM_INPUT_CLASS}
+                  placeholder="Asset title"
+                />
+              </label>
+
+              <label className="block">
+                <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Asset Type</p>
+                <select
+                  value={assetForm.type}
+                  onChange={(event) => {
+                    const nextType = event.target.value;
+                    setAssetForm((prev) => ({ ...prev, type: nextType }));
+                    setAssetUrlWarning(getAssetUrlWarning(assetForm.url, nextType));
+                  }}
+                  className={FORM_INPUT_CLASS}
+                >
+                  <option value="image">Image</option>
+                  <option value="video">Video</option>
+                </select>
+              </label>
+
+              <label className="block md:col-span-2">
+                <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Asset URL (OSS Link)</p>
+                <input
+                  value={assetForm.url}
+                  onChange={(event) => {
+                    const nextUrl = event.target.value;
+                    setAssetForm((prev) => ({ ...prev, url: nextUrl }));
+                    setAssetUrlWarning(getAssetUrlWarning(nextUrl, assetForm.type));
+                    if (assetFormError) setAssetFormError('');
+                  }}
+                  className={FORM_INPUT_CLASS}
+                  placeholder="https://..."
+                />
+              </label>
+
+              <label className="block">
+                <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Publish Target</p>
+                <select
+                  value={assetForm.publishTarget}
+                  onChange={(event) => setAssetForm((prev) => ({ ...prev, publishTarget: event.target.value }))}
+                  className={FORM_INPUT_CLASS}
+                >
+                  <option value="expertise">Expertise Only</option>
+                  <option value="project">Project Only</option>
+                  <option value="both">Both</option>
+                </select>
+              </label>
+
+              {(assetForm.publishTarget === 'expertise' || assetForm.publishTarget === 'both') ? (
+                <>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Expertise Category</p>
+                    <select
+                      value={assetForm.expertiseCategory}
+                      onChange={(event) => setAssetForm((prev) => ({ ...prev, expertiseCategory: event.target.value }))}
+                      className={FORM_INPUT_CLASS}
+                    >
+                      <option value="commercial">commercial</option>
+                      <option value="industrial">industrial</option>
+                      <option value="events">events</option>
+                    </select>
+                  </label>
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">技术向说明</p>
+                    <textarea
+                      value={assetForm.expertiseDescription}
+                      onChange={(event) => setAssetForm((prev) => ({ ...prev, expertiseDescription: event.target.value }))}
+                      className={FORM_TEXTAREA_CLASS}
+                    />
+                  </label>
+                </>
+              ) : null}
+
+              {(assetForm.publishTarget === 'project' || assetForm.publishTarget === 'both') ? (
+                <>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Project</p>
+                    <select
+                      value={assetForm.projectId}
+                      onChange={(event) => setAssetForm((prev) => ({ ...prev, projectId: event.target.value }))}
+                      className={FORM_INPUT_CLASS}
+                    >
+                      <option value="toy_project">toy_project</option>
+                      <option value="industry_project">industry_project</option>
+                    </select>
+                  </label>
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">商业向说明</p>
+                    <textarea
+                      value={assetForm.projectDescription}
+                      onChange={(event) => setAssetForm((prev) => ({ ...prev, projectDescription: event.target.value }))}
+                      className={FORM_TEXTAREA_CLASS}
+                    />
+                  </label>
+                </>
+              ) : null}
+
+              <div className="md:col-span-2">
+                {assetFormError ? (
+                  <p className="mb-2 rounded-md border border-rose-400/60 bg-rose-400/10 px-3 py-2 text-xs tracking-[0.1em] text-rose-200">
+                    {assetFormError}
+                  </p>
+                ) : null}
+                {assetUrlWarning ? (
+                  <p className="mb-2 rounded-md border border-amber-300/50 bg-amber-300/10 px-3 py-2 text-xs tracking-[0.1em] text-amber-200">
+                    URL Warning: {assetUrlWarning}
+                  </p>
+                ) : null}
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssetForm(EMPTY_ASSET_FORM);
+                      setAssetFormError('');
+                      setAssetUrlWarning('');
+                      setEditingAssetId(null);
+                    }}
+                    className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs tracking-[0.12em] text-zinc-300"
+                  >
+                    RESET
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const payload = {
+                        title: String(assetForm.title || '').trim(),
+                        url: String(assetForm.url || '').trim(),
+                        type: assetForm.type,
+                        views: {
+                          expertise: {
+                            isActive: assetForm.publishTarget === 'expertise' || assetForm.publishTarget === 'both',
+                            category: assetForm.expertiseCategory,
+                            description: String(assetForm.expertiseDescription || '').trim(),
+                          },
+                          project: {
+                            isActive: assetForm.publishTarget === 'project' || assetForm.publishTarget === 'both',
+                            projectId: assetForm.projectId,
+                            description: String(assetForm.projectDescription || '').trim(),
+                          },
+                        },
+                      };
+
+                      if (!payload.title || !payload.url) {
+                        setAssetFormError('请填写 Asset Title 和 Asset URL。');
+                        return;
+                      }
+
+                      if (!/^https?:\/\//i.test(payload.url)) {
+                        setAssetFormError('Asset URL 必须是 http(s) 链接。');
+                        return;
+                      }
+
+                      setAssetFormError('');
+                      setAssetUrlWarning(getAssetUrlWarning(payload.url, payload.type));
+
+                      if (editingAssetId) {
+                        updateAsset(editingAssetId, payload);
+                      } else {
+                        addAsset(payload);
+                      }
+                      setAssetForm(EMPTY_ASSET_FORM);
+                      setEditingAssetId(null);
+                    }}
+                    className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-4 py-2 text-xs tracking-[0.12em] text-emerald-200"
+                  >
+                    {editingAssetId ? 'UPDATE ASSET' : 'ADD ASSET'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              {assets
+                .filter((asset) => {
+                  const inExpertise = Boolean(asset.views?.expertise?.isActive);
+                  const inProject = Boolean(asset.views?.project?.isActive);
+                  if (assetFilterMode === 'all') return true;
+                  if (assetFilterMode === 'expertise_only') return inExpertise && !inProject;
+                  if (assetFilterMode === 'project_only') return !inExpertise && inProject;
+                  if (assetFilterMode === 'both') return inExpertise && inProject;
+                  return true;
+                })
+                .map((asset) => (
+                  <article key={asset.id} className="rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm text-zinc-100">{asset.title}</p>
+                        <p className="text-[11px] text-zinc-500">{asset.url}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingAssetId(asset.id);
+                            setAssetForm({
+                              title: asset.title,
+                              url: asset.url,
+                              type: asset.type,
+                              publishTarget:
+                                asset.views.expertise.isActive && asset.views.project.isActive
+                                  ? 'both'
+                                  : asset.views.project.isActive
+                                    ? 'project'
+                                    : 'expertise',
+                              expertiseCategory: asset.views.expertise.category,
+                              expertiseDescription: asset.views.expertise.description,
+                              projectId: asset.views.project.projectId,
+                              projectDescription: asset.views.project.description,
+                            });
+                            setAssetUrlWarning(getAssetUrlWarning(asset.url, asset.type));
+                          }}
+                          className="rounded-md border border-zinc-600 px-3 py-1.5 text-xs text-zinc-200"
+                        >
+                          EDIT
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteAsset(asset.id)}
+                          className="rounded-md border border-rose-400/60 px-3 py-1.5 text-xs text-rose-200"
+                        >
+                          DELETE
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+
+              {assets.filter((asset) => {
+                const inExpertise = Boolean(asset.views?.expertise?.isActive);
+                const inProject = Boolean(asset.views?.project?.isActive);
+                if (assetFilterMode === 'all') return true;
+                if (assetFilterMode === 'expertise_only') return inExpertise && !inProject;
+                if (assetFilterMode === 'project_only') return !inExpertise && inProject;
+                if (assetFilterMode === 'both') return inExpertise && inProject;
+                return true;
+              }).length === 0 ? (
+                <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-950/50 p-6 text-center text-xs tracking-[0.14em] text-zinc-500">
+                  NO ASSETS IN THIS FILTER MODE.
+                </div>
+              ) : null}
+            </div>
+          </section>
+        ) : activeTab === 'projects' ? (
+          <section className="mt-6 rounded-2xl border border-zinc-700/60 bg-zinc-900/60 p-5">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              {[
+                { id: 'projects', label: 'PROJECT LIST' },
+                { id: 'distribution', label: 'DUAL VIEW DISTRIBUTION' },
+              ].map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => setProjectsPanelMode(mode.id)}
+                  className={`rounded-md border px-3 py-1.5 text-xs tracking-[0.12em] transition ${
+                    projectsPanelMode === mode.id
+                      ? 'border-zinc-300/80 bg-zinc-100/10 text-zinc-100'
+                      : 'border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                  }`}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+
+            {projectsPanelMode === 'distribution' ? (
+              <div>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-sm tracking-[0.16em] text-zinc-100">DUAL VIEW DISTRIBUTION</h2>
+                    <p className="mt-1 text-[11px] tracking-[0.12em] text-zinc-500">在作品管理页配置作品投放到专业技能页/商业项目页的归属</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-4 md:grid-cols-2">
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Asset Title</p>
+                    <input
+                      value={assetForm.title}
+                      onChange={(event) => {
+                        setAssetForm((prev) => ({ ...prev, title: event.target.value }));
+                        if (assetFormError) setAssetFormError('');
+                      }}
+                      className={FORM_INPUT_CLASS}
+                      placeholder="Asset title"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Asset Type</p>
+                    <select
+                      value={assetForm.type}
+                      onChange={(event) => {
+                        const nextType = event.target.value;
+                        setAssetForm((prev) => ({ ...prev, type: nextType }));
+                        setAssetUrlWarning(getAssetUrlWarning(assetForm.url, nextType));
+                      }}
+                      className={FORM_INPUT_CLASS}
+                    >
+                      <option value="image">Image</option>
+                      <option value="video">Video</option>
+                    </select>
+                  </label>
+
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Asset URL (OSS Link)</p>
+                    <input
+                      value={assetForm.url}
+                      onChange={(event) => {
+                        const nextUrl = event.target.value;
+                        setAssetForm((prev) => ({ ...prev, url: nextUrl }));
+                        setAssetUrlWarning(getAssetUrlWarning(nextUrl, assetForm.type));
+                        if (assetFormError) setAssetFormError('');
+                      }}
+                      className={FORM_INPUT_CLASS}
+                      placeholder="https://..."
+                    />
+                  </label>
+
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Publish Target</p>
+                    <select
+                      value={assetForm.publishTarget}
+                      onChange={(event) => setAssetForm((prev) => ({ ...prev, publishTarget: event.target.value }))}
+                      className={FORM_INPUT_CLASS}
+                    >
+                      <option value="expertise">Expertise Only</option>
+                      <option value="project">Project Only</option>
+                      <option value="both">Both</option>
+                    </select>
+                  </label>
+
+                  {(assetForm.publishTarget === 'expertise' || assetForm.publishTarget === 'both') ? (
+                    <>
+                      <label className="block">
+                        <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Expertise Category</p>
+                        <select
+                          value={assetForm.expertiseCategory}
+                          onChange={(event) => setAssetForm((prev) => ({ ...prev, expertiseCategory: event.target.value }))}
+                          className={FORM_INPUT_CLASS}
+                        >
+                          <option value="commercial">commercial</option>
+                          <option value="industrial">industrial</option>
+                          <option value="events">events</option>
+                        </select>
+                      </label>
+                      <label className="block md:col-span-2">
+                        <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">技术向说明</p>
+                        <textarea
+                          value={assetForm.expertiseDescription}
+                          onChange={(event) => setAssetForm((prev) => ({ ...prev, expertiseDescription: event.target.value }))}
+                          className={FORM_TEXTAREA_CLASS}
+                        />
+                      </label>
+                    </>
+                  ) : null}
+
+                  {(assetForm.publishTarget === 'project' || assetForm.publishTarget === 'both') ? (
+                    <>
+                      <label className="block">
+                        <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Project</p>
+                        <select
+                          value={assetForm.projectId}
+                          onChange={(event) => setAssetForm((prev) => ({ ...prev, projectId: event.target.value }))}
+                          className={FORM_INPUT_CLASS}
+                        >
+                          <option value="toy_project">toy_project</option>
+                          <option value="industry_project">industry_project</option>
+                        </select>
+                      </label>
+                      <label className="block md:col-span-2">
+                        <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">商业向说明</p>
+                        <textarea
+                          value={assetForm.projectDescription}
+                          onChange={(event) => setAssetForm((prev) => ({ ...prev, projectDescription: event.target.value }))}
+                          className={FORM_TEXTAREA_CLASS}
+                        />
+                      </label>
+                    </>
+                  ) : null}
+
+                  <div className="md:col-span-2">
+                    {assetFormError ? (
+                      <p className="mb-2 rounded-md border border-rose-400/60 bg-rose-400/10 px-3 py-2 text-xs tracking-[0.1em] text-rose-200">{assetFormError}</p>
+                    ) : null}
+                    {assetUrlWarning ? (
+                      <p className="mb-2 rounded-md border border-amber-300/50 bg-amber-300/10 px-3 py-2 text-xs tracking-[0.1em] text-amber-200">URL Warning: {assetUrlWarning}</p>
+                    ) : null}
+
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAssetForm(EMPTY_ASSET_FORM);
+                          setAssetFormError('');
+                          setAssetUrlWarning('');
+                          setEditingAssetId(null);
+                        }}
+                        className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs tracking-[0.12em] text-zinc-300"
+                      >
+                        RESET
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const payload = {
+                            title: String(assetForm.title || '').trim(),
+                            url: String(assetForm.url || '').trim(),
+                            type: assetForm.type,
+                            views: {
+                              expertise: {
+                                isActive: assetForm.publishTarget === 'expertise' || assetForm.publishTarget === 'both',
+                                category: assetForm.expertiseCategory,
+                                description: String(assetForm.expertiseDescription || '').trim(),
+                              },
+                              project: {
+                                isActive: assetForm.publishTarget === 'project' || assetForm.publishTarget === 'both',
+                                projectId: assetForm.projectId,
+                                description: String(assetForm.projectDescription || '').trim(),
+                              },
+                            },
+                          };
+
+                          if (!payload.title || !payload.url) {
+                            setAssetFormError('请填写 Asset Title 和 Asset URL。');
+                            return;
+                          }
+
+                          if (!/^https?:\/\//i.test(payload.url)) {
+                            setAssetFormError('Asset URL 必须是 http(s) 链接。');
+                            return;
+                          }
+
+                          setAssetFormError('');
+                          setAssetUrlWarning(getAssetUrlWarning(payload.url, payload.type));
+
+                          if (editingAssetId) {
+                            updateAsset(editingAssetId, payload);
+                          } else {
+                            addAsset(payload);
+                          }
+                          setAssetForm(EMPTY_ASSET_FORM);
+                          setEditingAssetId(null);
+                        }}
+                        className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-4 py-2 text-xs tracking-[0.12em] text-emerald-200"
+                      >
+                        {editingAssetId ? 'UPDATE ASSET' : 'ADD ASSET'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                  {assets
+                    .filter((asset) =>
+                      assetFilterMode === 'all'
+                        ? true
+                        : assetFilterMode === 'expertise_only'
+                          ? asset.views?.expertise?.isActive && !asset.views?.project?.isActive
+                          : assetFilterMode === 'project_only'
+                            ? !asset.views?.expertise?.isActive && asset.views?.project?.isActive
+                            : asset.views?.expertise?.isActive && asset.views?.project?.isActive,
+                    )
+                    .map((asset) => (
+                      <article key={asset.id} className="rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="text-sm text-zinc-100">{asset.title}</p>
+                            <p className="text-[11px] text-zinc-500">{asset.url}</p>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingAssetId(asset.id);
+                                setAssetForm({
+                                  title: asset.title,
+                                  url: asset.url,
+                                  type: asset.type,
+                                  publishTarget:
+                                    asset.views.expertise.isActive && asset.views.project.isActive
+                                      ? 'both'
+                                      : asset.views.project.isActive
+                                        ? 'project'
+                                        : 'expertise',
+                                  expertiseCategory: asset.views.expertise.category,
+                                  expertiseDescription: asset.views.expertise.description,
+                                  projectId: asset.views.project.projectId,
+                                  projectDescription: asset.views.project.description,
+                                });
+                                setAssetUrlWarning(getAssetUrlWarning(asset.url, asset.type));
+                              }}
+                              className="rounded-md border border-zinc-600 px-3 py-1.5 text-xs text-zinc-200"
+                            >
+                              EDIT
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteAsset(asset.id)}
+                              className="rounded-md border border-rose-400/60 px-3 py-1.5 text-xs text-rose-200"
+                            >
+                              DELETE
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+
+                  {assets.filter((asset) =>
+                    assetFilterMode === 'all'
+                      ? true
+                      : assetFilterMode === 'expertise_only'
+                        ? asset.views?.expertise?.isActive && !asset.views?.project?.isActive
+                        : assetFilterMode === 'project_only'
+                          ? !asset.views?.expertise?.isActive && asset.views?.project?.isActive
+                          : asset.views?.expertise?.isActive && asset.views?.project?.isActive,
+                  ).length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-950/50 p-6 text-center text-xs tracking-[0.14em] text-zinc-500">
+                      NO ASSETS IN THIS FILTER MODE.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </section>
+        ) : activeTab === 'projectModules' ? (
+          <section className="mt-6 rounded-2xl border border-zinc-700/60 bg-zinc-900/60 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm tracking-[0.16em] text-zinc-100">PROJECT MODULES CMS</h2>
+                <p className="mt-1 text-[11px] tracking-[0.12em] text-zinc-500">编辑 Toy / Industry 复盘页四模块数据</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const bundle = exportCmsBundle();
+                    const json = JSON.stringify(bundle, null, 2);
+                    const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `cms-bundle-${Date.now()}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="rounded-md border border-cyan-300/70 bg-cyan-300/10 px-4 py-2 text-xs tracking-[0.12em] text-cyan-200"
+                >
+                  EXPORT CMS JSON
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMigrationPreview(buildLegacyMigrationPreview(config.caseStudies));
+                    setMigrationPreviewOpen(true);
+                  }}
+                  className="rounded-md border border-amber-300/70 bg-amber-300/10 px-4 py-2 text-xs tracking-[0.12em] text-amber-200"
+                >
+                  PREVIEW & MIGRATE LEGACY DATA
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-4">
+              <p className="text-xs tracking-[0.16em] text-zinc-400">IMPORT CMS JSON</p>
+              <textarea
+                value={importJsonText}
+                onChange={(event) => {
+                  setImportJsonText(event.target.value);
+                  if (importResult) setImportResult('');
+                }}
+                className="mt-3 min-h-28 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-200"
+                placeholder="Paste exported cms-bundle JSON here..."
+              />
+              {importResult ? <p className="mt-2 text-xs text-zinc-300">{importResult}</p> : null}
+              <div className="mt-3 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImportJsonText('');
+                    setImportResult('');
+                  }}
+                  className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs text-zinc-300"
+                >
+                  CLEAR
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      const parsed = JSON.parse(importJsonText || '{}');
+                      const result = importCmsBundle(parsed);
+                      setImportResult(result?.message || 'Import finished.');
+                    } catch {
+                      setImportResult('Invalid JSON format.');
+                    }
+                  }}
+                  className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-3 py-2 text-xs text-emerald-200"
+                >
+                  IMPORT JSON
+                </button>
+              </div>
+            </div>
+
+            {migrationPreviewOpen ? (
+              <div className="mt-4 rounded-2xl border border-amber-300/40 bg-amber-300/5 p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs tracking-[0.16em] text-amber-200">MIGRATION PREVIEW</p>
+                  <button type="button" onClick={() => setMigrationPreviewOpen(false)} className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300">CLOSE</button>
+                </div>
+                <div className="mt-3 grid gap-3 md:grid-cols-2 text-xs text-zinc-300">
+                  <div className="rounded-xl border border-white/10 bg-black/25 p-3">
+                    TOY · TAGS {(migrationPreview?.toy?.targetTags || []).length} · ACTIONS {(migrationPreview?.toy?.actionBullets || []).length}
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-black/25 p-3">
+                    INDUSTRY · TAGS {(migrationPreview?.industry?.targetTags || []).length} · ACTIONS {(migrationPreview?.industry?.actionBullets || []).length}
+                  </div>
+                </div>
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      migrateLegacyCaseStudiesToProjectData();
+                      setMigrationPreviewOpen(false);
+                    }}
+                    className="rounded-md border border-amber-300/70 bg-amber-300/10 px-4 py-2 text-xs tracking-[0.12em] text-amber-200"
+                  >
+                    CONFIRM MIGRATION
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </section>
         ) : activeTab === 'siteConfig' ? (
           <section className="mt-6 rounded-2xl border border-zinc-700/60 bg-zinc-900/60 p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1582,18 +2797,44 @@ function DirectorConsole() {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={handleApplySiteConfig}
-                disabled={!hasUnsavedSiteConfig}
-                className={`rounded-md border px-4 py-2 text-xs tracking-[0.14em] transition ${
-                  hasUnsavedSiteConfig
-                    ? 'border-emerald-300/70 bg-emerald-300/10 text-emerald-200 hover:bg-emerald-300/20'
-                    : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
-                }`}
-              >
-                SAVE SITE CONFIG
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const confirmed = window.confirm('恢复 Case Study 模块默认文案？此操作仅重置目标/动作/素材/复盘字段。');
+                    if (!confirmed) return;
+
+                    resetCaseStudies();
+                    setSiteConfigDraft((prev) => ({
+                      ...prev,
+                      caseToyTarget: '占位：品牌定位、用户画像、传播核心信息、视觉风格基准。',
+                      caseToyAction: '占位：电商主图/详情页、短视频脚本、素材矩阵、投放组合。',
+                      caseToyAssets: '占位：主KV、产品白底图、组装过程短视频、店铺详情页切片。',
+                      caseToyReview: '占位：复购内容、社媒栏目化输出、UGC 激励机制、视觉资产复用策略。',
+                      caseIndustryTarget: '占位：展会主KV、传播节奏、媒体包与新闻素材、统一叙事框架。',
+                      caseIndustryAction: '占位：销售手册视频、工艺亮点模块化表达、客户场景案例包装。',
+                      caseIndustryAssets: '占位：生产线工艺图集、展会采访片段、企业标准化视觉模板。',
+                      caseIndustryReview: '占位：客户见证内容、标准化工厂纪录资产、年度视觉策略迭代。',
+                    }));
+                  }}
+                  className="rounded-md border border-amber-300/70 bg-amber-300/10 px-4 py-2 text-xs tracking-[0.14em] text-amber-200 transition hover:bg-amber-300/20"
+                >
+                  RESET CASE STUDIES
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleApplySiteConfig}
+                  disabled={!hasUnsavedSiteConfig}
+                  className={`rounded-md border px-4 py-2 text-xs tracking-[0.14em] transition ${
+                    hasUnsavedSiteConfig
+                      ? 'border-emerald-300/70 bg-emerald-300/10 text-emerald-200 hover:bg-emerald-300/20'
+                      : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
+                  }`}
+                >
+                  SAVE SITE CONFIG
+                </button>
+              </div>
             </div>
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -1853,6 +3094,139 @@ function DirectorConsole() {
                   </label>
                 </div>
               </div>
+
+              <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4 md:col-span-2">
+                <p className="mb-3 text-xs tracking-[0.18em] text-zinc-400">SOCIAL PROOF & SERVICES</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Testimonials (quote|role|company per line)</p>
+                    <textarea
+                      value={siteConfigDraft.testimonialsText}
+                      onChange={(event) =>
+                        setSiteConfigDraft((prev) => ({ ...prev, testimonialsText: event.target.value }))
+                      }
+                      className={FORM_TEXTAREA_CLASS}
+                      placeholder='"团队协作顺畅..."|市场负责人|消费品牌'
+                    />
+                  </label>
+
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Brand Names (one per line)</p>
+                    <textarea
+                      value={siteConfigDraft.brandNamesText}
+                      onChange={(event) =>
+                        setSiteConfigDraft((prev) => ({ ...prev, brandNamesText: event.target.value }))
+                      }
+                      className={FORM_TEXTAREA_CLASS}
+                      placeholder="TOYVERSE&#10;INDUSTRIAL PRO"
+                    />
+                  </label>
+
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Services (title|deliverables|timeline|bestFor per line)</p>
+                    <textarea
+                      value={siteConfigDraft.servicesText}
+                      onChange={(event) =>
+                        setSiteConfigDraft((prev) => ({ ...prev, servicesText: event.target.value }))
+                      }
+                      className={FORM_TEXTAREA_CLASS}
+                      placeholder="商业视觉项目统筹|前期策略,拍摄执行,后期交付|2-6周|品牌新品发布"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4 md:col-span-2">
+                <p className="mb-3 text-xs tracking-[0.18em] text-zinc-400">CASE STUDY · TOY PROJECT</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">目标 TARGET</p>
+                    <textarea
+                      value={siteConfigDraft.caseToyTarget}
+                      onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, caseToyTarget: event.target.value }))}
+                      className={FORM_TEXTAREA_CLASS}
+                      placeholder="填写 toy 项目目标"
+                    />
+                  </label>
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">动作 ACTION</p>
+                    <textarea
+                      value={siteConfigDraft.caseToyAction}
+                      onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, caseToyAction: event.target.value }))}
+                      className={FORM_TEXTAREA_CLASS}
+                      placeholder="填写 toy 项目动作"
+                    />
+                  </label>
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">素材 ASSETS</p>
+                    <textarea
+                      value={siteConfigDraft.caseToyAssets}
+                      onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, caseToyAssets: event.target.value }))}
+                      className={FORM_TEXTAREA_CLASS}
+                      placeholder="填写 toy 项目素材"
+                    />
+                  </label>
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">复盘 REVIEW</p>
+                    <textarea
+                      value={siteConfigDraft.caseToyReview}
+                      onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, caseToyReview: event.target.value }))}
+                      className={FORM_TEXTAREA_CLASS}
+                      placeholder="填写 toy 项目复盘结论"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4 md:col-span-2">
+                <p className="mb-3 text-xs tracking-[0.18em] text-zinc-400">CASE STUDY · INDUSTRY PROJECT</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">目标 TARGET</p>
+                    <textarea
+                      value={siteConfigDraft.caseIndustryTarget}
+                      onChange={(event) =>
+                        setSiteConfigDraft((prev) => ({ ...prev, caseIndustryTarget: event.target.value }))
+                      }
+                      className={FORM_TEXTAREA_CLASS}
+                      placeholder="填写 industry 项目目标"
+                    />
+                  </label>
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">动作 ACTION</p>
+                    <textarea
+                      value={siteConfigDraft.caseIndustryAction}
+                      onChange={(event) =>
+                        setSiteConfigDraft((prev) => ({ ...prev, caseIndustryAction: event.target.value }))
+                      }
+                      className={FORM_TEXTAREA_CLASS}
+                      placeholder="填写 industry 项目动作"
+                    />
+                  </label>
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">素材 ASSETS</p>
+                    <textarea
+                      value={siteConfigDraft.caseIndustryAssets}
+                      onChange={(event) =>
+                        setSiteConfigDraft((prev) => ({ ...prev, caseIndustryAssets: event.target.value }))
+                      }
+                      className={FORM_TEXTAREA_CLASS}
+                      placeholder="填写 industry 项目素材"
+                    />
+                  </label>
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">复盘 REVIEW</p>
+                    <textarea
+                      value={siteConfigDraft.caseIndustryReview}
+                      onChange={(event) =>
+                        setSiteConfigDraft((prev) => ({ ...prev, caseIndustryReview: event.target.value }))
+                      }
+                      className={FORM_TEXTAREA_CLASS}
+                      placeholder="填写 industry 项目复盘结论"
+                    />
+                  </label>
+                </div>
+              </div>
             </div>
           </section>
         ) : (
@@ -1894,6 +3268,33 @@ function DirectorConsole() {
                   + Add New Project
                 </button>
               </div>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs tracking-[0.12em] text-zinc-400">
+                  PREFLIGHT · ERRORS {preflightResult.errorCount} · WARNINGS {preflightResult.warningCount} · CHECKED {preflightResult.totalProjects}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setPreflightResult(runProjectPreflight(projects))}
+                  className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs tracking-[0.12em] text-zinc-200"
+                >
+                  RUN PREFLIGHT
+                </button>
+              </div>
+
+              {preflightResult.issues.length > 0 ? (
+                <div className="mt-2 max-h-36 overflow-auto rounded-md border border-zinc-800 bg-zinc-900/50 p-2 text-[11px] text-zinc-300">
+                  {preflightResult.issues.slice(0, 8).map((issue) => (
+                    <p key={`${issue.projectId}-${issue.code}`} className={issue.severity === 'error' ? 'text-rose-300' : 'text-amber-300'}>
+                      [{issue.severity.toUpperCase()}] {issue.projectTitle}: {issue.message}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-[11px] text-emerald-300">No preflight issues found.</p>
+              )}
             </div>
 
             <div className="mt-4 grid gap-3 rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-3 md:grid-cols-[200px_200px_1fr_auto] md:items-end">
@@ -2225,6 +3626,9 @@ function DirectorConsole() {
                     onChange={(key, value) => setFormState((prev) => ({ ...prev, [key]: value }))}
                     onSubmit={handleSubmitForm}
                     onCancel={handleCancelForm}
+                    onUploadCover={handleUploadCover}
+                    onUploadVideo={handleUploadVideo}
+                    uploadState={uploadState}
                   />
                 </div>
               </div>

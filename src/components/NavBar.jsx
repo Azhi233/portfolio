@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
+import { useI18n } from '../context/I18nContext.jsx';
 
 const NAV_ITEMS = [
-  { label: 'HOME', to: '/' },
-  { label: 'TOYS', to: '/toys' },
-  { label: 'INDUSTRIAL', to: '/industrial' },
-  { label: 'MISC', to: '/misc' },
-  { label: 'INTERACTIVE LAB', to: '/lab' },
+  { key: 'home', to: '/' },
+  { key: 'photography', to: '/photography' },
+  { key: 'videography', to: '/videography' },
+  { key: 'about', to: '/about' },
+  { key: 'services', to: '/services' },
+  { key: 'lab', to: '/lab' },
 ];
 
 const HEADER_BASE_CLASS = 'fixed left-0 right-0 top-0 z-[120] transition-all duration-500 ease-out';
@@ -19,19 +22,49 @@ const NAV_LINK_BASE_CLASS =
 const NAV_LINK_ACTIVE_CLASS = 'text-zinc-100';
 const NAV_LINK_INACTIVE_CLASS = 'text-zinc-500 hover:text-zinc-100 focus-visible:text-zinc-100';
 
+function ModeToggle({ viewMode, setViewMode, t }) {
+  const isProjects = viewMode === 'projects';
 
-function NavBar() {
+  return (
+    <button
+      type="button"
+      onClick={() => setViewMode(isProjects ? 'expertise' : 'projects')}
+      className="group relative inline-flex h-9 w-[168px] items-center rounded-full border border-white/15 bg-zinc-900/70 p-1 text-[10px] tracking-[0.16em] text-zinc-300"
+      aria-label="Switch home view mode"
+    >
+      <motion.span
+        layout
+        transition={{ type: 'spring', stiffness: 460, damping: 36 }}
+        className={`absolute top-1 h-7 w-[78px] rounded-full border ${
+          isProjects
+            ? 'left-[84px] border-white/20 bg-white/14'
+            : 'left-1 border-white/20 bg-white/14'
+        }`}
+      />
+      <span className={`relative z-10 w-[78px] text-center ${isProjects ? 'text-zinc-400' : 'text-zinc-100'}`}>
+        {t('nav.expertise', 'EXPERTISE')}
+      </span>
+      <span className={`relative z-10 w-[78px] text-center ${isProjects ? 'text-zinc-100' : 'text-zinc-400'}`}>
+        {t('nav.projects', 'PROJECTS')}
+      </span>
+    </button>
+  );
+}
+
+function NavBar({ viewMode = 'expertise', setViewMode = () => {} }) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const navRef = useRef(null);
   const location = useLocation();
+  const { locale, switchLocale, t } = useI18n();
+
+  const isHome = location.pathname === '/';
 
   const handleNav = (to) => {
     if (window.location.pathname !== to) {
       window.location.href = to;
     }
   };
-
 
   useEffect(() => {
     const onScroll = () => {
@@ -49,9 +82,7 @@ function NavBar() {
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!mobileOpen) {
-      return undefined;
-    }
+    if (!mobileOpen) return undefined;
 
     const handlePointerDown = (event) => {
       const target = event.target;
@@ -79,9 +110,21 @@ function NavBar() {
     <header className={`${HEADER_BASE_CLASS} ${scrolled ? HEADER_SCROLLED_CLASS : HEADER_TOP_CLASS}`}>
       <nav
         ref={navRef}
-        className="relative mx-auto flex h-14 w-full max-w-7xl items-center justify-end px-3 md:h-16 md:justify-center md:px-12"
+        className="relative mx-auto flex h-14 w-full max-w-7xl items-center justify-between px-3 md:h-16 md:px-12"
       >
-        <div className="hidden md:flex">
+        <div className="hidden min-w-[180px] md:flex">
+          {isHome ? <ModeToggle viewMode={viewMode} setViewMode={setViewMode} t={t} /> : null}
+        </div>
+
+        <div className="hidden items-center gap-3 md:flex">
+          <button
+            type="button"
+            onClick={() => switchLocale(locale === 'zh' ? 'en' : 'zh')}
+            className="rounded-full border border-white/20 bg-zinc-900/60 px-3 py-1 text-[10px] tracking-[0.14em] text-zinc-300 transition hover:border-zinc-400 hover:text-zinc-100"
+          >
+            {locale === 'zh' ? 'EN' : '中文'}
+          </button>
+
           <ul className="flex items-center gap-4 md:gap-7">
             {NAV_ITEMS.map((item) => {
               const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);
@@ -93,7 +136,7 @@ function NavBar() {
                     onClick={() => handleNav(item.to)}
                     className={`${NAV_LINK_BASE_CLASS} ${isActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS}`}
                   >
-                    <span className="relative z-10">{item.label}</span>
+                    <span className="relative z-10">{t(`nav.${item.key}`, item.key)}</span>
                     <span
                       className={`absolute -bottom-2 left-0 h-px w-full origin-left bg-white/90 transition-transform duration-500 ease-out ${
                         isActive ? 'scale-x-100' : 'scale-x-0 group-hover/nav:scale-x-100'
@@ -106,7 +149,15 @@ function NavBar() {
           </ul>
         </div>
 
-        <div className="flex items-center md:hidden">
+        <div className="flex items-center gap-2 md:hidden">
+          <button
+            type="button"
+            onClick={() => switchLocale(locale === 'zh' ? 'en' : 'zh')}
+            className="touch-manipulation inline-flex min-h-10 items-center rounded-full border border-white/35 bg-zinc-900/85 px-3 py-2 text-xs tracking-[0.14em] text-zinc-100"
+          >
+            {locale === 'zh' ? 'EN' : '中文'}
+          </button>
+          {isHome ? <ModeToggle viewMode={viewMode} setViewMode={setViewMode} t={t} /> : null}
           <button
             type="button"
             onClick={() => setMobileOpen((prev) => !prev)}
@@ -115,38 +166,46 @@ function NavBar() {
             className="touch-manipulation inline-flex min-h-10 items-center gap-2 rounded-full border border-white/35 bg-zinc-900/85 px-4 py-2 text-xs tracking-[0.2em] text-zinc-100 shadow-[0_8px_20px_rgba(0,0,0,0.35)] transition active:scale-[0.98]"
           >
             <span aria-hidden className="text-sm leading-none">☰</span>
-            <span>MENU</span>
+            <span>{t('nav.menu', 'MENU')}</span>
           </button>
         </div>
 
-        {mobileOpen ? (
-          <div className="absolute left-2 right-2 top-[calc(100%-2px)] z-[130] rounded-2xl border border-white/15 bg-[#080a10]/95 p-3 shadow-[0_20px_45px_rgba(0,0,0,0.5)] backdrop-blur-xl md:hidden">
-            <ul className="flex flex-col gap-2">
-              {NAV_ITEMS.map((item) => {
-                const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);
+        <AnimatePresence>
+          {mobileOpen ? (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="absolute left-2 right-2 top-[calc(100%-2px)] z-[130] rounded-2xl border border-white/15 bg-[#080a10]/95 p-3 shadow-[0_20px_45px_rgba(0,0,0,0.5)] backdrop-blur-xl md:hidden"
+            >
+              <ul className="flex flex-col gap-2">
+                {NAV_ITEMS.map((item) => {
+                  const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);
 
-                return (
-                  <li key={`mobile-${item.to}`}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMobileOpen(false);
-                        handleNav(item.to);
-                      }}
-                      className={`block w-full touch-manipulation rounded-lg px-3 py-2 text-left text-xs tracking-[0.16em] transition ${
-                        isActive
-                          ? 'bg-white/10 text-zinc-100'
-                          : 'text-zinc-300 hover:bg-white/5 hover:text-zinc-100 active:bg-white/10'
-                      }`}
-                    >
-                      {item.label}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ) : null}
+                  return (
+                    <li key={`mobile-${item.to}`}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileOpen(false);
+                          handleNav(item.to);
+                        }}
+                        className={`block w-full touch-manipulation rounded-lg px-3 py-2 text-left text-xs tracking-[0.16em] transition ${
+                          isActive
+                            ? 'bg-white/10 text-zinc-100'
+                            : 'text-zinc-300 hover:bg-white/5 hover:text-zinc-100 active:bg-white/10'
+                        }`}
+                      >
+                        {t(`nav.${item.key}`, item.key)}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </nav>
     </header>
   );
