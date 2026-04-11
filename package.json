@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "preflight": "node ./scripts/preflight-check.mjs",
+    "preflight:quick": "node ./scripts/preflight-check.mjs --quick"
   },
   "dependencies": {
     "chart.js": "^4.5.1",
