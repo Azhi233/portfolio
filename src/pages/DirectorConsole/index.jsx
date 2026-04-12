@@ -30,6 +30,7 @@ const EMPTY_FORM = {
   clientAgency: '',
   clientCode: '',
   accessPassword: '',
+  deliveryPin: '',
   isPrivate: false,
   isFeatured: false,
   isVisible: true,
@@ -439,16 +440,29 @@ function ProjectForm({
         </label>
 
         {formState.isPrivate ? (
-          <label className="block md:col-span-2">
-            <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Access Password</p>
-            <input
-              value={formState.accessPassword}
-              onChange={(event) => onChange('accessPassword', event.target.value)}
-              className={FORM_INPUT_CLASS}
-              placeholder="Set password for private access"
-            />
-            <p className="mt-2 text-[11px] tracking-[0.08em] text-zinc-500">建议至少 4 位字符。</p>
-          </label>
+          <>
+            <label className="block md:col-span-2">
+              <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Access Password</p>
+              <input
+                value={formState.accessPassword}
+                onChange={(event) => onChange('accessPassword', event.target.value)}
+                className={FORM_INPUT_CLASS}
+                placeholder="Set password for private access"
+              />
+              <p className="mt-2 text-[11px] tracking-[0.08em] text-zinc-500">建议至少 4 位字符。</p>
+            </label>
+
+            <label className="block md:col-span-2">
+              <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Delivery PIN（提货码）</p>
+              <input
+                value={formState.deliveryPin}
+                onChange={(event) => onChange('deliveryPin', event.target.value)}
+                className={FORM_INPUT_CLASS}
+                placeholder="Set delivery pin for ZIP download unlock"
+              />
+              <p className="mt-2 text-[11px] tracking-[0.08em] text-zinc-500">客户仅在验证提货码后可进行批量高清下载。</p>
+            </label>
+          </>
         ) : null}
 
         <div className="grid gap-3 md:col-span-2 md:grid-cols-2">
@@ -1096,6 +1110,7 @@ function DirectorConsole() {
       clientAgency: project.clientAgency || '',
       clientCode: project.clientCode || '',
       accessPassword: project.accessPassword || '',
+      deliveryPin: project.deliveryPin || '',
       isPrivate: project.publishStatus === 'Private' || project.status === 'private',
       isFeatured: project.isFeatured,
       isVisible: project.isVisible,
@@ -1220,6 +1235,7 @@ function DirectorConsole() {
       visibility: nextVisibility,
       isVisible: nextVisibility !== 'Draft',
       accessPassword: nextVisibility === 'Private' ? formState.accessPassword : '',
+      deliveryPin: nextVisibility === 'Private' ? String(formState.deliveryPin || '').trim() : '',
       clientCode: String(formState.clientCode || '').trim(),
     };
 

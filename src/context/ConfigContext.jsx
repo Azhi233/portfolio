@@ -4,6 +4,8 @@ const CONFIG_STORAGE_KEY = 'director.config.v2';
 const PROJECTS_STORAGE_KEY = 'director.projects.v1';
 const ASSETS_STORAGE_KEY = 'director.assets.v1';
 const PROJECT_DATA_STORAGE_KEY = 'director.projectData.v1';
+const PROJECT_UNLOCK_STORAGE_KEY = 'director.projectUnlocks.v1';
+const DELIVERY_UNLOCK_STORAGE_KEY = 'director.deliveryUnlocks.v1';
 
 const DEFAULT_CASE_STUDIES = {
   toy: {
@@ -209,6 +211,7 @@ function normalizeProject(project) {
         : 'published';
 
   const password = String(project?.password || project?.accessPassword || '');
+  const deliveryPin = String(project?.deliveryPin || '');
 
   return {
     id: String(project?.id || ''),
@@ -231,6 +234,7 @@ function normalizeProject(project) {
     publishStatus: normalizedPublishStatus,
     visibility,
     accessPassword: password,
+    deliveryPin,
     status,
     password,
     privateFiles: normalizePrivateFiles(project?.privateFiles),
@@ -395,6 +399,18 @@ function readStoredProjectData() {
   }
 }
 
+function readStoredDeliveryUnlocks() {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(DELIVERY_UNLOCK_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 function createProjectId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
   return `proj-${Date.now()}-${Math.round(Math.random() * 10000)}`;
@@ -405,11 +421,26 @@ function createAssetId() {
   return `asset-${Date.now()}-${Math.round(Math.random() * 10000)}`;
 }
 
+function readStoredProjectUnlocks() {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(PROJECT_UNLOCK_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return {};
+    return parsed;
+  } catch {
+    return {};
+  }
+}
+
 export function ConfigProvider({ children }) {
   const [config, setConfig] = useState(() => readStoredConfig());
   const [projects, setProjects] = useState(() => readStoredProjects());
   const [assets, setAssets] = useState(() => readStoredAssets());
   const [projectData, setProjectData] = useState(() => readStoredProjectData());
+  const [projectUnlocks, setProjectUnlocks] = useState(() => readStoredProjectUnlocks());
+  const [deliveryUnlocks, setDeliveryUnlocks] = useState(() => readStoredDeliveryUnlocks());
 
   useEffect(() => {
     window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
@@ -427,9 +458,45 @@ export function ConfigProvider({ children }) {
     window.localStorage.setItem(PROJECT_DATA_STORAGE_KEY, JSON.stringify(projectData));
   }, [projectData]);
 
+  useEffect(() => {
+    window.localStorage.setItem(DELIVERY_UNLOCK_STORAGE_KEY, JSON.stringify(deliveryUnlocks));
+  }, [deliveryUnlocks]);
+
+  useEffect(() => {
+    window.localStorage.setItem(PROJECT_UNLOCK_STORAGE_KEY, JSON.stringify(projectUnlocks));
+  }, [projectUnlocks]);
+
   const updateConfig = (key, value) => setConfig((prev) => ({ ...prev, [key]: value }));
 
   const resetConfig = () => setConfig(DEFAULT_CONFIG);
+
+  const isUnlocked = (projectId) => Boolean(projectUnlocks?.[String(projectId || '')]);
+
+  const unlockProjectAccess = (projectId) => {
+    const key = String(projectId || '').trim();
+    if (!key) return;
+    setProjectUnlocks((prev) => ({ ...prev, [key]: true }));
+  };
+
+  const lockProjectAccess = (projectId) => {
+    const key = String(projectId || '').trim();
+    if (!key) return;
+    setProjectUnlocks((prev) => ({ ...prev, [key]: false }));
+  };
+
+  const isDeliveryUnlocked = (projectId) => Boolean(deliveryUnlocks?.[String(projectId || '')]);
+
+  const unlockDeliveryAccess = (projectId) => {
+    const key = String(projectId || '').trim();
+    if (!key) return;
+    setDeliveryUnlocks((prev) => ({ ...prev, [key]: true }));
+  };
+
+  const lockDeliveryAccess = (projectId) => {
+    const key = String(projectId || '').trim();
+    if (!key) return;
+    setDeliveryUnlocks((prev) => ({ ...prev, [key]: false }));
+  };
 
   const updateCaseStudy = (projectType, key, value) => {
     if (!['toy', 'industry'].includes(projectType)) return;
@@ -471,6 +538,7 @@ export function ConfigProvider({ children }) {
         publishStatus: projectInput.publishStatus || 'Draft',
         visibility: projectInput.visibility || projectInput.publishStatus || 'Draft',
         accessPassword: projectInput.accessPassword?.trim() || projectInput.password?.trim() || '',
+        deliveryPin: projectInput.deliveryPin?.trim() || '',
         status: projectInput.status,
         password: projectInput.password?.trim() || projectInput.accessPassword?.trim() || '',
       }),
@@ -642,6 +710,12 @@ export function ConfigProvider({ children }) {
       projectData,
       updateConfig,
       resetConfig,
+      isUnlocked,
+      unlockProjectAccess,
+      lockProjectAccess,
+      isDeliveryUnlocked,
+      unlockDeliveryAccess,
+      lockDeliveryAccess,
       updateCaseStudy,
       addProject,
       updateProject,
@@ -657,7 +731,7 @@ export function ConfigProvider({ children }) {
       defaults: DEFAULT_CONFIG,
       projectDefaults: DEFAULT_PROJECT_DATA,
     }),
-    [config, projects, assets, projectData],
+    [config, projects, assets, projectData, projectUnlocks, deliveryUnlocks],
   );
 
   return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>;

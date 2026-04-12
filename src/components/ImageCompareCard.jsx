@@ -1,10 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-
-const VARIANT_LABELS = {
-  raw: 'RAW',
-  graded: 'GRADED',
-  styled: 'STYLED',
-};
+import { Check, ScanLine } from 'lucide-react';
+import { useMemo } from 'react';
 
 const VARIANT_ORDER = ['raw', 'graded', 'styled'];
 
@@ -12,14 +7,14 @@ function isValidUrl(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-function pickDefaultVariant(variants = {}, keys = []) {
-  if (keys.includes('graded') && isValidUrl(variants.graded)) return 'graded';
-  if (keys.includes('raw') && isValidUrl(variants.raw)) return 'raw';
-  if (keys.includes('styled') && isValidUrl(variants.styled)) return 'styled';
-  return keys[0] || null;
-}
-
-function ImageCompareCard({ asset, className = '' }) {
+function ImageCompareCard({
+  asset,
+  className = '',
+  onOpen,
+  isSelectionMode = false,
+  isSelected = false,
+  onToggleSelect,
+}) {
   const variants = asset?.variants && typeof asset.variants === 'object' ? asset.variants : {};
 
   const variantKeys = useMemo(() => {
@@ -28,94 +23,57 @@ function ImageCompareCard({ asset, className = '' }) {
     return [...known, ...extra];
   }, [variants]);
 
-  const fallbackUrl = asset?.url || variants.graded || variants.raw || variants.styled || '';
-  const fallbackKey = variantKeys[0] || 'default';
+  const coverSrc = variants.graded || variants.raw || variants.styled || asset?.url || '';
+  const canCompare = variantKeys.length >= 2 || asset?.type === 'image-comparison';
 
-  const [activeKey, setActiveKey] = useState(() => pickDefaultVariant(variants, variantKeys) || fallbackKey);
-  const [slider, setSlider] = useState(50);
-
-  useEffect(() => {
-    const next = pickDefaultVariant(variants, variantKeys) || fallbackKey;
-    setActiveKey(next);
-    setSlider(50);
-  }, [variants, variantKeys, fallbackKey]);
-
-  const type = asset?.type;
-  const hasComparisonByVariants = variantKeys.length >= 2;
-  const isComparisonAsset = type === 'image-comparison' || hasComparisonByVariants;
-
-  if (!isComparisonAsset || variantKeys.length <= 1) {
-    const src = variantKeys[0] ? variants[variantKeys[0]] : fallbackUrl;
-    return (
-      <article className={`group relative overflow-hidden rounded-2xl border border-white/10 bg-black/35 ${className}`}>
-        {src ? (
-          <img
-            src={src}
-            alt={asset?.title || 'image'}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-xs tracking-[0.12em] text-zinc-500">
-            NO IMAGE SOURCE
-          </div>
-        )}
-      </article>
-    );
-  }
-
-  const activeSrc = variants[activeKey] || fallbackUrl;
-  const compareCandidates = variantKeys.filter((key) => key !== activeKey);
-  const compareKey = compareCandidates.includes('raw') ? 'raw' : compareCandidates[0];
-  const compareSrc = variants[compareKey] || activeSrc;
+  const handleClick = () => {
+    if (isSelectionMode) {
+      onToggleSelect?.(asset);
+      return;
+    }
+    onOpen?.(asset);
+  };
 
   return (
-    <article className={`group relative overflow-hidden rounded-2xl border border-white/10 bg-black/35 ${className}`}>
-      <div className="relative h-full w-full">
-        <img src={activeSrc} alt={`${asset?.title || 'asset'}-${activeKey}`} className="h-full w-full object-cover" />
+    <button
+      type="button"
+      onClick={handleClick}
+      className={`group relative block overflow-hidden rounded-2xl border bg-black/35 text-left ${
+        isSelected ? 'border-emerald-300/80 ring-2 ring-emerald-400/40' : 'border-white/10'
+      } ${className}`}
+    >
+      {coverSrc ? (
+        <img
+          src={coverSrc}
+          alt={asset?.title || 'image'}
+          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-xs tracking-[0.12em] text-zinc-500">NO IMAGE SOURCE</div>
+      )}
 
-        {compareSrc && compareSrc !== activeSrc ? (
-          <div className="pointer-events-none absolute inset-0" style={{ clipPath: `inset(0 ${100 - slider}% 0 0)` }}>
-            <img src={compareSrc} alt={`${asset?.title || 'asset'}-${compareKey}`} className="h-full w-full object-cover" />
-          </div>
-        ) : null}
+      {canCompare ? (
+        <div className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full border border-cyan-300/60 bg-cyan-300/15 px-2 py-1 text-[10px] tracking-[0.12em] text-cyan-100">
+          <ScanLine className="h-3 w-3" />
+          对比
+        </div>
+      ) : null}
 
-        {compareSrc && compareSrc !== activeSrc ? (
-          <>
-            <div className="pointer-events-none absolute bottom-0 top-0 w-px bg-white/80" style={{ left: `${slider}%` }} />
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={slider}
-              onChange={(event) => setSlider(Number(event.target.value))}
-              className="absolute inset-x-3 bottom-14 z-10 accent-zinc-100"
-              aria-label="Slide to compare variants"
-            />
-          </>
-        ) : null}
-      </div>
-
-      <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-gradient-to-t from-black/80 to-transparent p-3">
-        {variantKeys.map((key) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => {
-              setActiveKey(key);
-              setSlider(50);
-            }}
-            className={`rounded-full border px-2 py-1 text-[10px] tracking-[0.14em] transition ${
-              activeKey === key
-                ? 'border-zinc-200/80 bg-zinc-100/20 text-zinc-100'
-                : 'border-zinc-500/80 bg-black/35 text-zinc-300 hover:border-zinc-300 hover:text-zinc-100'
+      {isSelectionMode ? (
+        <>
+          <div className={`absolute inset-0 bg-black/35 transition ${isSelected ? 'opacity-100' : 'opacity-80'}`} />
+          <div
+            className={`absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md border transition ${
+              isSelected
+                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-200'
+                : 'border-zinc-300/60 bg-zinc-900/70 text-zinc-200'
             }`}
           >
-            {VARIANT_LABELS[key] || key.toUpperCase()}
-          </button>
-        ))}
-      </div>
-    </article>
+            {isSelected ? <Check className="h-4 w-4" /> : null}
+          </div>
+        </>
+      ) : null}
+    </button>
   );
 }
 

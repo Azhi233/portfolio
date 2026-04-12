@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useConfig } from '../../context/ConfigContext.jsx';
+import { useState } from 'react';
+import GlobalCompareModal from '../../components/GlobalCompareModal.jsx';
 import ImageCompareCard from '../../components/ImageCompareCard.jsx';
 import ProjectCTA from '../../components/ProjectCTA.jsx';
 
@@ -53,11 +55,11 @@ function getProjectAssets(assets, projectId, assetUrls) {
       }));
 }
 
-function MediaCell({ item, className = '' }) {
+function MediaCell({ item, className = '', onOpenCompare }) {
   if (item.type === 'image-comparison') {
     return (
       <div className="relative">
-        <ImageCompareCard asset={item} className={className} />
+        <ImageCompareCard asset={item} className={className} onOpen={onOpenCompare} />
         {item?.views?.project?.description ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 text-xs text-zinc-300">
             {item.views.project.description}
@@ -87,6 +89,7 @@ function MediaCell({ item, className = '' }) {
 
 function IndustryProjectPage() {
   const { assets, projectData } = useConfig();
+  const [activeCompareAsset, setActiveCompareAsset] = useState(null);
   const pageData = projectData?.industry_project;
   const modules = pageData?.modules || {};
 
@@ -173,16 +176,27 @@ function IndustryProjectPage() {
             <div className="mt-2 text-xs text-zinc-500">{assetsModule.intro}</div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-4 md:grid-rows-2">
-              {hero ? <MediaCell item={hero} className="md:col-span-2 md:row-span-2 min-h-[240px]" /> : null}
+              {hero ? (
+                <MediaCell
+                  item={hero}
+                  className="md:col-span-2 md:row-span-2 min-h-[240px]"
+                  onOpenCompare={setActiveCompareAsset}
+                />
+              ) : null}
               {rest.slice(0, 3).map((item) => (
-                <MediaCell key={item.id} item={item} className="aspect-square min-h-[140px]" />
+                <MediaCell key={item.id} item={item} className="aspect-square min-h-[140px]" onOpenCompare={setActiveCompareAsset} />
               ))}
             </div>
 
             {rest.length > 3 ? (
               <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {rest.slice(3).map((item) => (
-                  <MediaCell key={`${item.id}-extra`} item={item} className="aspect-square" />
+                  <MediaCell
+                    key={`${item.id}-extra`}
+                    item={item}
+                    className="aspect-square"
+                    onOpenCompare={setActiveCompareAsset}
+                  />
                 ))}
               </div>
             ) : null}
@@ -203,6 +217,12 @@ function IndustryProjectPage() {
           <ProjectCTA />
         </div>
       </section>
+
+      <GlobalCompareModal
+        isOpen={Boolean(activeCompareAsset)}
+        asset={activeCompareAsset}
+        onClose={() => setActiveCompareAsset(null)}
+      />
     </main>
   );
 }
