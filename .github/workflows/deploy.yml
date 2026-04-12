@@ -1,0 +1,41 @@
+name: Deploy to Aliyun
+
+# 触发条件：当你把代码 push 到 main 分支时执行
+on:
+  push:
+    branches:
+      - main # 如果你的主分支叫 master，请改成 master
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest # 使用 GitHub 免费提供的 Linux 服务器
+    
+    steps:
+      # 1. 拉取你的最新代码
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. 安装 Node.js 环境
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18' # 如果你用的是更高版本可以改，18 是通用的
+
+      # 3. 安装依赖包 (如果你平时用 yarn/pnpm，这里就改成 yarn install / pnpm install)
+      - name: Install Dependencies
+        run: npm install
+
+      # 4. 开始打包构建 (同上，根据你用的包管理器调整)
+      - name: Build Project
+        run: npm run build
+
+      # 5. 见证奇迹：把 dist 文件夹里的东西推送到阿里云
+      - name: Deploy to Server
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          source: "dist/*" # 只传送打包后的 dist 文件夹里的内容
+          target: "/www/wwwroot/47.114.95.49/" # 传送到你宝塔的网站根目录
+          strip_components: 1 # 极其关键：剥离外层 dist 文件夹，直接把里面的文件平铺进去
