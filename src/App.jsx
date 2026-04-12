@@ -15,6 +15,7 @@ const ProjectDetail = lazy(() => import('./pages/ProjectDetail/index.jsx'));
 const HealthCheck = lazy(() => import('./pages/HealthCheck/index.jsx'));
 const ToyProjectPage = lazy(() => import('./pages/projects/ToyProjectPage.jsx'));
 const IndustryProjectPage = lazy(() => import('./pages/projects/IndustryProjectPage.jsx'));
+const Testimonials = lazy(() => import('./pages/Testimonials.jsx'));
 import { useConfig } from './context/ConfigContext.jsx';
 import { trackPageView } from './utils/analytics.js';
 import { logRuntimeEvent } from './utils/runtimeDiagnostics.js';
@@ -104,6 +105,7 @@ function App() {
       '/videography': { title: `Videography | ${baseTitle}`, description: 'Narrative and commercial video direction showcase.' },
       '/about': { title: `About & Contact | ${baseTitle}`, description: 'Background, collaborations and contact details.' },
       '/services': { title: `Services | ${baseTitle}`, description: 'Service packages, scope, timeline and deliverables.' },
+      '/testimonials': { title: `Testimonials | ${baseTitle}`, description: 'Client voices and project feedback wall.' },
       '/project/toy': { title: `Toy Project | ${baseTitle}`, description: 'Case study for toy industry visual production pipeline.' },
       '/project/industry': { title: `Industry Project | ${baseTitle}`, description: 'Case study for industrial B2B visual communication.' },
     };
@@ -163,6 +165,7 @@ function App() {
           <Route path="/videography" element={<Videography />} />
           <Route path="/about" element={<AboutContact />} />
           <Route path="/services" element={<Services />} />
+          <Route path="/testimonials" element={<Testimonials />} />
           <Route path="/lab/*" element={<InteractiveLab />} />
           <Route path="/console" element={<DirectorConsole />} />
           <Route path="/client-access" element={<ClientAccess />} />

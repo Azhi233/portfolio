@@ -54,6 +54,15 @@ const EMPTY_ASSET_FORM = {
   projectDescription: '',
 };
 
+const EMPTY_BULK_ASSET_FORM = {
+  urlsText: '',
+  publishTarget: 'project',
+  expertiseCategory: 'commercial',
+  projectId: 'toy_project',
+  expertiseDescription: '',
+  projectDescription: '',
+};
+
 const EMPTY_PRIVATE_FILE_FORM = {
   projectId: '',
   name: '',
@@ -97,6 +106,34 @@ const getActionButtonClass = (isEnabled) =>
   `rounded-md border px-3 py-2 text-xs tracking-[0.12em] transition ${
     isEnabled ? ACTIVE_ACTION_CLASS : DISABLED_ACTION_CLASS
   }`;
+
+function parseAssetNameToken(fileName) {
+  const base = String(fileName || '').trim();
+  if (!base) return null;
+
+  const clean = base.replace(/\.[^.]+$/, '');
+  const parts = clean.split('-').map((x) => x.trim()).filter(Boolean);
+  if (parts.length < 8) return null;
+
+  const [ym, product, theme, orientation, resolution, stage, seq, codec] = parts;
+  const yy = ym.slice(0, 2);
+  const mm = ym.slice(2, 4);
+  const year = Number(`20${yy}`);
+  const month = Number(mm);
+
+  return {
+    year: Number.isFinite(year) ? year : null,
+    month: Number.isFinite(month) ? month : null,
+    product,
+    theme,
+    orientation,
+    resolution,
+    stage,
+    seq,
+    codec,
+    title: `${product?.toUpperCase() || 'ASSET'} · ${theme?.toUpperCase() || 'N/A'} · ${resolution || ''} ${orientation || ''}`.trim(),
+  };
+}
 
 function getAssetUrlWarning(url, type) {
   const value = String(url || '').trim();
@@ -538,6 +575,10 @@ function DirectorConsole() {
     migrateLegacyCaseStudiesToProjectData,
     exportCmsBundle,
     importCmsBundle,
+    reviews,
+    reviewAuditLogs,
+    updateReview,
+    setReviewStatus,
   } = useConfig();
 
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -1504,6 +1545,47 @@ function DirectorConsole() {
     });
   };
 
+  const handleExportReviewAuditLogs = () => {
+    const logs = Array.isArray(reviewAuditLogs) ? reviewAuditLogs : [];
+    if (logs.length === 0) {
+      window.alert('暂无可导出的审核日志。');
+      return;
+    }
+
+    const headers = ['time', 'operator', 'projectName', 'clientName', 'fromStatus', 'toStatus', 'reviewId'];
+    const escapeCsv = (value) => {
+      const text = String(value ?? '');
+      if (/[",\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+      return text;
+    };
+
+    const rows = logs.map((log) => [
+      new Date(log.at).toISOString(),
+      log.operator || '',
+      log.projectName || '',
+      log.clientName || '',
+      String(log.from || ''),
+      String(log.to || ''),
+      log.reviewId || '',
+    ]);
+
+    const csv = [headers, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\n');
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const fileName = `review-audit-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.csv`;
+
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const handleApplyVideoIntro = () => {
     if (!introTargetProject) return;
 
@@ -1684,6 +1766,9 @@ function DirectorConsole() {
             </PanelTab>
             <PanelTab isActive={activeTab === 'siteConfig'} onClick={() => setActiveTab('siteConfig')}>
               Site Config & About
+            </PanelTab>
+            <PanelTab isActive={activeTab === 'testimonials'} onClick={() => setActiveTab('testimonials')}>
+              Testimonials Moderation
             </PanelTab>
           </div>
         </header>
@@ -3281,6 +3366,112 @@ function DirectorConsole() {
                 </div>
               </div>
             ) : null}
+          </section>
+        ) : activeTab === 'testimonials' ? (
+          <section className="mt-6 rounded-2xl border border-zinc-700/60 bg-zinc-900/60 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm tracking-[0.16em] text-zinc-100">TESTIMONIALS MODERATION</h2>
+                <p className="mt-1 text-[11px] tracking-[0.12em] text-zinc-500">审核客户提交评价并可修改文案。</p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              {(reviews || []).map((item) => (
+                <article key={item.id} className="rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm text-zinc-100">{item.projectName}</p>
+                      <p className="mt-1 text-xs text-zinc-400">
+                        {item.clientName}
+                        {item.authorType === 'company' && item.companyName
+                          ? ` · ${item.companyName}${item.position ? ` / ${item.position}` : ''}`
+                          : ''}
+                        {item.isAnonymous ? ' · 匿名' : ''}
+                      </p>
+                      <p className="mt-2 text-[11px] tracking-[0.12em] text-zinc-500">STATUS: {String(item.status || 'pending').toUpperCase()}</p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setReviewStatus(item.id, 'approved', 'director-console')}
+                        className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-3 py-1.5 text-xs text-emerald-200"
+                      >
+                        APPROVE
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setReviewStatus(item.id, 'pending', 'director-console')}
+                        className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200"
+                      >
+                        PENDING
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setReviewStatus(item.id, 'rejected', 'director-console')}
+                        className="rounded-md border border-rose-400/60 bg-rose-400/10 px-3 py-1.5 text-xs text-rose-200"
+                      >
+                        REJECT
+                      </button>
+                    </div>
+                  </div>
+
+                  <textarea
+                    value={item.content || ''}
+                    onChange={(event) => updateReview(item.id, { content: event.target.value })}
+                    className="mt-3 min-h-24 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+                  />
+
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <label className="inline-flex items-center gap-2 text-xs text-zinc-300">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(item.isFeatured)}
+                        onChange={(event) => updateReview(item.id, { isFeatured: event.target.checked })}
+                        className="h-4 w-4 rounded border-zinc-600 bg-zinc-900 accent-emerald-400"
+                      />
+                      FEATURED
+                    </label>
+
+                    <input
+                      value={item.clientName || ''}
+                      onChange={(event) => updateReview(item.id, { clientName: event.target.value })}
+                      className="w-56 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200"
+                      placeholder="Client display name"
+                    />
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="mt-6 rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs tracking-[0.16em] text-zinc-300">AUDIT LOGS</p>
+                <button
+                  type="button"
+                  onClick={handleExportReviewAuditLogs}
+                  className="rounded-md border border-cyan-300/70 bg-cyan-300/10 px-3 py-1.5 text-xs tracking-[0.12em] text-cyan-200 transition hover:bg-cyan-300/20"
+                >
+                  EXPORT CSV
+                </button>
+              </div>
+              <div className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+                {(reviewAuditLogs || []).length === 0 ? (
+                  <p className="text-xs tracking-[0.12em] text-zinc-500">暂无审核操作日志。</p>
+                ) : (
+                  reviewAuditLogs.map((log) => (
+                    <div key={log.id} className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-300">
+                      <p className="tracking-[0.1em] text-zinc-400">{new Date(log.at).toLocaleString()}</p>
+                      <p className="mt-1">
+                        {log.operator || 'unknown'} changed status {String(log.from || '').toUpperCase()} → {String(log.to || '').toUpperCase()}
+                      </p>
+                      <p className="mt-1 text-zinc-500">{log.projectName} · {log.clientName}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </section>
         ) : activeTab === 'siteConfig' ? (
           <section className="mt-6 rounded-2xl border border-zinc-700/60 bg-zinc-900/60 p-5">

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useConfig } from '../../context/ConfigContext.jsx';
 import { useState } from 'react';
 import GlobalCompareModal from '../../components/GlobalCompareModal.jsx';
+import FloatingComment from '../../components/FloatingComment.jsx';
 import ImageCompareCard from '../../components/ImageCompareCard.jsx';
 import ProjectCTA from '../../components/ProjectCTA.jsx';
 
@@ -111,7 +112,8 @@ function IndustryProjectPage() {
 
   return (
     <main className="min-h-screen bg-[#050507] pb-16 pt-20 text-zinc-100 md:pt-24">
-      <section className="mx-auto w-full max-w-7xl px-6 md:px-12">
+      <section className="relative mx-auto w-full max-w-7xl px-6 md:px-12">
+        <FloatingComment projectId="industry_project" />
         <Link
           to="/"
           className="inline-flex items-center rounded-md border border-zinc-700 bg-zinc-900/70 px-4 py-2 text-xs tracking-[0.14em] text-zinc-300 transition hover:border-zinc-500"

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import seedReviews from '../data/reviews.json';
 
 const CONFIG_STORAGE_KEY = 'director.config.v2';
 const PROJECTS_STORAGE_KEY = 'director.projects.v1';
@@ -6,6 +7,8 @@ const ASSETS_STORAGE_KEY = 'director.assets.v1';
 const PROJECT_DATA_STORAGE_KEY = 'director.projectData.v1';
 const PROJECT_UNLOCK_STORAGE_KEY = 'director.projectUnlocks.v1';
 const DELIVERY_UNLOCK_STORAGE_KEY = 'director.deliveryUnlocks.v1';
+const REVIEWS_STORAGE_KEY = 'director.reviews.v1';
+const REVIEW_AUDIT_STORAGE_KEY = 'director.reviews.audit.v1';
 
 const DEFAULT_CASE_STUDIES = {
   toy: {
@@ -421,6 +424,52 @@ function createAssetId() {
   return `asset-${Date.now()}-${Math.round(Math.random() * 10000)}`;
 }
 
+function normalizeReview(item, index = 0) {
+  const type = item?.authorType === 'company' ? 'company' : 'personal';
+  const status = ['pending', 'approved', 'rejected'].includes(item?.status) ? item.status : 'approved';
+
+  return {
+    id: String(item?.id || `review-${Date.now()}-${index}`),
+    projectId: String(item?.projectId || ''),
+    projectName: String(item?.projectName || 'Untitled Project'),
+    clientName: String(item?.clientName || '匿名用户'),
+    companyName: type === 'company' ? String(item?.companyName || '') : '',
+    position: type === 'company' ? String(item?.position || '') : '',
+    content: String(item?.content || ''),
+    coverUrl: String(item?.coverUrl || ''),
+    isFeatured: Boolean(item?.isFeatured),
+    authorType: type,
+    isAnonymous: Boolean(item?.isAnonymous),
+    status,
+    createdAt: String(item?.createdAt || new Date().toISOString()),
+  };
+}
+
+function readStoredReviews() {
+  if (typeof window === 'undefined') return (Array.isArray(seedReviews) ? seedReviews : []).map(normalizeReview);
+  try {
+    const raw = window.localStorage.getItem(REVIEWS_STORAGE_KEY);
+    if (!raw) return (Array.isArray(seedReviews) ? seedReviews : []).map(normalizeReview);
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return (Array.isArray(seedReviews) ? seedReviews : []).map(normalizeReview);
+    return parsed.map(normalizeReview);
+  } catch {
+    return (Array.isArray(seedReviews) ? seedReviews : []).map(normalizeReview);
+  }
+}
+
+function readStoredReviewAuditLogs() {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(REVIEW_AUDIT_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function readStoredProjectUnlocks() {
   if (typeof window === 'undefined') return {};
   try {
@@ -441,6 +490,8 @@ export function ConfigProvider({ children }) {
   const [projectData, setProjectData] = useState(() => readStoredProjectData());
   const [projectUnlocks, setProjectUnlocks] = useState(() => readStoredProjectUnlocks());
   const [deliveryUnlocks, setDeliveryUnlocks] = useState(() => readStoredDeliveryUnlocks());
+  const [reviews, setReviews] = useState(() => readStoredReviews());
+  const [reviewAuditLogs, setReviewAuditLogs] = useState(() => readStoredReviewAuditLogs());
 
   useEffect(() => {
     window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
@@ -463,8 +514,16 @@ export function ConfigProvider({ children }) {
   }, [deliveryUnlocks]);
 
   useEffect(() => {
+    window.localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(reviews));
+  }, [reviews]);
+
+  useEffect(() => {
     window.localStorage.setItem(PROJECT_UNLOCK_STORAGE_KEY, JSON.stringify(projectUnlocks));
   }, [projectUnlocks]);
+
+  useEffect(() => {
+    window.localStorage.setItem(REVIEW_AUDIT_STORAGE_KEY, JSON.stringify(reviewAuditLogs));
+  }, [reviewAuditLogs]);
 
   const updateConfig = (key, value) => setConfig((prev) => ({ ...prev, [key]: value }));
 
@@ -496,6 +555,59 @@ export function ConfigProvider({ children }) {
     const key = String(projectId || '').trim();
     if (!key) return;
     setDeliveryUnlocks((prev) => ({ ...prev, [key]: false }));
+  };
+
+  const submitReview = (input) => {
+    const next = normalizeReview(
+      {
+        ...input,
+        status: 'pending',
+        isFeatured: false,
+      },
+      0,
+    );
+    setReviews((prev) => [next, ...prev]);
+    return next;
+  };
+
+  const updateReview = (reviewId, updates) => {
+    setReviews((prev) => prev.map((item) => (item.id === reviewId ? normalizeReview({ ...item, ...updates }) : item)));
+  };
+
+  const appendReviewAuditLog = (entry) => {
+    setReviewAuditLogs((prev) => [
+      {
+        id: `audit-${Date.now()}-${Math.round(Math.random() * 10000)}`,
+        at: new Date().toISOString(),
+        ...entry,
+      },
+      ...prev,
+    ]);
+  };
+
+  const setReviewStatus = (reviewId, status, operator = 'console-admin') => {
+    if (!['pending', 'approved', 'rejected'].includes(status)) return;
+
+    setReviews((prev) => {
+      const target = prev.find((item) => item.id === reviewId);
+      if (!target) return prev;
+
+      const previousStatus = target.status || 'pending';
+      if (previousStatus !== status) {
+        appendReviewAuditLog({
+          type: 'status_changed',
+          reviewId,
+          operator,
+          from: previousStatus,
+          to: status,
+          projectId: target.projectId,
+          projectName: target.projectName,
+          clientName: target.clientName,
+        });
+      }
+
+      return prev.map((item) => (item.id === reviewId ? normalizeReview({ ...item, status }) : item));
+    });
   };
 
   const updateCaseStudy = (projectType, key, value) => {
@@ -708,6 +820,8 @@ export function ConfigProvider({ children }) {
       projects,
       assets,
       projectData,
+      reviews,
+      reviewAuditLogs,
       updateConfig,
       resetConfig,
       isUnlocked,
@@ -716,6 +830,9 @@ export function ConfigProvider({ children }) {
       isDeliveryUnlocked,
       unlockDeliveryAccess,
       lockDeliveryAccess,
+      submitReview,
+      updateReview,
+      setReviewStatus,
       updateCaseStudy,
       addProject,
       updateProject,
@@ -731,7 +848,7 @@ export function ConfigProvider({ children }) {
       defaults: DEFAULT_CONFIG,
       projectDefaults: DEFAULT_PROJECT_DATA,
     }),
-    [config, projects, assets, projectData, projectUnlocks, deliveryUnlocks],
+    [config, projects, assets, projectData, projectUnlocks, deliveryUnlocks, reviews, reviewAuditLogs],
   );
 
   return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>;

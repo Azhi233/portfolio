@@ -1,0 +1,29 @@
+[
+  {
+    "id": "review-toy-001",
+    "projectId": "toy_project",
+    "projectName": "构建消费级拼装玩具数字资产",
+    "clientName": "Toyverse 市场负责人",
+    "content": "从策略到交付都非常稳，素材复用率明显提升，团队配合顺畅。",
+    "coverUrl": "https://images.unsplash.com/photo-1517705008128-361805f42e86?auto=format&fit=crop&w=1200&q=80",
+    "isFeatured": true
+  },
+  {
+    "id": "review-industry-001",
+    "projectId": "industry_project",
+    "projectName": "ToB制造业的视觉公关与营销统筹",
+    "clientName": "Industrial Pro 销售总监",
+    "content": "复杂工艺讲清楚了，销售团队使用素材的效率提升很明显。",
+    "coverUrl": "https://images.unsplash.com/photo-1581091215367-59ab6b1b0c72?auto=format&fit=crop&w=1200&q=80",
+    "isFeatured": true
+  },
+  {
+    "id": "review-portrait-001",
+    "projectId": "proj-toys-1",
+    "projectName": "Neon Toy Odyssey",
+    "clientName": "Nova Brand 制片人",
+    "content": "交付非常有电影感，客户现场反馈很积极。",
+    "coverUrl": "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=1200&q=80",
+    "isFeatured": false
+  }
+]
