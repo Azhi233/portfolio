@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useConfig } from '../../context/ConfigContext.jsx';
+import EncryptedEnvelope from '../../components/EncryptedEnvelope.jsx';
 import { trackEvent } from '../../utils/analytics.js';
 
 const PRIVATE_ACCESS_PREFIX = 'project.private.access.';
@@ -59,51 +60,6 @@ function ProjectNotFound() {
   );
 }
 
-function PrivateAccessGate({ projectTitle, onUnlock }) {
-  const [input, setInput] = useState('');
-  const [error, setError] = useState('');
-
-  return (
-    <div className="mt-14 rounded-2xl border border-zinc-800 bg-zinc-950/70 p-8 md:p-12">
-      <p className="text-xs tracking-[0.24em] text-zinc-500">PRIVATE PROJECT</p>
-      <h2 className="mt-3 font-serif text-2xl tracking-[0.08em] text-zinc-100 md:text-4xl">{projectTitle}</h2>
-      <p className="mt-4 text-sm leading-relaxed text-zinc-400">该项目为私密访问，请输入密码后查看。</p>
-
-      <form
-        className="mt-6 max-w-md"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const ok = onUnlock(input);
-          if (!ok) {
-            setError('密码错误，请重试。');
-            return;
-          }
-          setError('');
-        }}
-      >
-        <input
-          type="password"
-          value={input}
-          onChange={(event) => {
-            setInput(event.target.value);
-            if (error) setError('');
-          }}
-          placeholder="请输入项目访问密码"
-          className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none ring-cyan-400 transition focus:ring-2"
-        />
-
-        {error ? <p className="mt-3 text-xs tracking-[0.08em] text-rose-400">{error}</p> : null}
-
-        <button
-          type="submit"
-          className="mt-4 rounded-md border border-cyan-300/70 bg-cyan-300/10 px-4 py-2 text-xs tracking-[0.14em] text-cyan-200 transition hover:bg-cyan-300/20"
-        >
-          UNLOCK PROJECT
-        </button>
-      </form>
-    </div>
-  );
-}
 
 function ProjectDetail() {
   const { id } = useParams();
@@ -167,7 +123,7 @@ function ProjectDetail() {
         </Link>
 
         {isPrivate && !canViewPrivate ? (
-          <PrivateAccessGate
+          <EncryptedEnvelope
             projectTitle={project.title}
             onUnlock={(input) => {
               const matched = String(input || '') === String(project.accessPassword || '');

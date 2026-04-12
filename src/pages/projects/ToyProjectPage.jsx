@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useConfig } from '../../context/ConfigContext.jsx';
+import ImageCompareCard from '../../components/ImageCompareCard.jsx';
 import ProjectCTA from '../../components/ProjectCTA.jsx';
 
 const FALLBACK_MEDIA = [
@@ -58,6 +59,19 @@ function getProjectAssets(assets, projectId, assetUrls) {
 }
 
 function MediaCell({ item, className = '' }) {
+  if (item.type === 'image-comparison') {
+    return (
+      <div className="relative">
+        <ImageCompareCard asset={item} className={className} />
+        {item?.views?.project?.description ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 text-xs text-zinc-300">
+            {item.views.project.description}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <article className={`group relative overflow-hidden rounded-2xl border border-white/10 bg-black/35 ${className}`}>
       <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />

@@ -10,6 +10,7 @@ const AboutContact = lazy(() => import('./pages/AboutContact.jsx'));
 const Services = lazy(() => import('./pages/Services.jsx'));
 const InteractiveLab = lazy(() => import('./pages/InteractiveLab/index.jsx'));
 const DirectorConsole = lazy(() => import('./pages/DirectorConsole/index.jsx'));
+const ClientAccess = lazy(() => import('./pages/ClientAccess/index.jsx'));
 const ProjectDetail = lazy(() => import('./pages/ProjectDetail/index.jsx'));
 const HealthCheck = lazy(() => import('./pages/HealthCheck/index.jsx'));
 const ToyProjectPage = lazy(() => import('./pages/projects/ToyProjectPage.jsx'));
@@ -164,6 +165,7 @@ function App() {
           <Route path="/services" element={<Services />} />
           <Route path="/lab/*" element={<InteractiveLab />} />
           <Route path="/console" element={<DirectorConsole />} />
+          <Route path="/client-access" element={<ClientAccess />} />
           <Route path="/project/toy" element={<ToyProjectPage />} />
           <Route path="/project/industry" element={<IndustryProjectPage />} />
           <Route path="/project/:id" element={<ProjectDetail />} />

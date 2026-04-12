@@ -146,6 +146,8 @@ const DEFAULT_ASSETS = [
 
 const VALID_CATEGORIES = ['Toys', 'Industrial', 'Misc'];
 const VALID_PUBLISH_STATUS = ['Draft', 'Published', 'Private'];
+const VALID_ASSET_TYPES = ['image', 'video', 'image-comparison'];
+const VALID_VARIANT_KEYS = ['raw', 'graded', 'styled'];
 
 const DEFAULT_PROJECTS = [
   {
@@ -171,16 +173,42 @@ function normalizeSortOrder(value) {
   return numeric;
 }
 
+function normalizePrivateFiles(files) {
+  if (!Array.isArray(files)) return [];
+  return files
+    .map((item, index) => ({
+      id: String(item?.id || `pf-${Date.now()}-${index}`),
+      name: String(item?.name || `File ${index + 1}`),
+      url: String(item?.url || ''),
+      actionType: item?.actionType === 'upload' ? 'upload' : 'download',
+      note: String(item?.note || ''),
+      sortOrder: normalizeSortOrder(item?.sortOrder ?? index),
+      enabled: item?.enabled !== false,
+    }))
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
+}
+
 function normalizeProject(project) {
   const normalizedPublishStatus = VALID_PUBLISH_STATUS.includes(project?.publishStatus)
     ? project.publishStatus
-    : project?.isVisible === false
-      ? 'Draft'
-      : 'Published';
+    : project?.status === 'private'
+      ? 'Private'
+      : project?.isVisible === false
+        ? 'Draft'
+        : 'Published';
 
   const visibility = VALID_PUBLISH_STATUS.includes(project?.visibility)
     ? project.visibility
     : normalizedPublishStatus;
+
+  const status =
+    project?.status === 'private' || normalizedPublishStatus === 'Private'
+      ? 'private'
+      : normalizedPublishStatus === 'Draft'
+        ? 'draft'
+        : 'published';
+
+  const password = String(project?.password || project?.accessPassword || '');
 
   return {
     id: String(project?.id || ''),
@@ -194,6 +222,7 @@ function normalizeProject(project) {
     mainVideoUrl: String(project?.mainVideoUrl || project?.videoUrl || ''),
     btsMedia: Array.isArray(project?.btsMedia) ? project.btsMedia.map((item) => String(item || '')) : [],
     clientAgency: String(project?.clientAgency || ''),
+    clientCode: String(project?.clientCode || ''),
     isFeatured: Boolean(project?.isFeatured),
     sortOrder: normalizeSortOrder(project?.sortOrder),
     description: String(project?.description || ''),
@@ -201,15 +230,32 @@ function normalizeProject(project) {
     isVisible: visibility !== 'Draft',
     publishStatus: normalizedPublishStatus,
     visibility,
-    accessPassword: String(project?.accessPassword || ''),
+    accessPassword: password,
+    status,
+    password,
+    privateFiles: normalizePrivateFiles(project?.privateFiles),
   };
 }
 
 function normalizeAsset(asset) {
+  const type = VALID_ASSET_TYPES.includes(asset?.type) ? asset.type : asset?.type === 'video' ? 'video' : 'image';
+  const rawVariants = asset?.variants && typeof asset.variants === 'object' ? asset.variants : {};
+  const variants = VALID_VARIANT_KEYS.reduce((acc, key) => {
+    const value = String(rawVariants?.[key] || '').trim();
+    if (value) acc[key] = value;
+    return acc;
+  }, {});
+
+  const variantCount = Object.keys(variants).length;
+  const resolvedType = type === 'image-comparison' || variantCount > 1 ? 'image-comparison' : type;
+  const baseUrl = String(asset?.url || asset?.coverUrl || variants.graded || variants.raw || variants.styled || '');
+  const normalizedProjectId = String(asset?.views?.project?.projectId || '').trim() || 'toy_project';
+
   return {
     id: String(asset?.id || `asset-${Date.now()}-${Math.round(Math.random() * 9999)}`),
-    type: asset?.type === 'video' ? 'video' : 'image',
-    url: String(asset?.url || ''),
+    type: resolvedType,
+    url: baseUrl,
+    variants,
     title: String(asset?.title || 'Untitled Asset'),
     views: {
       expertise: {
@@ -221,9 +267,7 @@ function normalizeAsset(asset) {
       },
       project: {
         isActive: Boolean(asset?.views?.project?.isActive),
-        projectId: ['toy_project', 'industry_project'].includes(asset?.views?.project?.projectId)
-          ? asset.views.project.projectId
-          : 'toy_project',
+        projectId: normalizedProjectId,
         description: String(asset?.views?.project?.description || ''),
       },
     },
@@ -418,6 +462,7 @@ export function ConfigProvider({ children }) {
         mainVideoUrl: projectInput.mainVideoUrl?.trim() || projectInput.videoUrl?.trim() || '',
         btsMedia: Array.isArray(projectInput.btsMedia) ? projectInput.btsMedia : [],
         clientAgency: projectInput.clientAgency?.trim() || '',
+        clientCode: projectInput.clientCode?.trim() || '',
         isFeatured: Boolean(projectInput.isFeatured),
         sortOrder: projectInput.sortOrder,
         description: projectInput.description?.trim() || '',
@@ -425,7 +470,9 @@ export function ConfigProvider({ children }) {
         isVisible: projectInput.isVisible !== undefined ? projectInput.isVisible : true,
         publishStatus: projectInput.publishStatus || 'Draft',
         visibility: projectInput.visibility || projectInput.publishStatus || 'Draft',
-        accessPassword: projectInput.accessPassword?.trim() || '',
+        accessPassword: projectInput.accessPassword?.trim() || projectInput.password?.trim() || '',
+        status: projectInput.status,
+        password: projectInput.password?.trim() || projectInput.accessPassword?.trim() || '',
       }),
     ]);
   };

@@ -26,7 +26,9 @@ const EMPTY_FORM = {
   videoUrl: '',
   btsMediaText: '',
   clientAgency: '',
+  clientCode: '',
   accessPassword: '',
+  isPrivate: false,
   isFeatured: false,
   isVisible: true,
   sortOrder: 0,
@@ -39,11 +41,23 @@ const EMPTY_ASSET_FORM = {
   title: '',
   url: '',
   type: 'image',
+  rawUrl: '',
+  gradedUrl: '',
+  styledUrl: '',
   publishTarget: 'expertise',
   expertiseCategory: 'commercial',
-  expertiseDescription: '',
   projectId: 'toy_project',
+  expertiseDescription: '',
   projectDescription: '',
+};
+
+const EMPTY_PRIVATE_FILE_FORM = {
+  projectId: '',
+  name: '',
+  url: '',
+  actionType: 'download',
+  note: '',
+  enabled: true,
 };
 
 const FORM_INPUT_CLASS =
@@ -314,20 +328,49 @@ function ProjectForm({
           />
         </label>
 
-        <label className="block">
-          <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Visibility</p>
-          <select
-            value={formState.publishStatus}
-            onChange={(event) => onChange('publishStatus', event.target.value)}
-            className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-400 transition focus:ring-2"
-          >
-            {STATUS_OPTIONS.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="block rounded-md border border-zinc-700 bg-zinc-950 px-3 py-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs tracking-[0.12em] text-zinc-300">Private Access</p>
+            <button
+              type="button"
+              onClick={() => {
+                const nextPrivate = !formState.isPrivate;
+                onChange('isPrivate', nextPrivate);
+                onChange(
+                  'publishStatus',
+                  nextPrivate ? 'Private' : formState.publishStatus === 'Draft' ? 'Draft' : 'Published',
+                );
+              }}
+              className={`rounded-full border px-3 py-1 text-xs tracking-[0.12em] transition ${
+                formState.isPrivate
+                  ? 'border-amber-300/70 bg-amber-300/15 text-amber-200'
+                  : 'border-zinc-600 bg-zinc-800 text-zinc-300'
+              }`}
+            >
+              {formState.isPrivate ? 'PRIVATE' : 'PUBLIC'}
+            </button>
+          </div>
+          <p className="mt-2 text-[11px] tracking-[0.08em] text-zinc-500">
+            开启后此项目需要密码访问。
+          </p>
+
+          <label className="mt-3 block">
+            <p className="mb-2 text-[11px] tracking-[0.12em] text-zinc-500">Public Status</p>
+            <select
+              value={formState.isPrivate ? 'Private' : formState.publishStatus === 'Draft' ? 'Draft' : 'Published'}
+              disabled={formState.isPrivate}
+              onChange={(event) => onChange('publishStatus', event.target.value)}
+              className={`w-full rounded-md border bg-zinc-900 px-3 py-2 text-sm outline-none ring-emerald-400 transition focus:ring-2 ${
+                formState.isPrivate
+                  ? 'cursor-not-allowed border-zinc-700 text-zinc-500'
+                  : 'border-zinc-700 text-zinc-100'
+              }`}
+            >
+              <option value="Draft">Draft</option>
+              <option value="Published">Published</option>
+            </select>
+          </label>
+        </div>
 
         <label className="block">
           <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Sort Order</p>
@@ -362,7 +405,7 @@ function ProjectForm({
           onUpload={onUploadVideo}
         />
 
-        <label className="block md:col-span-2">
+        <label className="block">
           <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Client / Agency</p>
           <input
             value={formState.clientAgency}
@@ -370,6 +413,17 @@ function ProjectForm({
             className={FORM_INPUT_CLASS}
             placeholder="Client / Agency name"
           />
+        </label>
+
+        <label className="block">
+          <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Client Code</p>
+          <input
+            value={formState.clientCode}
+            onChange={(event) => onChange('clientCode', event.target.value)}
+            className={FORM_INPUT_CLASS}
+            placeholder="e.g. ACME-0426"
+          />
+          <p className="mt-2 text-[11px] tracking-[0.08em] text-zinc-500">客户可通过统一入口页输入此代码直达私密项目。</p>
         </label>
 
         <label className="block md:col-span-2">
@@ -382,7 +436,7 @@ function ProjectForm({
           />
         </label>
 
-        {formState.publishStatus === 'Private' ? (
+        {formState.isPrivate ? (
           <label className="block md:col-span-2">
             <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Access Password</p>
             <input
@@ -391,6 +445,7 @@ function ProjectForm({
               className={FORM_INPUT_CLASS}
               placeholder="Set password for private access"
             />
+            <p className="mt-2 text-[11px] tracking-[0.08em] text-zinc-500">建议至少 4 位字符。</p>
           </label>
         ) : null}
 
@@ -564,6 +619,10 @@ function DirectorConsole() {
   const [importResult, setImportResult] = useState('');
   const [assetFilterMode, setAssetFilterMode] = useState('all');
   const [projectsPanelMode, setProjectsPanelMode] = useState('projects');
+  const [privateFilesProjectId, setPrivateFilesProjectId] = useState('');
+  const [privateFileForm, setPrivateFileForm] = useState(EMPTY_PRIVATE_FILE_FORM);
+  const [editingPrivateFileId, setEditingPrivateFileId] = useState(null);
+  const [privateFileError, setPrivateFileError] = useState('');
   const [preflightResult, setPreflightResult] = useState(() => runProjectPreflight(projects));
 
   const sortedProjects = useMemo(
@@ -693,9 +752,45 @@ function DirectorConsole() {
     config.resumeGearText,
   ]);
 
+  const privateProjects = useMemo(
+    () => sortedProjects.filter((project) => project.publishStatus === 'Private'),
+    [sortedProjects],
+  );
+
+  const privateFilesProject = useMemo(
+    () => privateProjects.find((project) => project.id === privateFilesProjectId) || null,
+    [privateProjects, privateFilesProjectId],
+  );
+
+  const privateFiles = useMemo(
+    () => [...(privateFilesProject?.privateFiles || [])].sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0)),
+    [privateFilesProject],
+  );
+
   useEffect(() => {
     setSelectedIds((prev) => prev.filter((id) => filteredProjects.some((project) => project.id === id)));
   }, [filteredProjects]);
+
+  useEffect(() => {
+    if (activeTab !== 'privateFiles') return;
+    if (privateProjects.length === 0) {
+      setPrivateFilesProjectId('');
+      return;
+    }
+
+    setPrivateFilesProjectId((prev) => {
+      if (prev && privateProjects.some((project) => project.id === prev)) return prev;
+      return privateProjects[0].id;
+    });
+  }, [activeTab, privateProjects]);
+
+  useEffect(() => {
+    if (activeTab !== 'privateFiles') return;
+    setPrivateFileForm((prev) => ({
+      ...prev,
+      projectId: privateFilesProjectId,
+    }));
+  }, [activeTab, privateFilesProjectId]);
 
   const pagedProjects = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -997,7 +1092,9 @@ function DirectorConsole() {
       videoUrl: project.videoUrl,
       btsMediaText: Array.isArray(project.btsMedia) ? project.btsMedia.join('\n') : '',
       clientAgency: project.clientAgency || '',
+      clientCode: project.clientCode || '',
       accessPassword: project.accessPassword || '',
+      isPrivate: project.publishStatus === 'Private' || project.status === 'private',
       isFeatured: project.isFeatured,
       isVisible: project.isVisible,
       sortOrder: project.sortOrder,
@@ -1039,6 +1136,29 @@ function DirectorConsole() {
     });
   };
 
+  const handleCopyPrivateLink = async (project) => {
+    if (!project?.id) return;
+
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const privateLink = `${origin}/project/${project.id}`;
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(privateLink);
+      } else {
+        const input = document.createElement('input');
+        input.value = privateLink;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+      }
+      window.alert(`私密链接已复制：\n${privateLink}`);
+    } catch {
+      window.alert(`复制失败，请手动复制：\n${privateLink}`);
+    }
+  };
+
   const handleCancelForm = () => {
     setShowForm(false);
     setEditingProjectId(null);
@@ -1047,6 +1167,24 @@ function DirectorConsole() {
       cover: { status: 'idle', progress: 0 },
       video: { status: 'idle', progress: 0 },
     });
+  };
+
+  const resetPrivateFileForm = () => {
+    setPrivateFileForm({
+      ...EMPTY_PRIVATE_FILE_FORM,
+      projectId: privateFilesProjectId,
+    });
+    setEditingPrivateFileId(null);
+    setPrivateFileError('');
+  };
+
+  const savePrivateFilesForProject = (projectId, nextFiles) => {
+    if (!projectId) return;
+    const normalized = nextFiles.map((item, index) => ({
+      ...item,
+      sortOrder: index,
+    }));
+    updateProject(projectId, { privateFiles: normalized });
   };
 
   useEffect(() => {
@@ -1064,15 +1202,15 @@ function DirectorConsole() {
   const handleSubmitForm = (event) => {
     event.preventDefault();
 
-    const nextVisibility =
-      formState.publishStatus === 'Published'
-        ? 'Published'
-        : formState.publishStatus === 'Private'
-          ? 'Private'
-          : 'Draft';
+    const nextVisibility = formState.isPrivate
+      ? 'Private'
+      : formState.publishStatus === 'Draft'
+        ? 'Draft'
+        : 'Published';
 
     const payload = {
       ...formState,
+      publishStatus: nextVisibility,
       btsMedia: formState.btsMediaText
         .split('\n')
         .map((item) => item.trim())
@@ -1080,7 +1218,26 @@ function DirectorConsole() {
       visibility: nextVisibility,
       isVisible: nextVisibility !== 'Draft',
       accessPassword: nextVisibility === 'Private' ? formState.accessPassword : '',
+      clientCode: String(formState.clientCode || '').trim(),
     };
+
+    if (payload.publishStatus === 'Private' && String(payload.accessPassword || '').trim().length < 4) {
+      window.alert('私密项目密码至少需要 4 位字符。');
+      return;
+    }
+
+    const normalizedClientCode = String(payload.clientCode || '').trim().toLowerCase();
+    if (normalizedClientCode) {
+      const duplicated = projects.some(
+        (item) =>
+          item.id !== (editingProjectId || '') &&
+          String(item.clientCode || '').trim().toLowerCase() === normalizedClientCode,
+      );
+      if (duplicated) {
+        window.alert('Client Code 已存在，请使用唯一代码。');
+        return;
+      }
+    }
 
     if (payload.publishStatus === 'Published') {
       const check = runProjectPreflight([{ ...payload, id: editingProjectId || 'new' }]);
@@ -1477,6 +1634,9 @@ function DirectorConsole() {
             </PanelTab>
             <PanelTab isActive={activeTab === 'projectModules'} onClick={() => setActiveTab('projectModules')}>
               Project Modules (复盘模块)
+            </PanelTab>
+            <PanelTab isActive={activeTab === 'privateFiles'} onClick={() => setActiveTab('privateFiles')}>
+              Private Files (私密文件管理)
             </PanelTab>
             <PanelTab isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')}>
               Site Settings (网站特效)
@@ -2166,29 +2326,65 @@ function DirectorConsole() {
                   onChange={(event) => {
                     const nextType = event.target.value;
                     setAssetForm((prev) => ({ ...prev, type: nextType }));
-                    setAssetUrlWarning(getAssetUrlWarning(assetForm.url, nextType));
+                    setAssetUrlWarning(nextType === 'video' || nextType === 'image' ? getAssetUrlWarning(assetForm.url, nextType) : '');
                   }}
                   className={FORM_INPUT_CLASS}
                 >
                   <option value="image">Image</option>
                   <option value="video">Video</option>
+                  <option value="image-comparison">Image Comparison</option>
                 </select>
               </label>
 
-              <label className="block md:col-span-2">
-                <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Asset URL (OSS Link)</p>
-                <input
-                  value={assetForm.url}
-                  onChange={(event) => {
-                    const nextUrl = event.target.value;
-                    setAssetForm((prev) => ({ ...prev, url: nextUrl }));
-                    setAssetUrlWarning(getAssetUrlWarning(nextUrl, assetForm.type));
-                    if (assetFormError) setAssetFormError('');
-                  }}
-                  className={FORM_INPUT_CLASS}
-                  placeholder="https://..."
-                />
-              </label>
+              {assetForm.type !== 'image-comparison' ? (
+                <label className="block md:col-span-2">
+                  <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Asset URL (OSS Link)</p>
+                  <input
+                    value={assetForm.url}
+                    onChange={(event) => {
+                      const nextUrl = event.target.value;
+                      setAssetForm((prev) => ({ ...prev, url: nextUrl }));
+                      setAssetUrlWarning(getAssetUrlWarning(nextUrl, assetForm.type));
+                      if (assetFormError) setAssetFormError('');
+                    }}
+                    className={FORM_INPUT_CLASS}
+                    placeholder="https://..."
+                  />
+                </label>
+              ) : (
+                <div className="block md:col-span-2 rounded-md border border-zinc-700/60 bg-zinc-900/40 p-3">
+                  <p className="mb-3 text-xs tracking-[0.12em] text-zinc-400">Variants URLs (for comparison)</p>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <label className="block">
+                      <p className="mb-2 text-[11px] tracking-[0.12em] text-zinc-500">RAW URL</p>
+                      <input
+                        value={assetForm.rawUrl}
+                        onChange={(event) => setAssetForm((prev) => ({ ...prev, rawUrl: event.target.value }))}
+                        className={FORM_INPUT_CLASS}
+                        placeholder="https://..."
+                      />
+                    </label>
+                    <label className="block">
+                      <p className="mb-2 text-[11px] tracking-[0.12em] text-zinc-500">GRADED URL</p>
+                      <input
+                        value={assetForm.gradedUrl}
+                        onChange={(event) => setAssetForm((prev) => ({ ...prev, gradedUrl: event.target.value }))}
+                        className={FORM_INPUT_CLASS}
+                        placeholder="https://..."
+                      />
+                    </label>
+                    <label className="block">
+                      <p className="mb-2 text-[11px] tracking-[0.12em] text-zinc-500">STYLED URL</p>
+                      <input
+                        value={assetForm.styledUrl}
+                        onChange={(event) => setAssetForm((prev) => ({ ...prev, styledUrl: event.target.value }))}
+                        className={FORM_INPUT_CLASS}
+                        placeholder="https://..."
+                      />
+                    </label>
+                  </div>
+                </div>
+              )}
 
               <label className="block">
                 <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Publish Target</p>
@@ -2279,10 +2475,18 @@ function DirectorConsole() {
                   <button
                     type="button"
                     onClick={() => {
+                      const variants = {
+                        raw: String(assetForm.rawUrl || '').trim(),
+                        graded: String(assetForm.gradedUrl || '').trim(),
+                        styled: String(assetForm.styledUrl || '').trim(),
+                      };
+                      const variantValues = Object.values(variants).filter((value) => value);
+
                       const payload = {
                         title: String(assetForm.title || '').trim(),
                         url: String(assetForm.url || '').trim(),
                         type: assetForm.type,
+                        variants: assetForm.type === 'image-comparison' ? variants : undefined,
                         views: {
                           expertise: {
                             isActive: assetForm.publishTarget === 'expertise' || assetForm.publishTarget === 'both',
@@ -2297,18 +2501,37 @@ function DirectorConsole() {
                         },
                       };
 
-                      if (!payload.title || !payload.url) {
-                        setAssetFormError('请填写 Asset Title 和 Asset URL。');
+                      if (!payload.title) {
+                        setAssetFormError('请填写 Asset Title。');
                         return;
                       }
 
-                      if (!/^https?:\/\//i.test(payload.url)) {
-                        setAssetFormError('Asset URL 必须是 http(s) 链接。');
-                        return;
+                      if (assetForm.type === 'image-comparison') {
+                        if (variantValues.length === 0) {
+                          setAssetFormError('请至少填写一条 variants URL。');
+                          return;
+                        }
+                        if (variantValues.some((value) => !/^https?:\/\//i.test(value))) {
+                          setAssetFormError('Variants URL 必须是 http(s) 链接。');
+                          return;
+                        }
+                      } else {
+                        if (!payload.url) {
+                          setAssetFormError('请填写 Asset URL。');
+                          return;
+                        }
+                        if (!/^https?:\/\//i.test(payload.url)) {
+                          setAssetFormError('Asset URL 必须是 http(s) 链接。');
+                          return;
+                        }
                       }
 
                       setAssetFormError('');
-                      setAssetUrlWarning(getAssetUrlWarning(payload.url, payload.type));
+                      if (assetForm.type !== 'image-comparison') {
+                        setAssetUrlWarning(getAssetUrlWarning(payload.url, payload.type));
+                      } else {
+                        setAssetUrlWarning('');
+                      }
 
                       if (editingAssetId) {
                         updateAsset(editingAssetId, payload);
@@ -2353,6 +2576,9 @@ function DirectorConsole() {
                               title: asset.title,
                               url: asset.url,
                               type: asset.type,
+                              rawUrl: asset.variants?.raw || '',
+                              gradedUrl: asset.variants?.graded || '',
+                              styledUrl: asset.variants?.styled || '',
                               publishTarget:
                                 asset.views.expertise.isActive && asset.views.project.isActive
                                   ? 'both'
@@ -2678,6 +2904,243 @@ function DirectorConsole() {
                 </div>
               </div>
             ) : null}
+          </section>
+        ) : activeTab === 'privateFiles' ? (
+          <section className="mt-6 rounded-2xl border border-zinc-700/60 bg-zinc-900/60 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm tracking-[0.16em] text-zinc-100">PRIVATE PROJECT FILE CONTROL</h2>
+                <p className="mt-1 text-[11px] tracking-[0.12em] text-zinc-500">单独管理私密项目的上传/下载文件信息、顺序和启用状态。</p>
+              </div>
+            </div>
+
+            {privateProjects.length === 0 ? (
+              <div className="mt-4 rounded-xl border border-dashed border-zinc-700 bg-zinc-950/50 p-6 text-center text-xs tracking-[0.14em] text-zinc-500">
+                NO PRIVATE PROJECTS. PLEASE MARK A PROJECT AS PRIVATE FIRST.
+              </div>
+            ) : (
+              <>
+                <div className="mt-4 grid gap-3 rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-4 md:grid-cols-2">
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Target Private Project</p>
+                    <select
+                      value={privateFilesProjectId}
+                      onChange={(event) => {
+                        setPrivateFilesProjectId(event.target.value);
+                        resetPrivateFileForm();
+                      }}
+                      className={FORM_INPUT_CLASS}
+                    >
+                      {privateProjects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.title} {project.clientCode ? `· CODE ${project.clientCode}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">File Name</p>
+                    <input
+                      value={privateFileForm.name}
+                      onChange={(event) => {
+                        setPrivateFileForm((prev) => ({ ...prev, name: event.target.value }));
+                        if (privateFileError) setPrivateFileError('');
+                      }}
+                      className={FORM_INPUT_CLASS}
+                      placeholder="e.g. Final Delivery Pack"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Action Type</p>
+                    <select
+                      value={privateFileForm.actionType}
+                      onChange={(event) => setPrivateFileForm((prev) => ({ ...prev, actionType: event.target.value }))}
+                      className={FORM_INPUT_CLASS}
+                    >
+                      <option value="download">download</option>
+                      <option value="upload">upload</option>
+                    </select>
+                  </label>
+
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">File URL</p>
+                    <input
+                      value={privateFileForm.url}
+                      onChange={(event) => {
+                        setPrivateFileForm((prev) => ({ ...prev, url: event.target.value }));
+                        if (privateFileError) setPrivateFileError('');
+                      }}
+                      className={FORM_INPUT_CLASS}
+                      placeholder="https://..."
+                    />
+                  </label>
+
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Note</p>
+                    <textarea
+                      value={privateFileForm.note}
+                      onChange={(event) => setPrivateFileForm((prev) => ({ ...prev, note: event.target.value }))}
+                      className={FORM_TEXTAREA_CLASS}
+                      placeholder="Optional note shown to client"
+                    />
+                  </label>
+
+                  <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-2">
+                    <label className="inline-flex items-center gap-2 text-xs text-zinc-300">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(privateFileForm.enabled)}
+                        onChange={(event) => setPrivateFileForm((prev) => ({ ...prev, enabled: event.target.checked }))}
+                        className="h-4 w-4 rounded border-zinc-600 bg-zinc-900 accent-emerald-400"
+                      />
+                      Enabled
+                    </label>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={resetPrivateFileForm}
+                        className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs tracking-[0.12em] text-zinc-300"
+                      >
+                        RESET
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!privateFilesProjectId) {
+                            setPrivateFileError('请选择私密项目。');
+                            return;
+                          }
+
+                          const name = String(privateFileForm.name || '').trim();
+                          const url = String(privateFileForm.url || '').trim();
+                          if (!name || !url) {
+                            setPrivateFileError('请填写 File Name 和 File URL。');
+                            return;
+                          }
+                          if (!/^https?:\/\//i.test(url)) {
+                            setPrivateFileError('File URL 必须是 http(s) 链接。');
+                            return;
+                          }
+
+                          const nextItem = {
+                            id: editingPrivateFileId || `pf-${Date.now()}`,
+                            name,
+                            url,
+                            actionType: privateFileForm.actionType === 'upload' ? 'upload' : 'download',
+                            note: String(privateFileForm.note || '').trim(),
+                            enabled: Boolean(privateFileForm.enabled),
+                          };
+
+                          if (editingPrivateFileId) {
+                            const nextFiles = privateFiles.map((item, index) =>
+                              item.id === editingPrivateFileId ? { ...item, ...nextItem, sortOrder: index } : item,
+                            );
+                            savePrivateFilesForProject(privateFilesProjectId, nextFiles);
+                          } else {
+                            const nextFiles = [...privateFiles, { ...nextItem, sortOrder: privateFiles.length }];
+                            savePrivateFilesForProject(privateFilesProjectId, nextFiles);
+                          }
+
+                          resetPrivateFileForm();
+                        }}
+                        className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-4 py-2 text-xs tracking-[0.12em] text-emerald-200"
+                      >
+                        {editingPrivateFileId ? 'UPDATE FILE ITEM' : 'ADD FILE ITEM'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {privateFileError ? (
+                    <p className="md:col-span-2 rounded-md border border-rose-400/60 bg-rose-400/10 px-3 py-2 text-xs tracking-[0.1em] text-rose-200">{privateFileError}</p>
+                  ) : null}
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                  {privateFiles.map((item, index) => (
+                    <article key={item.id} className="rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm text-zinc-100">{item.name}</p>
+                          <p className="text-[11px] text-zinc-500">{item.url}</p>
+                          <p className="mt-1 text-[11px] text-zinc-400">TYPE: {String(item.actionType || 'download').toUpperCase()} · ORDER #{index}</p>
+                          {item.note ? <p className="mt-1 text-[11px] text-zinc-400">NOTE: {item.note}</p> : null}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          {!item.enabled ? <span className="rounded-full border border-amber-300/70 bg-amber-300/15 px-2 py-0.5 text-[10px] tracking-[0.14em] text-amber-200">DISABLED</span> : null}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (index === 0) return;
+                              const nextFiles = [...privateFiles];
+                              const [picked] = nextFiles.splice(index, 1);
+                              nextFiles.splice(index - 1, 0, picked);
+                              savePrivateFilesForProject(privateFilesProjectId, nextFiles);
+                            }}
+                            className="rounded-md border border-zinc-600 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-200"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (index === privateFiles.length - 1) return;
+                              const nextFiles = [...privateFiles];
+                              const [picked] = nextFiles.splice(index, 1);
+                              nextFiles.splice(index + 1, 0, picked);
+                              savePrivateFilesForProject(privateFilesProjectId, nextFiles);
+                            }}
+                            className="rounded-md border border-zinc-600 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-200"
+                          >
+                            ↓
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingPrivateFileId(item.id);
+                              setPrivateFileForm({
+                                projectId: privateFilesProjectId,
+                                name: item.name,
+                                url: item.url,
+                                actionType: item.actionType || 'download',
+                                note: item.note || '',
+                                enabled: item.enabled !== false,
+                              });
+                              setPrivateFileError('');
+                            }}
+                            className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200"
+                          >
+                            EDIT
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nextFiles = privateFiles.filter((x) => x.id !== item.id);
+                              savePrivateFilesForProject(privateFilesProjectId, nextFiles);
+                              if (editingPrivateFileId === item.id) {
+                                resetPrivateFileForm();
+                              }
+                            }}
+                            className="rounded-md border border-rose-400/60 bg-rose-400/10 px-3 py-1.5 text-xs text-rose-200"
+                          >
+                            DELETE
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+
+                  {privateFiles.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-950/50 p-6 text-center text-xs tracking-[0.14em] text-zinc-500">
+                      NO FILE ITEMS IN THIS PRIVATE PROJECT.
+                    </div>
+                  ) : null}
+                </div>
+              </>
+            )}
           </section>
         ) : activeTab === 'projectModules' ? (
           <section className="mt-6 rounded-2xl border border-zinc-700/60 bg-zinc-900/60 p-5">
@@ -3466,7 +3929,9 @@ function DirectorConsole() {
                             <h3 className="text-sm tracking-[0.08em] text-zinc-100">{project.title}</h3>
                           </div>
                           <div className="flex gap-2">
-                            {project.publishStatus === 'Draft' ? (
+                            {project.publishStatus === 'Private' ? (
+                              <span className="rounded-full border border-amber-300/70 bg-amber-300/15 px-2 py-0.5 text-[10px] tracking-[0.14em] text-amber-200">PRIVATE</span>
+                            ) : project.publishStatus === 'Draft' ? (
                               <span className="rounded-full border border-purple-300/70 bg-purple-300/15 px-2 py-0.5 text-[10px] tracking-[0.14em] text-purple-200">DRAFT</span>
                             ) : (
                               <span className="rounded-full border border-sky-300/70 bg-sky-300/15 px-2 py-0.5 text-[10px] tracking-[0.14em] text-sky-200">PUBLISHED</span>
@@ -3478,6 +3943,7 @@ function DirectorConsole() {
 
                         <p className="text-xs tracking-[0.12em] text-zinc-400">{project.category}</p>
                         <p className="text-[11px] tracking-[0.12em] text-zinc-500">ORDER #{project.sortOrder}</p>
+                        {project.clientCode ? <p className="text-[11px] tracking-[0.12em] text-cyan-300">CODE: {project.clientCode}</p> : null}
 
                         <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
                           <button
@@ -3506,7 +3972,25 @@ function DirectorConsole() {
                           >
                             {project.publishStatus === 'Private' ? '🔒' : '🔓'}
                           </button>
-                          <button type="button" onClick={() => handleOpenEdit(project)} className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs tracking-[0.1em] text-zinc-200 transition hover:border-zinc-400">Edit</button>
+                          {project.publishStatus === 'Private' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleCopyPrivateLink(project)}
+                              className="rounded-md border border-cyan-300/70 bg-cyan-300/10 px-3 py-1.5 text-xs tracking-[0.1em] text-cyan-200 transition hover:bg-cyan-300/20"
+                            >
+                              Copy Private Link
+                            </button>
+                          ) : null}
+                          {project.publishStatus === 'Private' ? (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyPrivateLink(project)}
+                            className="rounded-md border border-cyan-300/70 bg-cyan-300/10 px-3 py-1.5 text-xs tracking-[0.1em] text-cyan-200 transition hover:bg-cyan-300/20"
+                          >
+                            Copy Private Link
+                          </button>
+                        ) : null}
+                        <button type="button" onClick={() => handleOpenEdit(project)} className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs tracking-[0.1em] text-zinc-200 transition hover:border-zinc-400">Edit</button>
                           <button type="button" onClick={() => deleteProject(project.id)} className="rounded-md border border-rose-400/60 bg-rose-400/10 px-3 py-1.5 text-xs tracking-[0.1em] text-rose-200 transition hover:bg-rose-400/20">Delete</button>
                         </div>
                       </div>
@@ -3523,11 +4007,14 @@ function DirectorConsole() {
                         <div>
                           <h3 className="text-sm tracking-[0.08em] text-zinc-100">{project.title}</h3>
                           <p className="mt-1 text-xs tracking-[0.12em] text-zinc-400">{project.category} · ORDER #{project.sortOrder}</p>
+                          {project.clientCode ? <p className="mt-1 text-[11px] tracking-[0.12em] text-cyan-300">CODE: {project.clientCode}</p> : null}
                         </div>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
-                        {project.publishStatus === 'Draft' ? (
+                        {project.publishStatus === 'Private' ? (
+                          <span className="rounded-full border border-amber-300/70 bg-amber-300/15 px-2 py-0.5 text-[10px] tracking-[0.14em] text-amber-200">PRIVATE</span>
+                        ) : project.publishStatus === 'Draft' ? (
                           <span className="rounded-full border border-purple-300/70 bg-purple-300/15 px-2 py-0.5 text-[10px] tracking-[0.14em] text-purple-200">DRAFT</span>
                         ) : (
                           <span className="rounded-full border border-sky-300/70 bg-sky-300/15 px-2 py-0.5 text-[10px] tracking-[0.14em] text-sky-200">PUBLISHED</span>

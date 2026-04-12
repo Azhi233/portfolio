@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { key: 'videography', to: '/videography' },
   { key: 'about', to: '/about' },
   { key: 'services', to: '/services' },
+  { key: 'clientAccess', to: '/client-access' },
   { key: 'lab', to: '/lab' },
 ];
 
