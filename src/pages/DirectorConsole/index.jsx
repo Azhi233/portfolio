@@ -1,3 +1,4 @@
+import { Server } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import OssUploadField from '../../components/OssUploadField.jsx';
 import { useConfig } from '../../context/ConfigContext.jsx';
@@ -16,6 +17,7 @@ const ANALYTICS_COMPARE_OPTIONS = ['none', ...ANALYTICS_METRIC_OPTIONS];
 
 const AUTH_SESSION_KEY = 'director_auth_session';
 const DIRECTOR_CONSOLE_PASSWORD = 'zhizhi233';
+const SERVER_PANEL_URL = import.meta.env.VITE_SERVER_URL || '';
 
 const EMPTY_FORM = {
   title: '',
@@ -1616,13 +1618,27 @@ function DirectorConsole() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs tracking-[0.12em] text-zinc-300 transition hover:border-zinc-400"
-            >
-              Log Out
-            </button>
+            <div className="flex items-center gap-2">
+              {SERVER_PANEL_URL ? (
+                <a
+                  href={SERVER_PANEL_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg border border-emerald-600/20 bg-emerald-600/10 px-3 py-2 text-sm text-emerald-500 transition hover:bg-emerald-600/20"
+                >
+                  <Server className="h-4 w-4" />
+                  服务器面板
+                </a>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs tracking-[0.12em] text-zinc-300 transition hover:border-zinc-400"
+              >
+                Log Out
+              </button>
+            </div>
           </div>
 
           <div className="mt-5 flex flex-wrap items-center gap-2">
