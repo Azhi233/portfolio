@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18' # 如果你用的是更高版本可以改，18 是通用的
+          node-version: '20' # 如果你用的是更高版本可以改，18 是通用的
 
       # 3. 安装依赖包 (如果你平时用 yarn/pnpm，这里就改成 yarn install / pnpm install)
       - name: Install Dependencies
