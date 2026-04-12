@@ -5,6 +5,7 @@ import EncryptedEnvelope from '../../components/EncryptedEnvelope.jsx';
 import { trackEvent } from '../../utils/analytics.js';
 
 const PRIVATE_ACCESS_PREFIX = 'project.private.access.';
+const ADMIN_SESSION_KEY = 'director_auth_session';
 
 export function getEmbedUrl(url) {
   const value = String(url || '').trim();
@@ -65,6 +66,7 @@ function ProjectDetail() {
   const { id } = useParams();
   const { projects } = useConfig();
   const [isPrivateUnlocked, setIsPrivateUnlocked] = useState(false);
+  const [isAdminSession, setIsAdminSession] = useState(false);
   const [videoStartAt, setVideoStartAt] = useState(null);
 
   const project = useMemo(() => projects.find((item) => item.id === id), [id, projects]);
@@ -73,6 +75,7 @@ function ProjectDetail() {
     if (typeof window === 'undefined' || !project?.id) return;
     const key = `${PRIVATE_ACCESS_PREFIX}${project.id}`;
     setIsPrivateUnlocked(window.sessionStorage.getItem(key) === 'true');
+    setIsAdminSession(window.sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true');
   }, [project?.id]);
 
   if (!project || project.isVisible === false) {
@@ -139,6 +142,21 @@ function ProjectDetail() {
           />
         ) : (
           <>
+            {isAdminSession ? (
+              <div className="mt-6 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
+                    window.location.assign('/console');
+                  }}
+                  className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-4 py-2 text-xs tracking-[0.14em] text-emerald-200 transition hover:bg-emerald-300/20"
+                >
+                  OPEN DIRECTOR CONSOLE
+                </button>
+              </div>
+            ) : null}
+
             <div className="mt-8 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3 md:p-4">
               <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
                 {isMp4 ? (

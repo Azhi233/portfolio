@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useConfig } from '../../context/ConfigContext.jsx';
 
 const PRIVATE_ACCESS_PREFIX = 'project.private.access.';
+const ADMIN_SESSION_KEY = 'director_auth_session';
 const LAST_CLIENT_CODE_KEY = 'clientAccess.lastCode';
 const LAST_PROJECT_ID_KEY = 'clientAccess.lastProjectId';
 const ADMIN_ACCOUNT = 'zhizhi';
@@ -20,7 +21,6 @@ function ClientAccessPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [unlockResult, setUnlockResult] = useState(null);
-  const [isAdminSession, setIsAdminSession] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState(() => {
     if (typeof window === 'undefined') return '';
     return String(window.localStorage.getItem(LAST_PROJECT_ID_KEY) || '');
@@ -70,6 +70,13 @@ function ClientAccessPage() {
     navigate(`/project/${targetProject.id}`);
   };
 
+  const openConsoleAfterAdminLogin = () => {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
+    }
+    navigate('/console');
+  };
+
   const handleSubmit = (event) => {
     event.preventDefault();
 
@@ -96,15 +103,19 @@ function ClientAccessPage() {
       writeLockState(code, 0, 0);
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(LAST_CLIENT_CODE_KEY, String(clientCode || '').trim());
+        window.sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
         allPrivateProjects.forEach((project) => {
           const key = `${PRIVATE_ACCESS_PREFIX}${project.id}`;
           window.sessionStorage.setItem(key, 'true');
         });
       }
       setError('');
-      setIsAdminSession(true);
-      setUnlockResult(allPrivateProjects);
-      setSelectedProjectId(allPrivateProjects[0]?.id || selectedProjectId || '');
+
+      if (allPrivateProjects.length > 0) {
+        unlockProject(allPrivateProjects[0]);
+      } else {
+        navigate('/console');
+      }
       return;
     }
 
@@ -137,7 +148,6 @@ function ClientAccessPage() {
       window.localStorage.setItem(LAST_CLIENT_CODE_KEY, String(clientCode || '').trim());
     }
     setError('');
-    setIsAdminSession(false);
 
     if (unlockedProjects.length === 1) {
       unlockProject(unlockedProjects[0]);
@@ -192,20 +202,7 @@ function ClientAccessPage() {
                 className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none ring-cyan-400 transition focus:ring-2"
                 placeholder="e.g. ACME-0426"
               />
-              {String(clientCode || '').trim() ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setClientCode('');
-                    if (typeof window !== 'undefined') {
-                      window.localStorage.removeItem(LAST_CLIENT_CODE_KEY);
-                    }
-                  }}
-                  className="mt-2 text-[11px] tracking-[0.08em] text-zinc-500 underline-offset-2 transition hover:text-zinc-300 hover:underline"
-                >
-                  清除记住的客户代码
-                </button>
-              ) : null}
+
             </label>
 
             <label className="block">
@@ -233,15 +230,7 @@ function ClientAccessPage() {
                   ENTER PRIVATE PROJECT
                 </button>
 
-                {isAdminSession ? (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/console')}
-                    className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-4 py-2 text-xs tracking-[0.14em] text-emerald-200 transition hover:bg-emerald-300/20"
-                  >
-                    OPEN DIRECTOR CONSOLE
-                  </button>
-                ) : null}
+
               </div>
             </div>
           </form>
