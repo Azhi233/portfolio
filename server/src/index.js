@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import OpenApi from '@alicloud/openapi-client';
 import Sts20150401 from '@alicloud/sts20150401';
 import {
+  deleteProjectById,
   findProjectById,
   insertProject,
   readConfigObject,
@@ -184,6 +185,17 @@ app.put('/api/projects/:id', (req, res) => {
   updateProject(id, merged);
   const updated = findProjectById(id);
   return res.json({ ok: true, data: updated });
+});
+
+app.delete('/api/projects/:id', (req, res) => {
+  const { id } = req.params;
+  const deleted = deleteProjectById(id);
+
+  if (!deleted) {
+    return res.status(404).json({ ok: false, message: 'Project not found.' });
+  }
+
+  return res.json({ ok: true, data: { id } });
 });
 
 app.post('/api/oss/policy', async (req, res, next) => {

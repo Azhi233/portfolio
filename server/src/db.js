@@ -128,6 +128,11 @@ export function updateProject(id, project) {
   });
 }
 
+export function deleteProjectById(id) {
+  const result = db.prepare('DELETE FROM projects WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
 export function findProjectById(id) {
   const row = db
     .prepare('SELECT id, title, category, cover_url, video_url, content_json, created_at FROM projects WHERE id = ?')

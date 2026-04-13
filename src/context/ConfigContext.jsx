@@ -508,17 +508,49 @@ export function ConfigProvider({ children }) {
     };
   }, []);
 
-  const updateConfig = (key, value) => setConfig((prev) => ({ ...prev, [key]: value }));
-
-  const saveConfigToServer = async (nextConfig) => {
+  const persistConfigSnapshot = async ({
+    nextConfig = config,
+    nextAssets = assets,
+    nextProjectData = projectData,
+    nextReviews = reviews,
+    nextReviewAuditLogs = reviewAuditLogs,
+    nextProjectUnlocks = projectUnlocks,
+    nextDeliveryUnlocks = deliveryUnlocks,
+  } = {}) => {
     const payload = {
-      ...config,
-      ...(nextConfig || {}),
+      ...nextConfig,
+      assets: nextAssets,
+      projectData: nextProjectData,
+      reviews: nextReviews,
+      reviewAuditLogs: nextReviewAuditLogs,
+      projectUnlocks: nextProjectUnlocks,
+      deliveryUnlocks: nextDeliveryUnlocks,
     };
+
     const data = await fetchJson('/config', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+
+    return data;
+  };
+
+  const updateConfig = (key, value) =>
+    setConfig((prev) => {
+      const next = { ...prev, [key]: value };
+      persistConfigSnapshot({ nextConfig: next }).catch((error) => {
+        console.error('Failed to persist config update:', error);
+      });
+      return next;
+    });
+
+  const saveConfigToServer = async (nextConfig) => {
+    const mergedConfig = {
+      ...config,
+      ...(nextConfig || {}),
+    };
+
+    const data = await persistConfigSnapshot({ nextConfig: mergedConfig });
 
     setConfig((prev) => ({
       ...prev,
@@ -616,47 +648,57 @@ export function ConfigProvider({ children }) {
     if (!['toy', 'industry'].includes(projectType)) return;
     if (!['target', 'action', 'assets', 'review'].includes(key)) return;
 
-    setConfig((prev) => ({
-      ...prev,
-      caseStudies: {
-        ...normalizeCaseStudies(prev.caseStudies),
-        [projectType]: {
-          ...normalizeCaseStudies(prev.caseStudies)[projectType],
-          [key]: String(value || ''),
+    setConfig((prev) => {
+      const next = {
+        ...prev,
+        caseStudies: {
+          ...normalizeCaseStudies(prev.caseStudies),
+          [projectType]: {
+            ...normalizeCaseStudies(prev.caseStudies)[projectType],
+            [key]: String(value || ''),
+          },
         },
-      },
-    }));
+      };
+
+      persistConfigSnapshot({ nextConfig: next }).catch((error) => {
+        console.error('Failed to persist case study update:', error);
+      });
+
+      return next;
+    });
   };
 
   const addProject = (projectInput) => {
-    setProjects((prev) => [
-      ...prev,
-      normalizeProject({
-        id: createProjectId(),
-        title: projectInput.title?.trim() || 'Untitled Project',
-        category: projectInput.category || 'Misc',
-        role: projectInput.role?.trim() || '',
-        releaseDate: projectInput.releaseDate || '',
-        coverUrl: projectInput.coverUrl?.trim() || '',
-        thumbnailUrl: projectInput.thumbnailUrl?.trim() || projectInput.coverUrl?.trim() || '',
-        videoUrl: projectInput.videoUrl?.trim() || '',
-        mainVideoUrl: projectInput.mainVideoUrl?.trim() || projectInput.videoUrl?.trim() || '',
-        btsMedia: Array.isArray(projectInput.btsMedia) ? projectInput.btsMedia : [],
-        clientAgency: projectInput.clientAgency?.trim() || '',
-        clientCode: projectInput.clientCode?.trim() || '',
-        isFeatured: Boolean(projectInput.isFeatured),
-        sortOrder: projectInput.sortOrder,
-        description: projectInput.description?.trim() || '',
-        credits: projectInput.credits?.trim() || '',
-        isVisible: projectInput.isVisible !== undefined ? projectInput.isVisible : true,
-        publishStatus: projectInput.publishStatus || 'Draft',
-        visibility: projectInput.visibility || projectInput.publishStatus || 'Draft',
-        accessPassword: projectInput.accessPassword?.trim() || projectInput.password?.trim() || '',
-        deliveryPin: projectInput.deliveryPin?.trim() || '',
-        status: projectInput.status,
-        password: projectInput.password?.trim() || projectInput.accessPassword?.trim() || '',
-      }),
-    ]);
+    const created = normalizeProject({
+      id: createProjectId(),
+      title: projectInput.title?.trim() || 'Untitled Project',
+      category: projectInput.category || 'Misc',
+      role: projectInput.role?.trim() || '',
+      releaseDate: projectInput.releaseDate || '',
+      coverUrl: projectInput.coverUrl?.trim() || '',
+      thumbnailUrl: projectInput.thumbnailUrl?.trim() || projectInput.coverUrl?.trim() || '',
+      videoUrl: projectInput.videoUrl?.trim() || '',
+      mainVideoUrl: projectInput.mainVideoUrl?.trim() || projectInput.videoUrl?.trim() || '',
+      btsMedia: Array.isArray(projectInput.btsMedia) ? projectInput.btsMedia : [],
+      clientAgency: projectInput.clientAgency?.trim() || '',
+      clientCode: projectInput.clientCode?.trim() || '',
+      isFeatured: Boolean(projectInput.isFeatured),
+      sortOrder: projectInput.sortOrder,
+      description: projectInput.description?.trim() || '',
+      credits: projectInput.credits?.trim() || '',
+      isVisible: projectInput.isVisible !== undefined ? projectInput.isVisible : true,
+      publishStatus: projectInput.publishStatus || 'Draft',
+      visibility: projectInput.visibility || projectInput.publishStatus || 'Draft',
+      accessPassword: projectInput.accessPassword?.trim() || projectInput.password?.trim() || '',
+      deliveryPin: projectInput.deliveryPin?.trim() || '',
+      status: projectInput.status,
+      password: projectInput.password?.trim() || projectInput.accessPassword?.trim() || '',
+    });
+
+    setProjects((prev) => [...prev, created]);
+    saveProjectToServer(created).catch((error) => {
+      console.error('Failed to persist new project:', error);
+    });
   };
 
   const saveProjectToServer = async (projectInput) => {
@@ -684,45 +726,93 @@ export function ConfigProvider({ children }) {
   };
 
   const updateProject = (projectId, updates) => {
-    setProjects((prev) =>
-      prev.map((project) => {
+    setProjects((prev) => {
+      const nextProjects = prev.map((project) => {
         if (project.id !== projectId) return project;
         return normalizeProject({ ...project, ...updates });
-      }),
-    );
+      });
+
+      const target = nextProjects.find((project) => project.id === projectId);
+      if (target) {
+        saveProjectToServer(target).catch((error) => {
+          console.error('Failed to persist project update:', error);
+        });
+      }
+
+      return nextProjects;
+    });
   };
 
-  const deleteProject = (projectId) => setProjects((prev) => prev.filter((project) => project.id !== projectId));
+  const deleteProject = (projectId) => {
+    setProjects((prev) => prev.filter((project) => project.id !== projectId));
+    fetchJson(`/projects/${projectId}`, { method: 'DELETE' }).catch((error) => {
+      console.error('Failed to delete project on server:', error);
+    });
+  };
 
   const addAsset = (assetInput) => {
-    setAssets((prev) => [...prev, normalizeAsset({ ...assetInput, id: createAssetId() })]);
+    setAssets((prev) => {
+      const nextAssets = [...prev, normalizeAsset({ ...assetInput, id: createAssetId() })];
+      persistConfigSnapshot({ nextAssets }).catch((error) => {
+        console.error('Failed to persist assets after add:', error);
+      });
+      return nextAssets;
+    });
   };
 
   const updateAsset = (assetId, updates) => {
-    setAssets((prev) => prev.map((asset) => (asset.id === assetId ? normalizeAsset({ ...asset, ...updates }) : asset)));
+    setAssets((prev) => {
+      const nextAssets = prev.map((asset) => (asset.id === assetId ? normalizeAsset({ ...asset, ...updates }) : asset));
+      persistConfigSnapshot({ nextAssets }).catch((error) => {
+        console.error('Failed to persist assets after update:', error);
+      });
+      return nextAssets;
+    });
   };
 
-  const deleteAsset = (assetId) => setAssets((prev) => prev.filter((asset) => asset.id !== assetId));
+  const deleteAsset = (assetId) => {
+    setAssets((prev) => {
+      const nextAssets = prev.filter((asset) => asset.id !== assetId);
+      persistConfigSnapshot({ nextAssets }).catch((error) => {
+        console.error('Failed to persist assets after delete:', error);
+      });
+      return nextAssets;
+    });
+  };
 
   const updateProjectModule = (projectId, moduleKey, value) => {
-    setProjectData((prev) => ({
-      ...prev,
-      [projectId]: {
-        ...prev[projectId],
-        modules: {
-          ...prev[projectId].modules,
-          [moduleKey]: {
-            ...prev[projectId].modules[moduleKey],
-            ...value,
+    setProjectData((prev) => {
+      const nextProjectData = {
+        ...prev,
+        [projectId]: {
+          ...prev[projectId],
+          modules: {
+            ...prev[projectId].modules,
+            [moduleKey]: {
+              ...prev[projectId].modules[moduleKey],
+              ...value,
+            },
           },
         },
-      },
-    }));
+      };
+
+      persistConfigSnapshot({ nextProjectData }).catch((error) => {
+        console.error('Failed to persist project modules:', error);
+      });
+
+      return nextProjectData;
+    });
   };
 
   const resetCaseStudies = () => {
     setProjectData(DEFAULT_PROJECT_DATA);
-    setConfig((prev) => ({ ...prev, caseStudies: DEFAULT_CASE_STUDIES }));
+    setConfig((prev) => {
+      const nextConfig = { ...prev, caseStudies: DEFAULT_CASE_STUDIES };
+      persistConfigSnapshot({ nextConfig, nextProjectData: DEFAULT_PROJECT_DATA }).catch((error) => {
+        console.error('Failed to persist reset case studies:', error);
+      });
+      return nextConfig;
+    });
   };
 
   const migrateLegacyCaseStudiesToProjectData = () => {
@@ -744,65 +834,73 @@ export function ConfigProvider({ children }) {
 
     const normalizeUrls = (text) => normalizeLines(text).filter((x) => /^https?:\/\//i.test(x));
 
-    setProjectData((prev) => ({
-      ...prev,
-      toy_project: {
-        ...prev.toy_project,
-        modules: {
-          ...prev.toy_project.modules,
-          target: {
-            ...prev.toy_project.modules.target,
-            headline: 'CHALLENGE',
-            summary: normalizeLines(toyLegacy.target)[0] || prev.toy_project.modules.target.summary,
-            tags: normalizeTags(toyLegacy.target),
-          },
-          action: {
-            ...prev.toy_project.modules.action,
-            bullets: normalizeLines(toyLegacy.action),
-          },
-          assets: {
-            ...prev.toy_project.modules.assets,
-            intro: normalizeLines(toyLegacy.assets)[0] || prev.toy_project.modules.assets.intro,
-            assetUrls: normalizeUrls(toyLegacy.assets),
-          },
-          review: {
-            ...prev.toy_project.modules.review,
-            cards: normalizeLines(toyLegacy.review).slice(0, 3).map((line, idx) => ({
-              title: idx === 0 ? '产出规模' : idx === 1 ? '痛点解决' : '资产沉淀',
-              value: line,
-            })),
-          },
-        },
-      },
-      industry_project: {
-        ...prev.industry_project,
-        modules: {
-          ...prev.industry_project.modules,
-          target: {
-            ...prev.industry_project.modules.target,
-            headline: 'INDUSTRY CHALLENGE',
-            summary: normalizeLines(industryLegacy.target)[0] || prev.industry_project.modules.target.summary,
-            tags: normalizeTags(industryLegacy.target),
-          },
-          action: {
-            ...prev.industry_project.modules.action,
-            bullets: normalizeLines(industryLegacy.action),
-          },
-          assets: {
-            ...prev.industry_project.modules.assets,
-            intro: normalizeLines(industryLegacy.assets)[0] || prev.industry_project.modules.assets.intro,
-            assetUrls: normalizeUrls(industryLegacy.assets),
-          },
-          review: {
-            ...prev.industry_project.modules.review,
-            cards: normalizeLines(industryLegacy.review).slice(0, 3).map((line, idx) => ({
-              title: idx === 0 ? '产出规模' : idx === 1 ? '痛点解决' : '资产沉淀',
-              value: line,
-            })),
+    setProjectData((prev) => {
+      const nextProjectData = {
+        ...prev,
+        toy_project: {
+          ...prev.toy_project,
+          modules: {
+            ...prev.toy_project.modules,
+            target: {
+              ...prev.toy_project.modules.target,
+              headline: 'CHALLENGE',
+              summary: normalizeLines(toyLegacy.target)[0] || prev.toy_project.modules.target.summary,
+              tags: normalizeTags(toyLegacy.target),
+            },
+            action: {
+              ...prev.toy_project.modules.action,
+              bullets: normalizeLines(toyLegacy.action),
+            },
+            assets: {
+              ...prev.toy_project.modules.assets,
+              intro: normalizeLines(toyLegacy.assets)[0] || prev.toy_project.modules.assets.intro,
+              assetUrls: normalizeUrls(toyLegacy.assets),
+            },
+            review: {
+              ...prev.toy_project.modules.review,
+              cards: normalizeLines(toyLegacy.review).slice(0, 3).map((line, idx) => ({
+                title: idx === 0 ? '产出规模' : idx === 1 ? '痛点解决' : '资产沉淀',
+                value: line,
+              })),
+            },
           },
         },
-      },
-    }));
+        industry_project: {
+          ...prev.industry_project,
+          modules: {
+            ...prev.industry_project.modules,
+            target: {
+              ...prev.industry_project.modules.target,
+              headline: 'INDUSTRY CHALLENGE',
+              summary: normalizeLines(industryLegacy.target)[0] || prev.industry_project.modules.target.summary,
+              tags: normalizeTags(industryLegacy.target),
+            },
+            action: {
+              ...prev.industry_project.modules.action,
+              bullets: normalizeLines(industryLegacy.action),
+            },
+            assets: {
+              ...prev.industry_project.modules.assets,
+              intro: normalizeLines(industryLegacy.assets)[0] || prev.industry_project.modules.assets.intro,
+              assetUrls: normalizeUrls(industryLegacy.assets),
+            },
+            review: {
+              ...prev.industry_project.modules.review,
+              cards: normalizeLines(industryLegacy.review).slice(0, 3).map((line, idx) => ({
+                title: idx === 0 ? '产出规模' : idx === 1 ? '痛点解决' : '资产沉淀',
+                value: line,
+              })),
+            },
+          },
+        },
+      };
+
+      persistConfigSnapshot({ nextProjectData }).catch((error) => {
+        console.error('Failed to persist migrated project data:', error);
+      });
+
+      return nextProjectData;
+    });
   };
 
   const exportCmsBundle = () => ({
@@ -821,21 +919,26 @@ export function ConfigProvider({ children }) {
       return { ok: false, message: 'Invalid bundle payload.' };
     }
 
-    if (incoming.config && typeof incoming.config === 'object') {
-      setConfig((prev) => ({
-        ...prev,
-        ...incoming.config,
-        caseStudies: normalizeCaseStudies(incoming.config.caseStudies || prev.caseStudies),
-      }));
-    }
+    const nextConfig = incoming.config && typeof incoming.config === 'object'
+      ? {
+          ...config,
+          ...incoming.config,
+          caseStudies: normalizeCaseStudies(incoming.config.caseStudies || config.caseStudies),
+        }
+      : config;
 
-    if (Array.isArray(incoming.assets)) {
-      setAssets(incoming.assets.map(normalizeAsset));
-    }
+    const nextAssets = Array.isArray(incoming.assets) ? incoming.assets.map(normalizeAsset) : assets;
+    const nextProjectData = incoming.projectData && typeof incoming.projectData === 'object'
+      ? normalizeProjectData(incoming.projectData)
+      : projectData;
 
-    if (incoming.projectData && typeof incoming.projectData === 'object') {
-      setProjectData(normalizeProjectData(incoming.projectData));
-    }
+    setConfig(nextConfig);
+    setAssets(nextAssets);
+    setProjectData(nextProjectData);
+
+    persistConfigSnapshot({ nextConfig, nextAssets, nextProjectData }).catch((error) => {
+      console.error('Failed to persist imported CMS bundle:', error);
+    });
 
     return { ok: true, message: 'CMS bundle imported.' };
   };
