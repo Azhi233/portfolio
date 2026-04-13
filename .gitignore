@@ -25,3 +25,8 @@ dist-ssr
 
 .vercel
 .env*.local
+
+# Local CMS database artifacts
+server/*.db
+server/*.db-shm
+server/*.db-wal

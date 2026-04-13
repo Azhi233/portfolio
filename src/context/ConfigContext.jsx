@@ -1,14 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import seedReviews from '../data/reviews.json';
 
-const CONFIG_STORAGE_KEY = 'director.config.v2';
-const PROJECTS_STORAGE_KEY = 'director.projects.v1';
-const ASSETS_STORAGE_KEY = 'director.assets.v1';
-const PROJECT_DATA_STORAGE_KEY = 'director.projectData.v1';
-const PROJECT_UNLOCK_STORAGE_KEY = 'director.projectUnlocks.v1';
-const DELIVERY_UNLOCK_STORAGE_KEY = 'director.deliveryUnlocks.v1';
-const REVIEWS_STORAGE_KEY = 'director.reviews.v1';
-const REVIEW_AUDIT_STORAGE_KEY = 'director.reviews.audit.v1';
+const API_BASE = '/api';
 
 const DEFAULT_CASE_STUDIES = {
   toy: {
@@ -54,6 +47,19 @@ const DEFAULT_PROJECT_DATA = {
           { title: '资产沉淀', value: '多渠道复用，跨部门协作效率提升' },
         ],
       },
+      showcase: {
+        heroKicker: '从0到1搭建全渠道电商与社媒营销视觉库',
+        heroTitle: '《构建消费级拼装玩具数字资产》',
+        brandCaptionTitle: 'BRAND SCREENING ROOM',
+        brandCaptionSubtitle: '核心素材用于电商、社媒和复盘页多场景分发。',
+        socialHeading: '视觉策略',
+        socialSubheading: '镜头语言统一，打造可复用的社媒矩阵内容。',
+        assetPhaseRaw: '围绕拼装玩具从兴趣内容走向可转化内容，建立可复用视觉资产体系。',
+        assetPhaseWeb: '素材矩阵规划',
+        assetPhasePrint: '多渠道复用，跨部门协作效率提升',
+        bentoHeading: '全生态作品库',
+        bentoSubheading: '探索更多跨渠道、跨触点的商业视觉资产。',
+      },
     },
   },
   industry_project: {
@@ -83,6 +89,19 @@ const DEFAULT_PROJECT_DATA = {
           { title: '痛点解决', value: '复杂工艺表达标准化，客户理解效率提升' },
           { title: '资产沉淀', value: '形成可复制素材包，支撑销售长期转化' },
         ],
+      },
+      showcase: {
+        heroKicker: '大型展会纪实与工业化生产线视觉塑造',
+        heroTitle: '《ToB制造业的视觉公关与营销统筹》',
+        brandCaptionTitle: 'INDUSTRY SCREENING ROOM',
+        brandCaptionSubtitle: '以工业质感为核心，沉淀可跨年度复用的品牌资产。',
+        socialHeading: '统筹策略',
+        socialSubheading: '工艺亮点脚本化，形成销售可复用的短视频矩阵。',
+        assetPhaseRaw: '将复杂工艺转化为可被市场理解与销售复用的视觉叙事。',
+        assetPhaseWeb: '展会传播主线',
+        assetPhasePrint: '形成可复制素材包，支撑销售长期转化',
+        bentoHeading: '全生态作品库',
+        bentoSubheading: '查看更多工业与品牌传播的系统化案例。',
       },
     },
   },
@@ -306,6 +325,10 @@ function normalizeProjectData(input) {
           ...DEFAULT_PROJECT_DATA.toy_project.modules.review,
           ...(base.toy_project?.modules?.review || {}),
         },
+        showcase: {
+          ...DEFAULT_PROJECT_DATA.toy_project.modules.showcase,
+          ...(base.toy_project?.modules?.showcase || {}),
+        },
       },
     },
     industry_project: {
@@ -330,6 +353,10 @@ function normalizeProjectData(input) {
           ...DEFAULT_PROJECT_DATA.industry_project.modules.review,
           ...(base.industry_project?.modules?.review || {}),
         },
+        showcase: {
+          ...DEFAULT_PROJECT_DATA.industry_project.modules.showcase,
+          ...(base.industry_project?.modules?.showcase || {}),
+        },
       },
     },
   };
@@ -349,69 +376,23 @@ function normalizeCaseStudies(caseStudies) {
 }
 
 function readStoredConfig() {
-  if (typeof window === 'undefined') return DEFAULT_CONFIG;
-  try {
-    const raw = window.localStorage.getItem(CONFIG_STORAGE_KEY);
-    if (!raw) return DEFAULT_CONFIG;
-    const parsed = JSON.parse(raw);
-    return {
-      ...DEFAULT_CONFIG,
-      ...parsed,
-      caseStudies: normalizeCaseStudies(parsed?.caseStudies),
-    };
-  } catch {
-    return DEFAULT_CONFIG;
-  }
+  return DEFAULT_CONFIG;
 }
 
 function readStoredProjects() {
-  if (typeof window === 'undefined') return DEFAULT_PROJECTS;
-  try {
-    const raw = window.localStorage.getItem(PROJECTS_STORAGE_KEY);
-    if (!raw) return DEFAULT_PROJECTS;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return DEFAULT_PROJECTS;
-    return parsed.map(normalizeProject);
-  } catch {
-    return DEFAULT_PROJECTS;
-  }
+  return DEFAULT_PROJECTS;
 }
 
 function readStoredAssets() {
-  if (typeof window === 'undefined') return DEFAULT_ASSETS;
-  try {
-    const raw = window.localStorage.getItem(ASSETS_STORAGE_KEY);
-    if (!raw) return DEFAULT_ASSETS;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return DEFAULT_ASSETS;
-    return parsed.map(normalizeAsset);
-  } catch {
-    return DEFAULT_ASSETS;
-  }
+  return DEFAULT_ASSETS;
 }
 
 function readStoredProjectData() {
-  if (typeof window === 'undefined') return DEFAULT_PROJECT_DATA;
-  try {
-    const raw = window.localStorage.getItem(PROJECT_DATA_STORAGE_KEY);
-    if (!raw) return DEFAULT_PROJECT_DATA;
-    const parsed = JSON.parse(raw);
-    return normalizeProjectData(parsed);
-  } catch {
-    return DEFAULT_PROJECT_DATA;
-  }
+  return DEFAULT_PROJECT_DATA;
 }
 
 function readStoredDeliveryUnlocks() {
-  if (typeof window === 'undefined') return {};
-  try {
-    const raw = window.localStorage.getItem(DELIVERY_UNLOCK_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
+  return {};
 }
 
 function createProjectId() {
@@ -446,41 +427,32 @@ function normalizeReview(item, index = 0) {
 }
 
 function readStoredReviews() {
-  if (typeof window === 'undefined') return (Array.isArray(seedReviews) ? seedReviews : []).map(normalizeReview);
-  try {
-    const raw = window.localStorage.getItem(REVIEWS_STORAGE_KEY);
-    if (!raw) return (Array.isArray(seedReviews) ? seedReviews : []).map(normalizeReview);
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return (Array.isArray(seedReviews) ? seedReviews : []).map(normalizeReview);
-    return parsed.map(normalizeReview);
-  } catch {
-    return (Array.isArray(seedReviews) ? seedReviews : []).map(normalizeReview);
-  }
+  return (Array.isArray(seedReviews) ? seedReviews : []).map(normalizeReview);
 }
 
 function readStoredReviewAuditLogs() {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = window.localStorage.getItem(REVIEW_AUDIT_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  return [];
 }
 
 function readStoredProjectUnlocks() {
-  if (typeof window === 'undefined') return {};
-  try {
-    const raw = window.localStorage.getItem(PROJECT_UNLOCK_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return {};
-    return parsed;
-  } catch {
-    return {};
+  return {};
+}
+
+async function fetchJson(path, options = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.ok === false) {
+    throw new Error(payload?.message || `Request failed: ${response.status}`);
   }
+
+  return payload?.data;
 }
 
 export function ConfigProvider({ children }) {
@@ -494,38 +466,68 @@ export function ConfigProvider({ children }) {
   const [reviewAuditLogs, setReviewAuditLogs] = useState(() => readStoredReviewAuditLogs());
 
   useEffect(() => {
-    window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
-  }, [config]);
+    let cancelled = false;
 
-  useEffect(() => {
-    window.localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
-  }, [projects]);
+    const loadInitialData = async () => {
+      try {
+        const [remoteConfig, remoteProjects] = await Promise.all([
+          fetchJson('/config'),
+          fetchJson('/projects'),
+        ]);
 
-  useEffect(() => {
-    window.localStorage.setItem(ASSETS_STORAGE_KEY, JSON.stringify(assets));
-  }, [assets]);
+        if (cancelled) return;
 
-  useEffect(() => {
-    window.localStorage.setItem(PROJECT_DATA_STORAGE_KEY, JSON.stringify(projectData));
-  }, [projectData]);
+        if (remoteConfig && typeof remoteConfig === 'object') {
+          setConfig((prev) => ({
+            ...prev,
+            ...remoteConfig,
+            caseStudies: normalizeCaseStudies(remoteConfig.caseStudies || prev.caseStudies),
+          }));
 
-  useEffect(() => {
-    window.localStorage.setItem(DELIVERY_UNLOCK_STORAGE_KEY, JSON.stringify(deliveryUnlocks));
-  }, [deliveryUnlocks]);
+          if (Array.isArray(remoteConfig.assets)) {
+            setAssets(remoteConfig.assets.map(normalizeAsset));
+          }
 
-  useEffect(() => {
-    window.localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(reviews));
-  }, [reviews]);
+          if (remoteConfig.projectData && typeof remoteConfig.projectData === 'object') {
+            setProjectData(normalizeProjectData(remoteConfig.projectData));
+          }
+        }
 
-  useEffect(() => {
-    window.localStorage.setItem(PROJECT_UNLOCK_STORAGE_KEY, JSON.stringify(projectUnlocks));
-  }, [projectUnlocks]);
+        if (Array.isArray(remoteProjects)) {
+          setProjects(remoteProjects.map(normalizeProject));
+        }
+      } catch (error) {
+        console.error('Failed to load CMS data from server:', error);
+      }
+    };
 
-  useEffect(() => {
-    window.localStorage.setItem(REVIEW_AUDIT_STORAGE_KEY, JSON.stringify(reviewAuditLogs));
-  }, [reviewAuditLogs]);
+    loadInitialData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const updateConfig = (key, value) => setConfig((prev) => ({ ...prev, [key]: value }));
+
+  const saveConfigToServer = async (nextConfig) => {
+    const payload = {
+      ...config,
+      ...(nextConfig || {}),
+    };
+    const data = await fetchJson('/config', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    setConfig((prev) => ({
+      ...prev,
+      ...data,
+      caseStudies: normalizeCaseStudies(data?.caseStudies || prev.caseStudies),
+    }));
+
+    return data;
+  };
 
   const resetConfig = () => setConfig(DEFAULT_CONFIG);
 
@@ -655,6 +657,30 @@ export function ConfigProvider({ children }) {
         password: projectInput.password?.trim() || projectInput.accessPassword?.trim() || '',
       }),
     ]);
+  };
+
+  const saveProjectToServer = async (projectInput) => {
+    const normalized = normalizeProject({
+      id: projectInput?.id || createProjectId(),
+      ...projectInput,
+    });
+
+    const exists = projects.some((item) => item.id === normalized.id);
+    const data = await fetchJson(exists ? `/projects/${normalized.id}` : '/projects', {
+      method: exists ? 'PUT' : 'POST',
+      body: JSON.stringify(normalized),
+    });
+
+    const saved = normalizeProject(data || normalized);
+    setProjects((prev) => {
+      const found = prev.some((item) => item.id === saved.id);
+      if (found) {
+        return prev.map((item) => (item.id === saved.id ? saved : item));
+      }
+      return [...prev, saved];
+    });
+
+    return saved;
   };
 
   const updateProject = (projectId, updates) => {
@@ -823,6 +849,7 @@ export function ConfigProvider({ children }) {
       reviews,
       reviewAuditLogs,
       updateConfig,
+      saveConfigToServer,
       resetConfig,
       isUnlocked,
       unlockProjectAccess,
@@ -835,6 +862,7 @@ export function ConfigProvider({ children }) {
       setReviewStatus,
       updateCaseStudy,
       addProject,
+      saveProjectToServer,
       updateProject,
       deleteProject,
       addAsset,

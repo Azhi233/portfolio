@@ -4,6 +4,7 @@ import OssUploadField from '../../components/OssUploadField.jsx';
 import { useConfig } from '../../context/ConfigContext.jsx';
 import { uploadFileToOSS } from '../../services/ossUpload.js';
 import { clearAnalytics, getAnalyticsSnapshot, trackEvent } from '../../utils/analytics.js';
+import { migrateLocalToDB } from '../../utils/migrateLocalToDB.js';
 
 const PROJECT_CATEGORIES = ['TVC', '纪录片', 'MV', '实验短片', 'Toys', 'Industrial', 'Misc'];
 const FILTER_CATEGORIES = ['All', ...PROJECT_CATEGORIES];
@@ -133,6 +134,12 @@ function parseAssetNameToken(fileName) {
     codec,
     title: `${product?.toUpperCase() || 'ASSET'} · ${theme?.toUpperCase() || 'N/A'} · ${resolution || ''} ${orientation || ''}`.trim(),
   };
+}
+
+function inferAssetTypeFromUrl(url) {
+  const value = String(url || '').trim().toLowerCase();
+  if (/\.(mp4|webm|mov|m4v)(\?.*)?$/.test(value)) return 'video';
+  return 'image';
 }
 
 function getAssetUrlWarning(url, type) {
@@ -656,6 +663,12 @@ function DirectorConsole() {
   const [assetFormError, setAssetFormError] = useState('');
   const [assetUrlWarning, setAssetUrlWarning] = useState('');
   const [editingAssetId, setEditingAssetId] = useState(null);
+  const [bulkAssetInput, setBulkAssetInput] = useState('');
+  const [bulkAssetError, setBulkAssetError] = useState('');
+  const [bulkAssetPreview, setBulkAssetPreview] = useState([]);
+  const [bulkAssetSelectedKeys, setBulkAssetSelectedKeys] = useState([]);
+  const [bulkAssetCollapsedGroups, setBulkAssetCollapsedGroups] = useState([]);
+  const [bulkAssetGroupBy, setBulkAssetGroupBy] = useState('ym');
   const [projectModuleDraft, setProjectModuleDraft] = useState(() => ({
     projectId: 'toy_project',
     targetHeadline: projectData?.toy_project?.modules?.target?.headline || '',
@@ -669,6 +682,17 @@ function DirectorConsole() {
     reviewCardsText: (projectData?.toy_project?.modules?.review?.cards || [])
       .map((card) => `${card.title}: ${card.value}`)
       .join('\n'),
+    showcaseHeroKicker: projectData?.toy_project?.modules?.showcase?.heroKicker || '',
+    showcaseHeroTitle: projectData?.toy_project?.modules?.showcase?.heroTitle || '',
+    showcaseBrandCaptionTitle: projectData?.toy_project?.modules?.showcase?.brandCaptionTitle || '',
+    showcaseBrandCaptionSubtitle: projectData?.toy_project?.modules?.showcase?.brandCaptionSubtitle || '',
+    showcaseSocialHeading: projectData?.toy_project?.modules?.showcase?.socialHeading || '',
+    showcaseSocialSubheading: projectData?.toy_project?.modules?.showcase?.socialSubheading || '',
+    showcaseAssetPhaseRaw: projectData?.toy_project?.modules?.showcase?.assetPhaseRaw || '',
+    showcaseAssetPhaseWeb: projectData?.toy_project?.modules?.showcase?.assetPhaseWeb || '',
+    showcaseAssetPhasePrint: projectData?.toy_project?.modules?.showcase?.assetPhasePrint || '',
+    showcaseBentoHeading: projectData?.toy_project?.modules?.showcase?.bentoHeading || '',
+    showcaseBentoSubheading: projectData?.toy_project?.modules?.showcase?.bentoSubheading || '',
   }));
   const [migrationPreviewOpen, setMigrationPreviewOpen] = useState(false);
   const [migrationPreview, setMigrationPreview] = useState({ toy: null, industry: null });
@@ -681,6 +705,8 @@ function DirectorConsole() {
   const [editingPrivateFileId, setEditingPrivateFileId] = useState(null);
   const [privateFileError, setPrivateFileError] = useState('');
   const [preflightResult, setPreflightResult] = useState(() => runProjectPreflight(projects));
+  const [migrationMessage, setMigrationMessage] = useState('');
+  const [isMigratingLocalData, setIsMigratingLocalData] = useState(false);
 
   const sortedProjects = useMemo(
     () => [...projects].sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0)),
@@ -1664,6 +1690,22 @@ function DirectorConsole() {
     window.sessionStorage.removeItem(AUTH_SESSION_KEY);
   };
 
+  const handleMigrateLocalData = async () => {
+    setIsMigratingLocalData(true);
+    setMigrationMessage('');
+
+    try {
+      const result = await migrateLocalToDB();
+      setMigrationMessage(
+        `迁移完成：配置键 ${result?.migratedConfigKeys?.length || 0} 项，项目 ${result?.migratedProjectCount || 0} 条。请刷新页面查看最新数据库数据。`,
+      );
+    } catch (error) {
+      setMigrationMessage(`迁移失败：${error?.message || 'unknown error'}`);
+    } finally {
+      setIsMigratingLocalData(false);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black px-6 py-10 text-zinc-100">
@@ -1731,6 +1773,19 @@ function DirectorConsole() {
 
               <button
                 type="button"
+                onClick={handleMigrateLocalData}
+                disabled={isMigratingLocalData}
+                className={`rounded-md border px-3 py-2 text-xs tracking-[0.12em] transition ${
+                  isMigratingLocalData
+                    ? 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
+                    : 'border-cyan-300/70 bg-cyan-300/10 text-cyan-200 hover:bg-cyan-300/20'
+                }`}
+              >
+                {isMigratingLocalData ? '迁移中...' : '迁移 localStorage → DB'}
+              </button>
+
+              <button
+                type="button"
                 onClick={handleLogout}
                 className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs tracking-[0.12em] text-zinc-300 transition hover:border-zinc-400"
               >
@@ -1771,6 +1826,12 @@ function DirectorConsole() {
               Testimonials Moderation
             </PanelTab>
           </div>
+
+          {migrationMessage ? (
+            <p className="mt-4 rounded-md border border-cyan-300/40 bg-cyan-300/10 px-3 py-2 text-xs tracking-[0.08em] text-cyan-100">
+              {migrationMessage}
+            </p>
+          ) : null}
         </header>
 
         {activeTab === 'settings' ? (
@@ -2173,6 +2234,17 @@ function DirectorConsole() {
                           assetsIntro: modules?.assets?.intro || '',
                           assetsUrlsText: (modules?.assets?.assetUrls || []).join('\n'),
                           reviewCardsText: (modules?.review?.cards || []).map((c) => `${c.title}: ${c.value}`).join('\n'),
+                          showcaseHeroKicker: modules?.showcase?.heroKicker || '',
+                          showcaseHeroTitle: modules?.showcase?.heroTitle || '',
+                          showcaseBrandCaptionTitle: modules?.showcase?.brandCaptionTitle || '',
+                          showcaseBrandCaptionSubtitle: modules?.showcase?.brandCaptionSubtitle || '',
+                          showcaseSocialHeading: modules?.showcase?.socialHeading || '',
+                          showcaseSocialSubheading: modules?.showcase?.socialSubheading || '',
+                          showcaseAssetPhaseRaw: modules?.showcase?.assetPhaseRaw || '',
+                          showcaseAssetPhaseWeb: modules?.showcase?.assetPhaseWeb || '',
+                          showcaseAssetPhasePrint: modules?.showcase?.assetPhasePrint || '',
+                          showcaseBentoHeading: modules?.showcase?.bentoHeading || '',
+                          showcaseBentoSubheading: modules?.showcase?.bentoSubheading || '',
                         }));
                       }
                       setMigrationPreviewOpen(false);
@@ -2420,6 +2492,261 @@ function DirectorConsole() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-4">
+              <p className="text-xs tracking-[0.16em] text-zinc-300">BULK URL PARSER</p>
+              <p className="mt-1 text-[11px] tracking-[0.1em] text-zinc-500">
+                一行一个 URL，文件名需符合 [年月]-[产品名]-[主题]-[横竖屏]-[分辨率]-[正样片]-[序号]-[编码].ext。
+              </p>
+
+              <textarea
+                value={bulkAssetInput}
+                onChange={(event) => {
+                  setBulkAssetInput(event.target.value);
+                  if (bulkAssetError) setBulkAssetError('');
+                }}
+                className="mt-3 min-h-28 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200"
+                placeholder="https://cdn.xxx/2604-nautilus-pd-v-1080p-full-03-h264.mp4"
+              />
+
+              {bulkAssetError ? (
+                <p className="mt-2 rounded-md border border-rose-400/60 bg-rose-400/10 px-3 py-2 text-xs tracking-[0.1em] text-rose-200">
+                  {bulkAssetError}
+                </p>
+              ) : null}
+
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="text-[11px] tracking-[0.1em] text-zinc-500">预览条数：{bulkAssetPreview.length}</div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const lines = String(bulkAssetInput || '')
+                        .split('\n')
+                        .map((line) => line.trim())
+                        .filter(Boolean);
+
+                      if (lines.length === 0) {
+                        setBulkAssetError('请先粘贴至少一条 URL。');
+                        return;
+                      }
+
+                      const parsed = [];
+                      for (const url of lines) {
+                        if (!/^https?:\/\//i.test(url)) continue;
+                        const fileName = String(url.split('?')[0] || '').split('/').pop() || '';
+                        const token = parseAssetNameToken(fileName);
+                        if (!token) continue;
+
+                        parsed.push({
+                          url,
+                          fileName,
+                          token,
+                          type: inferAssetTypeFromUrl(url),
+                        });
+                      }
+
+                      if (parsed.length === 0) {
+                        setBulkAssetError('未识别到符合命名规则的 URL。');
+                        setBulkAssetPreview([]);
+                        return;
+                      }
+
+                      setBulkAssetError('');
+                      setBulkAssetPreview(parsed);
+                      setBulkAssetSelectedKeys(parsed.map((item, index) => `${item.fileName}-${index}`));
+                      setBulkAssetCollapsedGroups([]);
+                    }}
+                    className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs tracking-[0.12em] text-zinc-200"
+                  >
+                    PARSE URLS
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (bulkAssetPreview.length === 0) {
+                        setBulkAssetError('请先解析 URL 再批量创建。');
+                        return;
+                      }
+
+                      const selected = bulkAssetPreview.filter((item, index) =>
+                        bulkAssetSelectedKeys.includes(`${item.fileName}-${index}`),
+                      );
+
+                      if (selected.length === 0) {
+                        setBulkAssetError('请至少勾选一条预览项。');
+                        return;
+                      }
+
+                      selected.forEach((item) => {
+                        const payload = {
+                          title: item.token.title,
+                          url: item.url,
+                          type: item.type,
+                          views: {
+                            expertise: {
+                              isActive: assetForm.publishTarget === 'expertise' || assetForm.publishTarget === 'both',
+                              category: assetForm.expertiseCategory,
+                              description: String(assetForm.expertiseDescription || '').trim(),
+                            },
+                            project: {
+                              isActive: assetForm.publishTarget === 'project' || assetForm.publishTarget === 'both',
+                              projectId: assetForm.projectId,
+                              description: String(assetForm.projectDescription || '').trim(),
+                            },
+                          },
+                        };
+                        addAsset(payload);
+                      });
+
+                      setBulkAssetInput('');
+                      setBulkAssetPreview([]);
+                      setBulkAssetSelectedKeys([]);
+                      setBulkAssetError('');
+                    }}
+                    className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-3 py-1.5 text-xs tracking-[0.12em] text-emerald-200"
+                  >
+                    BULK CREATE ({bulkAssetSelectedKeys.length || 0})
+                  </button>
+                </div>
+              </div>
+
+              {bulkAssetPreview.length > 0 ? (
+                <div className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-[11px] text-zinc-400">
+                    <span>已选 {bulkAssetSelectedKeys.length} / {bulkAssetPreview.length}</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        value={bulkAssetGroupBy}
+                        onChange={(event) => {
+                          setBulkAssetGroupBy(event.target.value);
+                          setBulkAssetCollapsedGroups([]);
+                        }}
+                        className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-[10px] text-zinc-300"
+                      >
+                        <option value="ym">按年月分组</option>
+                        <option value="product">按产品分组</option>
+                        <option value="theme">按主题分组</option>
+                        <option value="orientation">按横竖屏分组</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setBulkAssetSelectedKeys(bulkAssetPreview.map((item, index) => `${item.fileName}-${index}`))}
+                        className="rounded border border-zinc-700 px-2 py-1 text-[10px] text-zinc-300"
+                      >
+                        全选
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBulkAssetSelectedKeys([])}
+                        className="rounded border border-zinc-700 px-2 py-1 text-[10px] text-zinc-300"
+                      >
+                        清空
+                      </button>
+                    </div>
+                  </div>
+
+                  {Object.entries(
+                    bulkAssetPreview.reduce((acc, item, index) => {
+                      const groupKey =
+                        bulkAssetGroupBy === 'ym'
+                          ? `${item.token.year || '----'}-${String(item.token.month || '').padStart(2, '0')}`
+                          : bulkAssetGroupBy === 'product'
+                            ? String(item.token.product || 'unknown').toLowerCase()
+                            : bulkAssetGroupBy === 'theme'
+                              ? String(item.token.theme || 'unknown').toLowerCase()
+                              : String(item.token.orientation || 'unknown').toLowerCase();
+                      if (!acc[groupKey]) acc[groupKey] = [];
+                      acc[groupKey].push({ item, index });
+                      return acc;
+                    }, {}),
+                  ).map(([groupKey, rows]) => {
+                    const isCollapsed = bulkAssetCollapsedGroups.includes(groupKey);
+                    const rowKeys = rows.map(({ item, index }) => `${item.fileName}-${index}`);
+                    const selectedCount = rowKeys.filter((key) => bulkAssetSelectedKeys.includes(key)).length;
+
+                    return (
+                      <div key={groupKey} className="rounded-md border border-zinc-800 bg-zinc-900/40">
+                        <div className="flex items-center justify-between gap-2 px-3 py-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBulkAssetCollapsedGroups((prev) =>
+                                prev.includes(groupKey) ? prev.filter((x) => x !== groupKey) : [...prev, groupKey],
+                              );
+                            }}
+                            className="text-left text-xs tracking-[0.12em] text-zinc-200"
+                          >
+                            {isCollapsed ? '▶' : '▼'} {groupKey.toUpperCase()} ({selectedCount}/{rows.length})
+                          </button>
+
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBulkAssetSelectedKeys((prev) => Array.from(new Set([...prev, ...rowKeys])));
+                              }}
+                              className="rounded border border-zinc-700 px-2 py-1 text-[10px] text-zinc-300"
+                            >
+                              组选
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBulkAssetSelectedKeys((prev) => prev.filter((x) => !rowKeys.includes(x)));
+                              }}
+                              className="rounded border border-zinc-700 px-2 py-1 text-[10px] text-zinc-300"
+                            >
+                              组清空
+                            </button>
+                          </div>
+                        </div>
+
+                        {!isCollapsed ? (
+                          <div className="space-y-2 px-2 pb-2">
+                            {rows.map(({ item, index }) => {
+                              const rowKey = `${item.fileName}-${index}`;
+                              const checked = bulkAssetSelectedKeys.includes(rowKey);
+                              return (
+                                <label
+                                  key={rowKey}
+                                  className={`flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 text-xs transition ${
+                                    checked
+                                      ? 'border-emerald-300/60 bg-emerald-300/10 text-zinc-100'
+                                      : 'border-zinc-800 bg-zinc-900/60 text-zinc-300'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={(event) => {
+                                      setBulkAssetSelectedKeys((prev) => {
+                                        if (event.target.checked) return [...prev, rowKey];
+                                        return prev.filter((x) => x !== rowKey);
+                                      });
+                                    }}
+                                    className="mt-0.5 h-4 w-4 rounded border-zinc-600 bg-zinc-900 accent-emerald-400"
+                                  />
+
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-zinc-100">{item.token.title}</p>
+                                    <p className="mt-1 truncate text-[11px] text-zinc-500">{item.fileName}</p>
+                                    <p className="mt-1 text-[11px] text-zinc-400">
+                                      {item.token.year || '----'}-{String(item.token.month || '').padStart(2, '0')} · 产品 {item.token.product} · 主题 {item.token.theme} · {item.token.orientation} · {item.token.resolution} · {item.token.stage} · #{item.token.seq} · {item.token.codec}
+                                    </p>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
             </div>
 
             <div className="mt-4 grid gap-3 rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-4 md:grid-cols-2">

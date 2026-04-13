@@ -4,6 +4,14 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import OpenApi from '@alicloud/openapi-client';
 import Sts20150401 from '@alicloud/sts20150401';
+import {
+  findProjectById,
+  insertProject,
+  readConfigObject,
+  readProjects,
+  updateProject,
+  upsertConfigObject,
+} from './db.js';
 
 dotenv.config();
 
@@ -11,45 +19,6 @@ const app = express();
 app.use(cors({ origin: true, credentials: false }));
 app.use(express.json());
 
-/**
- * ================================
- * 阿里云 OSS + STS 环境变量说明
- * ================================
- * 必填（在阿里云后台获取）：
- *
- * 1) OSS_BUCKET
- *    - OSS Bucket 名称
- *
- * 2) OSS_REGION
- *    - Bucket 所在地域（如 oss-cn-shanghai）
- *
- * 3) OSS_STS_ACCESS_KEY_ID
- *    - 用于调用 STS AssumeRole 的 RAM 用户 AK
- *    - 该 RAM 用户需要有 sts:AssumeRole 权限
- *
- * 4) OSS_STS_ACCESS_KEY_SECRET
- *    - 上述 RAM 用户的 SK
- *
- * 5) OSS_STS_ROLE_ARN
- *    - 要被扮演的 RAM 角色 ARN
- *    - 该角色应授予 OSS 上传所需最小权限
- *
- * 可选：
- * 6) OSS_STS_ROLE_SESSION_NAME
- *    - STS 会话名，默认 portfolio-web-upload
- *
- * 7) OSS_DIR_PREFIX
- *    - 上传目录前缀，默认 portfolio
- *
- * 8) OSS_POLICY_EXPIRE_SECONDS
- *    - 前端 policy 过期时间，默认 120 秒
- *
- * 9) OSS_STS_DURATION_SECONDS
- *    - STS token 有效期（秒），默认 900 秒
- *
- * 10) PORT
- *    - 服务端口，默认 8787
- */
 const {
   OSS_BUCKET,
   OSS_REGION = 'oss-cn-shanghai',
@@ -162,10 +131,62 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'oss-policy-api-sts' });
 });
 
-/**
- * 仅签发 STS + Policy 给前端，文件流不经过服务器。
- */
-app.post('/api/oss/policy', async (req, res) => {
+app.get('/api/config', (_req, res) => {
+  const config = readConfigObject();
+  res.json({ ok: true, data: config });
+});
+
+app.post('/api/config', (req, res) => {
+  const payload = req.body;
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return res.status(400).json({ ok: false, message: 'Config payload must be a JSON object.' });
+  }
+
+  const data = upsertConfigObject(payload);
+  return res.json({ ok: true, data });
+});
+
+app.get('/api/projects', (_req, res) => {
+  const data = readProjects();
+  res.json({ ok: true, data });
+});
+
+app.post('/api/projects', (req, res) => {
+  const project = req.body || {};
+
+  if (!project.id || !project.title) {
+    return res.status(400).json({ ok: false, message: 'Project id and title are required.' });
+  }
+
+  insertProject(project);
+  const created = findProjectById(project.id);
+  return res.status(201).json({ ok: true, data: created });
+});
+
+app.put('/api/projects/:id', (req, res) => {
+  const { id } = req.params;
+  const existed = findProjectById(id);
+
+  if (!existed) {
+    return res.status(404).json({ ok: false, message: 'Project not found.' });
+  }
+
+  const merged = {
+    ...existed,
+    ...(req.body || {}),
+    id,
+  };
+
+  if (!merged.title) {
+    return res.status(400).json({ ok: false, message: 'Project title is required.' });
+  }
+
+  updateProject(id, merged);
+  const updated = findProjectById(id);
+  return res.json({ ok: true, data: updated });
+});
+
+app.post('/api/oss/policy', async (req, res, next) => {
   try {
     assertEnv();
 
@@ -212,11 +233,23 @@ app.post('/api/oss/policy', async (req, res) => {
       url,
     });
   } catch (error) {
-    return res.status(500).json({
-      message: 'failed_to_generate_sts_policy',
-      detail: error?.message || 'unknown_error',
-    });
+    return next(error);
   }
+});
+
+app.use((error, _req, res, _next) => {
+  console.error(error);
+
+  const detail = error?.message || 'unknown_error';
+  if (detail.includes('UNIQUE constraint failed')) {
+    return res.status(409).json({ ok: false, message: 'Record already exists.', detail });
+  }
+
+  return res.status(500).json({
+    ok: false,
+    message: 'internal_server_error',
+    detail,
+  });
 });
 
 app.listen(Number(PORT), () => {
