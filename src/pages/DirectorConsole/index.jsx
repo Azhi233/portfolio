@@ -39,7 +39,30 @@ const EMPTY_FORM = {
   description: '',
   credits: '',
   publishStatus: 'Draft',
+  outlineTags: [],
 };
+
+const MODULE_SLOT_OPTIONS = [
+  { value: '', label: 'Auto' },
+  { value: 'brand-video', label: 'Brand Video 主视频位' },
+  { value: 'hero-left', label: 'Hero Left 左图' },
+  { value: 'hero-right', label: 'Hero Right 右图' },
+  { value: 'hero-merged', label: 'Hero Merged 中图' },
+  { value: 'social', label: 'Social Grid 社媒区' },
+];
+
+const WORK_OUTLINE_OPTIONS = [
+  { id: 'all', label: 'ALL WORKS' },
+  { id: 'home-projects', label: 'HOME · PROJECT SHOWCASE' },
+  { id: 'home-expertise-toys', label: 'HOME · EXPERTISE / TOYS' },
+  { id: 'home-expertise-industrial', label: 'HOME · EXPERTISE / INDUSTRIAL' },
+  { id: 'home-expertise-misc', label: 'HOME · EXPERTISE / MISC' },
+  { id: 'business-toy', label: 'BUSINESS SWITCH · TOY' },
+  { id: 'business-industry', label: 'BUSINESS SWITCH · INDUSTRY' },
+  { id: 'page-toys', label: 'PAGINATION · TOYS PAGE' },
+  { id: 'page-industrial', label: 'PAGINATION · INDUSTRIAL PAGE' },
+  { id: 'page-misc', label: 'PAGINATION · MISC PAGE' },
+];
 
 const EMPTY_ASSET_FORM = {
   title: '',
@@ -53,6 +76,7 @@ const EMPTY_ASSET_FORM = {
   projectId: 'toy_project',
   expertiseDescription: '',
   projectDescription: '',
+  moduleSlot: '',
 };
 
 const EMPTY_BULK_ASSET_FORM = {
@@ -141,6 +165,27 @@ function inferAssetTypeFromUrl(url) {
   if (/\.(mp4|webm|mov|m4v)(\?.*)?$/.test(value)) return 'video';
   return 'image';
 }
+
+function extractModuleSlot(description = '') {
+  const text = String(description || '');
+  const match = text.match(/#module:([a-z0-9_-]+)/i);
+  return match?.[1] || '';
+}
+
+function stripModuleSlotTag(description = '') {
+  return String(description || '')
+    .replace(/\s*#module:[a-z0-9_-]+\s*/gi, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function buildProjectDescriptionWithSlot(description = '', moduleSlot = '') {
+  const clean = stripModuleSlotTag(description);
+  const slot = String(moduleSlot || '').trim();
+  if (!slot) return clean;
+  return clean ? `${clean} #module:${slot}` : `#module:${slot}`;
+}
+
 
 function getAssetUrlWarning(url, type) {
   const value = String(url || '').trim();
@@ -522,6 +567,33 @@ function ProjectForm({
           />
         </div>
 
+        <div className="md:col-span-2 rounded-md border border-zinc-700 bg-zinc-950 p-3">
+          <p className="text-xs tracking-[0.12em] text-zinc-400">Work Outline 分类投放</p>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            {WORK_OUTLINE_OPTIONS.filter((item) => item.id !== 'all').map((item) => {
+              const checked = Array.isArray(formState.outlineTags) && formState.outlineTags.includes(item.id);
+              return (
+                <label key={item.id} className="flex items-center gap-2 rounded border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-200">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(event) => {
+                      const next = new Set(Array.isArray(formState.outlineTags) ? formState.outlineTags : []);
+                      if (event.target.checked) {
+                        next.add(item.id);
+                      } else {
+                        next.delete(item.id);
+                      }
+                      onChange('outlineTags', Array.from(next));
+                    }}
+                  />
+                  <span>{item.label}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
         <label className="block md:col-span-2">
           <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Description</p>
           <textarea
@@ -663,6 +735,7 @@ function DirectorConsole() {
   const [assetFormError, setAssetFormError] = useState('');
   const [assetUrlWarning, setAssetUrlWarning] = useState('');
   const [editingAssetId, setEditingAssetId] = useState(null);
+  const [showAssetEditorModal, setShowAssetEditorModal] = useState(false);
   const [bulkAssetInput, setBulkAssetInput] = useState('');
   const [bulkAssetError, setBulkAssetError] = useState('');
   const [bulkAssetPreview, setBulkAssetPreview] = useState([]);
@@ -700,6 +773,7 @@ function DirectorConsole() {
   const [importResult, setImportResult] = useState('');
   const [assetFilterMode, setAssetFilterMode] = useState('all');
   const [projectsPanelMode, setProjectsPanelMode] = useState('projects');
+  const [workOutlineFilter, setWorkOutlineFilter] = useState('all');
   const [privateFilesProjectId, setPrivateFilesProjectId] = useState('');
   const [privateFileForm, setPrivateFileForm] = useState(EMPTY_PRIVATE_FILE_FORM);
   const [editingPrivateFileId, setEditingPrivateFileId] = useState(null);
@@ -712,6 +786,52 @@ function DirectorConsole() {
     () => [...projects].sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0)),
     [projects],
   );
+
+  const projectsForListPanel = useMemo(() => {
+    if (sortedProjects.length > 0) return sortedProjects;
+
+    const fromProjectData = Object.values(projectData || {})
+      .filter((item) => item && typeof item === 'object')
+      .map((item, index) => ({
+        id: String(item.id || `project-data-${index}`),
+        title: String(item.title || `Project ${index + 1}`),
+        category: item.id === 'toy_project' ? 'Toys' : item.id === 'industry_project' ? 'Industrial' : 'Misc',
+        sortOrder: index,
+        _readonlyFromProjectData: true,
+      }));
+
+    return fromProjectData;
+  }, [sortedProjects, projectData]);
+
+  const getWorkOutlineTags = (project) => {
+    const saved = Array.isArray(project?.outlineTags)
+      ? project.outlineTags.map((tag) => String(tag || '').trim()).filter(Boolean)
+      : [];
+
+    if (saved.length > 0) {
+      return saved.includes('all') ? saved : ['all', ...saved];
+    }
+
+    const tags = ['all'];
+    const category = String(project?.category || '').toLowerCase();
+
+    if (project?.publishStatus === 'Published') {
+      tags.push('home-projects');
+      if (category === 'toys') {
+        tags.push('home-expertise-toys', 'page-toys');
+      } else if (category === 'industrial') {
+        tags.push('home-expertise-industrial', 'page-industrial');
+      } else {
+        tags.push('home-expertise-misc', 'page-misc');
+      }
+    }
+
+    const id = String(project?.id || '');
+    if (id === 'toy_project' || id === 'proj-toys-1') tags.push('business-toy');
+    if (id === 'industry_project' || id === 'proj-industry-1') tags.push('business-industry');
+
+    return tags;
+  };
 
   const filteredProjects = useMemo(() => {
     const keyword = searchQuery.trim().toLowerCase();
@@ -735,6 +855,38 @@ function DirectorConsole() {
     if (!showSelectedOnly) return filteredProjects;
     return filteredProjects.filter((project) => selectedIds.includes(project.id));
   }, [filteredProjects, showSelectedOnly, selectedIds]);
+
+  const outlinedProjectsForList = useMemo(() => {
+    return projectsForListPanel.filter((project) => {
+      if (workOutlineFilter === 'all') return true;
+      return getWorkOutlineTags(project).includes(workOutlineFilter);
+    });
+  }, [projectsForListPanel, workOutlineFilter]);
+
+  const groupedOutlinedProjects = useMemo(() => {
+    const map = new Map();
+    outlinedProjectsForList.forEach((project) => {
+      const key = project.category || 'Misc';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(project);
+    });
+
+    return ['Toys', 'Industrial', 'Misc']
+      .map((category) => ({ category, items: map.get(category) || [] }))
+      .filter((group) => group.items.length > 0);
+  }, [outlinedProjectsForList]);
+
+  const filteredAssetsForPanel = useMemo(() => {
+    return (assets || []).filter((asset) => {
+      const inExpertise = Boolean(asset.views?.expertise?.isActive);
+      const inProject = Boolean(asset.views?.project?.isActive);
+      if (assetFilterMode === 'all') return true;
+      if (assetFilterMode === 'expertise_only') return inExpertise && !inProject;
+      if (assetFilterMode === 'project_only') return !inExpertise && inProject;
+      if (assetFilterMode === 'both') return inExpertise && inProject;
+      return true;
+    });
+  }, [assets, assetFilterMode]);
 
   const totalProjects = sortedProjects.length;
   const visibleProjectsCount = sortedProjects.filter((project) => project.isVisible !== false).length;
@@ -1185,6 +1337,7 @@ function DirectorConsole() {
       description: project.description,
       credits: project.credits,
       publishStatus: project.publishStatus || 'Draft',
+      outlineTags: getWorkOutlineTags(project).filter((tag) => tag !== 'all'),
     });
     setShowForm(true);
   };
@@ -1304,6 +1457,9 @@ function DirectorConsole() {
       accessPassword: nextVisibility === 'Private' ? formState.accessPassword : '',
       deliveryPin: nextVisibility === 'Private' ? String(formState.deliveryPin || '').trim() : '',
       clientCode: String(formState.clientCode || '').trim(),
+      outlineTags: Array.isArray(formState.outlineTags)
+        ? formState.outlineTags.map((tag) => String(tag || '').trim()).filter(Boolean)
+        : [],
     };
 
     if (payload.publishStatus === 'Private' && String(payload.accessPassword || '').trim().length < 4) {
@@ -1704,6 +1860,56 @@ function DirectorConsole() {
     } finally {
       setIsMigratingLocalData(false);
     }
+  };
+
+  const closeAssetEditorModal = () => {
+    setShowAssetEditorModal(false);
+    setEditingAssetId(null);
+    setAssetForm(EMPTY_ASSET_FORM);
+    setAssetFormError('');
+    setAssetUrlWarning('');
+  };
+
+  const handleSaveAssetEditorModal = () => {
+    if (!editingAssetId) {
+      setAssetFormError('未选择编辑素材。');
+      return;
+    }
+
+    const payload = {
+      title: String(assetForm.title || '').trim(),
+      url: String(assetForm.url || '').trim(),
+      type: assetForm.type,
+      views: {
+        expertise: {
+          isActive: assetForm.publishTarget === 'expertise' || assetForm.publishTarget === 'both',
+          category: assetForm.expertiseCategory,
+          description: String(assetForm.expertiseDescription || '').trim(),
+        },
+        project: {
+          isActive: assetForm.publishTarget === 'project' || assetForm.publishTarget === 'both',
+          projectId: assetForm.projectId,
+          description: buildProjectDescriptionWithSlot(
+            String(assetForm.projectDescription || '').trim(),
+            assetForm.moduleSlot,
+          ),
+        },
+      },
+    };
+
+    if (!payload.title || !payload.url) {
+      setAssetFormError('请填写 Asset Title 和 Asset URL。');
+      return;
+    }
+
+    if (!/^https?:\/\//i.test(payload.url)) {
+      setAssetFormError('Asset URL 必须是 http(s) 链接。');
+      return;
+    }
+
+    setAssetFormError('');
+    updateAsset(editingAssetId, payload);
+    closeAssetEditorModal();
   };
 
   if (!isAuthenticated) {
@@ -2881,6 +3087,20 @@ function DirectorConsole() {
                       <option value="industry_project">industry_project</option>
                     </select>
                   </label>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">模块位（可选）</p>
+                    <select
+                      value={assetForm.moduleSlot}
+                      onChange={(event) => setAssetForm((prev) => ({ ...prev, moduleSlot: event.target.value }))}
+                      className={FORM_INPUT_CLASS}
+                    >
+                      {MODULE_SLOT_OPTIONS.map((item) => (
+                        <option key={item.value || 'auto'} value={item.value}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <label className="block md:col-span-2">
                     <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">商业向说明</p>
                     <textarea
@@ -2940,7 +3160,10 @@ function DirectorConsole() {
                           project: {
                             isActive: assetForm.publishTarget === 'project' || assetForm.publishTarget === 'both',
                             projectId: assetForm.projectId,
-                            description: String(assetForm.projectDescription || '').trim(),
+                            description: buildProjectDescriptionWithSlot(
+                              String(assetForm.projectDescription || '').trim(),
+                              assetForm.moduleSlot,
+                            ),
                           },
                         },
                       };
@@ -2994,17 +3217,7 @@ function DirectorConsole() {
             </div>
 
             <div className="mt-4 grid gap-3">
-              {assets
-                .filter((asset) => {
-                  const inExpertise = Boolean(asset.views?.expertise?.isActive);
-                  const inProject = Boolean(asset.views?.project?.isActive);
-                  if (assetFilterMode === 'all') return true;
-                  if (assetFilterMode === 'expertise_only') return inExpertise && !inProject;
-                  if (assetFilterMode === 'project_only') return !inExpertise && inProject;
-                  if (assetFilterMode === 'both') return inExpertise && inProject;
-                  return true;
-                })
-                .map((asset) => (
+              {filteredAssetsForPanel.map((asset) => (
                   <article key={asset.id} className="rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
@@ -3032,9 +3245,11 @@ function DirectorConsole() {
                               expertiseCategory: asset.views.expertise.category,
                               expertiseDescription: asset.views.expertise.description,
                               projectId: asset.views.project.projectId,
-                              projectDescription: asset.views.project.description,
+                              projectDescription: stripModuleSlotTag(asset.views.project.description),
+                              moduleSlot: extractModuleSlot(asset.views.project.description),
                             });
                             setAssetUrlWarning(getAssetUrlWarning(asset.url, asset.type));
+                            setShowAssetEditorModal(true);
                           }}
                           className="rounded-md border border-zinc-600 px-3 py-1.5 text-xs text-zinc-200"
                         >
@@ -3052,15 +3267,7 @@ function DirectorConsole() {
                   </article>
                 ))}
 
-              {assets.filter((asset) => {
-                const inExpertise = Boolean(asset.views?.expertise?.isActive);
-                const inProject = Boolean(asset.views?.project?.isActive);
-                if (assetFilterMode === 'all') return true;
-                if (assetFilterMode === 'expertise_only') return inExpertise && !inProject;
-                if (assetFilterMode === 'project_only') return !inExpertise && inProject;
-                if (assetFilterMode === 'both') return inExpertise && inProject;
-                return true;
-              }).length === 0 ? (
+              {filteredAssetsForPanel.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-950/50 p-6 text-center text-xs tracking-[0.14em] text-zinc-500">
                   NO ASSETS IN THIS FILTER MODE.
                 </div>
@@ -3194,6 +3401,20 @@ function DirectorConsole() {
                           <option value="industry_project">industry_project</option>
                         </select>
                       </label>
+                      <label className="block">
+                        <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">模块位（可选）</p>
+                        <select
+                          value={assetForm.moduleSlot}
+                          onChange={(event) => setAssetForm((prev) => ({ ...prev, moduleSlot: event.target.value }))}
+                          className={FORM_INPUT_CLASS}
+                        >
+                          {MODULE_SLOT_OPTIONS.map((item) => (
+                            <option key={item.value || 'auto'} value={item.value}>
+                              {item.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                       <label className="block md:col-span-2">
                         <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">商业向说明</p>
                         <textarea
@@ -3242,7 +3463,10 @@ function DirectorConsole() {
                               project: {
                                 isActive: assetForm.publishTarget === 'project' || assetForm.publishTarget === 'both',
                                 projectId: assetForm.projectId,
-                                description: String(assetForm.projectDescription || '').trim(),
+                                description: buildProjectDescriptionWithSlot(
+                                  String(assetForm.projectDescription || '').trim(),
+                                  assetForm.moduleSlot,
+                                ),
                               },
                             },
                           };
@@ -3312,9 +3536,11 @@ function DirectorConsole() {
                                   expertiseCategory: asset.views.expertise.category,
                                   expertiseDescription: asset.views.expertise.description,
                                   projectId: asset.views.project.projectId,
-                                  projectDescription: asset.views.project.description,
+                                  projectDescription: stripModuleSlotTag(asset.views.project.description),
+                                  moduleSlot: extractModuleSlot(asset.views.project.description),
                                 });
                                 setAssetUrlWarning(getAssetUrlWarning(asset.url, asset.type));
+                                setShowAssetEditorModal(true);
                               }}
                               className="rounded-md border border-zinc-600 px-3 py-1.5 text-xs text-zinc-200"
                             >
@@ -3347,7 +3573,91 @@ function DirectorConsole() {
                   ) : null}
                 </div>
               </div>
-            ) : null}
+            ) : (
+              <div className="mt-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-700/60 bg-zinc-950/50 px-4 py-3">
+                  <p className="text-xs tracking-[0.12em] text-zinc-400">PROJECT LIST · {outlinedProjectsForList.length} ITEMS</p>
+                  <button
+                    type="button"
+                    onClick={handleOpenAdd}
+                    className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-3 py-2 text-xs tracking-[0.12em] text-emerald-200"
+                  >
+                    + Add New Project
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-2 rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-3">
+                  {WORK_OUTLINE_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setWorkOutlineFilter(option.id)}
+                      className={`rounded-full border px-3 py-1 text-[10px] tracking-[0.14em] transition ${
+                        workOutlineFilter === option.id
+                          ? 'border-zinc-300/80 bg-zinc-100/10 text-zinc-100'
+                          : 'border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+
+                {groupedOutlinedProjects.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-950/50 p-6 text-center text-xs tracking-[0.14em] text-zinc-500">
+                    NO PROJECTS IN THIS OUTLINE CATEGORY.
+                  </div>
+                ) : (
+                  groupedOutlinedProjects.map((group) => (
+                    <div key={group.category} className="space-y-3">
+                      <p className="text-xs tracking-[0.16em] text-zinc-400">{group.category.toUpperCase()} · {group.items.length}</p>
+                      {group.items.map((project) => (
+                        <article key={project.id} className="rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm text-zinc-100">{project.title}</p>
+                              <p className="mt-1 text-[11px] text-zinc-500">{project.category} · ORDER #{project.sortOrder}</p>
+                              <p className="mt-1 text-[10px] text-zinc-500">
+                                OUTLINE: {getWorkOutlineTags(project).filter((tag) => tag !== 'all').join(' · ') || 'DEFAULT'}
+                              </p>
+                              {project._readonlyFromProjectData ? (
+                                <p className="mt-1 text-[10px] tracking-[0.1em] text-amber-300">只读占位：来自 Project Modules，建议先迁移/新建项目到 Projects。</p>
+                              ) : null}
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEdit(project)}
+                                disabled={project._readonlyFromProjectData}
+                                className={`rounded-md border px-3 py-1.5 text-xs ${
+                                  project._readonlyFromProjectData
+                                    ? 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
+                                    : 'border-zinc-600 bg-zinc-900 text-zinc-200'
+                                }`}
+                              >
+                                EDIT
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteProject(project.id)}
+                                disabled={project._readonlyFromProjectData}
+                                className={`rounded-md border px-3 py-1.5 text-xs ${
+                                  project._readonlyFromProjectData
+                                    ? 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
+                                    : 'border-rose-400/60 bg-rose-400/10 text-rose-200'
+                                }`}
+                              >
+                                DELETE
+                              </button>
+                            </div>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </section>
         ) : activeTab === 'privateFiles' ? (
           <section className="mt-6 rounded-2xl border border-zinc-700/60 bg-zinc-900/60 p-5">
@@ -4645,33 +4955,151 @@ function DirectorConsole() {
               </div>
             )}
 
-            {showForm && (
-              <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
-                <div className="relative max-h-[88vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-zinc-700/70 bg-zinc-900/95 p-1 shadow-[0_24px_80px_rgba(0,0,0,0.65)]">
-                  <button
-                    type="button"
-                    onClick={handleCancelForm}
-                    aria-label="关闭弹窗"
-                    className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600 bg-zinc-900/90 text-zinc-300 transition hover:border-zinc-400 hover:text-zinc-100"
-                  >
-                    ×
-                  </button>
-
-                  <ProjectForm
-                    mode={formMode}
-                    formState={formState}
-                    onChange={(key, value) => setFormState((prev) => ({ ...prev, [key]: value }))}
-                    onSubmit={handleSubmitForm}
-                    onCancel={handleCancelForm}
-                    onUploadCover={handleUploadCover}
-                    onUploadVideo={handleUploadVideo}
-                    uploadState={uploadState}
-                  />
-                </div>
-              </div>
-            )}
           </section>
         )}
+
+        {showForm ? (
+          <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
+            <div className="relative max-h-[88vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-zinc-700/70 bg-zinc-900/95 p-1 shadow-[0_24px_80px_rgba(0,0,0,0.65)]">
+              <button
+                type="button"
+                onClick={handleCancelForm}
+                aria-label="关闭弹窗"
+                className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600 bg-zinc-900/90 text-zinc-300 transition hover:border-zinc-400 hover:text-zinc-100"
+              >
+                ×
+              </button>
+
+              <ProjectForm
+                mode={formMode}
+                formState={formState}
+                onChange={(key, value) => setFormState((prev) => ({ ...prev, [key]: value }))}
+                onSubmit={handleSubmitForm}
+                onCancel={handleCancelForm}
+                onUploadCover={handleUploadCover}
+                onUploadVideo={handleUploadVideo}
+                uploadState={uploadState}
+              />
+            </div>
+          </div>
+        ) : null}
+
+        {showAssetEditorModal ? (
+          <div className="fixed inset-0 z-[230] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-sm">
+            <div className="relative w-full max-w-2xl rounded-2xl border border-zinc-700/70 bg-zinc-900/95 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.65)]">
+              <button
+                type="button"
+                onClick={closeAssetEditorModal}
+                aria-label="关闭素材编辑"
+                className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600 bg-zinc-900/90 text-zinc-300 transition hover:border-zinc-400 hover:text-zinc-100"
+              >
+                ×
+              </button>
+
+              <h3 className="text-sm tracking-[0.16em] text-zinc-100">EDIT ASSET</h3>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <label className="block">
+                  <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Asset Title</p>
+                  <input
+                    value={assetForm.title}
+                    onChange={(event) => setAssetForm((prev) => ({ ...prev, title: event.target.value }))}
+                    className={FORM_INPUT_CLASS}
+                  />
+                </label>
+
+                <label className="block">
+                  <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Asset Type</p>
+                  <select
+                    value={assetForm.type}
+                    onChange={(event) => setAssetForm((prev) => ({ ...prev, type: event.target.value }))}
+                    className={FORM_INPUT_CLASS}
+                  >
+                    <option value="image">Image</option>
+                    <option value="video">Video</option>
+                    <option value="image-comparison">Image Comparison</option>
+                  </select>
+                </label>
+
+                <label className="block md:col-span-2">
+                  <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Asset URL</p>
+                  <input
+                    value={assetForm.url}
+                    onChange={(event) => setAssetForm((prev) => ({ ...prev, url: event.target.value }))}
+                    className={FORM_INPUT_CLASS}
+                  />
+                </label>
+
+                <label className="block">
+                  <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Publish Target</p>
+                  <select
+                    value={assetForm.publishTarget}
+                    onChange={(event) => setAssetForm((prev) => ({ ...prev, publishTarget: event.target.value }))}
+                    className={FORM_INPUT_CLASS}
+                  >
+                    <option value="expertise">Expertise Only</option>
+                    <option value="project">Project Only</option>
+                    <option value="both">Both</option>
+                  </select>
+                </label>
+
+                {(assetForm.publishTarget === 'project' || assetForm.publishTarget === 'both') ? (
+                  <>
+                    <label className="block">
+                      <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Project</p>
+                      <select
+                        value={assetForm.projectId}
+                        onChange={(event) => setAssetForm((prev) => ({ ...prev, projectId: event.target.value }))}
+                        className={FORM_INPUT_CLASS}
+                      >
+                        <option value="toy_project">toy_project</option>
+                        <option value="industry_project">industry_project</option>
+                      </select>
+                    </label>
+
+                    <label className="block">
+                      <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">模块位（可选）</p>
+                      <select
+                        value={assetForm.moduleSlot}
+                        onChange={(event) => setAssetForm((prev) => ({ ...prev, moduleSlot: event.target.value }))}
+                        className={FORM_INPUT_CLASS}
+                      >
+                        {MODULE_SLOT_OPTIONS.map((item) => (
+                          <option key={item.value || 'auto'} value={item.value}>
+                            {item.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </>
+                ) : null}
+
+                {assetFormError ? (
+                  <p className="md:col-span-2 rounded-md border border-rose-400/60 bg-rose-400/10 px-3 py-2 text-xs tracking-[0.1em] text-rose-200">
+                    {assetFormError}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeAssetEditorModal}
+                  className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs tracking-[0.12em] text-zinc-300"
+                >
+                  CANCEL
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAssetEditorModal}
+                  className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-4 py-2 text-xs tracking-[0.12em] text-emerald-200"
+                >
+                  UPDATE ASSET
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -235,6 +235,10 @@ function normalizeProject(project) {
   const password = String(project?.password || project?.accessPassword || '');
   const deliveryPin = String(project?.deliveryPin || '');
 
+  const outlineTags = Array.isArray(project?.outlineTags)
+    ? project.outlineTags.map((tag) => String(tag || '').trim()).filter(Boolean)
+    : [];
+
   return {
     id: String(project?.id || ''),
     title: String(project?.title || 'Untitled Project'),
@@ -260,6 +264,7 @@ function normalizeProject(project) {
     status,
     password,
     privateFiles: normalizePrivateFiles(project?.privateFiles),
+    outlineTags,
   };
 }
 

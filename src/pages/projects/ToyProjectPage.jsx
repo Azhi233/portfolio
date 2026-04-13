@@ -10,6 +10,12 @@ function inferType(url) {
   return /\.(mp4|webm|mov)(\?.*)?$/i.test(url || '') ? 'video' : 'image';
 }
 
+function parseModuleTag(description = '') {
+  const text = String(description || '').toLowerCase();
+  const match = text.match(/#module:([a-z0-9_-]+)/i);
+  return match?.[1] || '';
+}
+
 function ToyProjectPage() {
   const { assets, projectData } = useConfig();
   const data = projectData?.toy_project;
@@ -33,26 +39,46 @@ function ToyProjectPage() {
         title: `Asset ${index + 1}`,
         url,
         type: inferType(url),
+        views: { project: { description: '' } },
       };
     });
   }, [data?.modules?.assets?.assetUrls, projectAssets]);
 
+  const moduleSlots = useMemo(() => {
+    const slotMap = new Map();
+    for (const item of orderedAssets) {
+      const tag = parseModuleTag(item?.views?.project?.description);
+      if (tag && !slotMap.has(tag)) {
+        slotMap.set(tag, item);
+      }
+    }
+    return slotMap;
+  }, [orderedAssets]);
+
   const heroImages = {
     left:
+      moduleSlots.get('hero-left')?.url ||
       orderedAssets[0]?.url ||
       'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=2200&q=85',
     right:
+      moduleSlots.get('hero-right')?.url ||
       orderedAssets[1]?.url ||
       'https://images.unsplash.com/photo-1518773553398-650c184e0bb3?auto=format&fit=crop&w=2200&q=85',
     merged:
+      moduleSlots.get('hero-merged')?.url ||
       orderedAssets[2]?.url ||
       data?.coverUrl ||
       'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2400&q=85',
   };
 
-  const videoAsset = orderedAssets.find((item) => item?.type === 'video');
+  const videoAsset =
+    moduleSlots.get('brand-video') ||
+    orderedAssets.find((item) => item?.type === 'video' || inferType(item?.url) === 'video');
 
-  const socialItems = orderedAssets.slice(0, 4).map((item, idx) => ({
+  const socialSource =
+    orderedAssets.filter((item) => parseModuleTag(item?.views?.project?.description) === 'social').slice(0, 4);
+
+  const socialItems = (socialSource.length > 0 ? socialSource : orderedAssets.slice(0, 4)).map((item, idx) => ({
     id: item.id || `social-${idx}`,
     title: item.title || `Social Asset ${idx + 1}`,
     type: item.type || inferType(item.url),
@@ -84,7 +110,17 @@ function ToyProjectPage() {
         captionSubtitle={showcase.brandCaptionSubtitle || data?.modules?.assets?.intro || 'A cinematic narrative that scales to every channel.'}
       />
       <SocialGrid
-        items={socialItems}
+        items={
+          socialItems.length > 0
+            ? socialItems
+            : (orderedAssets || []).filter((item) => parseModuleTag(item?.views?.project?.description) === 'social').slice(0, 4).map((item, idx) => ({
+                id: item.id || `social-${idx}`,
+                title: item.title || `Social Asset ${idx + 1}`,
+                type: item.type || inferType(item.url),
+                url: item.url,
+                poster: data?.coverUrl,
+              }))
+        }
         heading={showcase.socialHeading || data?.modules?.action?.title || 'SOCIAL MATRIX DISTRIBUTION'}
         subheading={showcase.socialSubheading || actionBullets[1] || 'Short-form assets, engineered for feed dominance.'}
       />

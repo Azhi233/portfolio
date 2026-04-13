@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useConfig } from '../../context/ConfigContext.jsx';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import GlobalCompareModal from '../../components/GlobalCompareModal.jsx';
 import FloatingComment from '../../components/FloatingComment.jsx';
 import ImageCompareCard from '../../components/ImageCompareCard.jsx';
@@ -26,6 +26,12 @@ const FALLBACK_MEDIA = [
 
 function inferType(url) {
   return /\.(mp4|webm|mov)(\?.*)?$/i.test(url) ? 'video' : 'image';
+}
+
+function parseModuleTag(description = '') {
+  const text = String(description || '').toLowerCase();
+  const match = text.match(/#module:([a-z0-9_-]+)/i);
+  return match?.[1] || '';
 }
 
 function getProjectAssets(assets, projectId, assetUrls) {
@@ -100,7 +106,18 @@ function IndustryProjectPage() {
   const assetsModule = modules.assets || {};
 
   const projectAssets = getProjectAssets(assets, 'industry_project', assetsModule.assetUrls || []);
-  const [hero, ...rest] = projectAssets;
+
+  const moduleSlots = useMemo(() => {
+    const map = new Map();
+    for (const item of projectAssets) {
+      const tag = parseModuleTag(item?.views?.project?.description);
+      if (tag && !map.has(tag)) map.set(tag, item);
+    }
+    return map;
+  }, [projectAssets]);
+
+  const hero = moduleSlots.get('brand-video') || projectAssets[0];
+  const rest = projectAssets.filter((item) => item?.id !== hero?.id);
 
   const tags = (target.tags || []).length > 0 ? target.tags : ['#工艺理解门槛高', '#素材分散', '#协作成本高'];
   const bullets = (action.bullets || []).length > 0 ? action.bullets : ['展会传播主线', '工艺亮点脚本化', '客户案例可视化'];
@@ -180,7 +197,10 @@ function IndustryProjectPage() {
             <div className="mt-4 grid gap-3 md:grid-cols-4 md:grid-rows-2">
               {hero ? (
                 <MediaCell
-                  item={hero}
+                  item={{
+                    ...hero,
+                    type: hero?.type === 'video' || inferType(hero?.url) === 'video' ? 'video' : hero?.type,
+                  }}
                   className="md:col-span-2 md:row-span-2 min-h-[240px]"
                   onOpenCompare={setActiveCompareAsset}
                 />

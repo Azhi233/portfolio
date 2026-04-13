@@ -1,6 +1,7 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import NavBar from './components/NavBar.jsx';
 import Home from './pages/Home.jsx';
 
@@ -143,7 +144,7 @@ function App() {
   }, [config.siteTitle, config.siteDescription, config.ogImage, location.pathname]);
 
   return (
-    <>
+    <ErrorBoundary>
       {!isLab && !isProjectDetail ? (
         <motion.div
           aria-hidden
@@ -176,7 +177,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
-    </>
+    </ErrorBoundary>
   );
 }
 
