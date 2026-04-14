@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import seedReviews from '../data/reviews.json';
 
 const API_BASE = '/api';
+const TOKEN_STORAGE_KEY = 'portfolio.auth.token';
 
 const DEFAULT_CASE_STUDIES = {
   toy: {
@@ -124,6 +125,7 @@ const DEFAULT_CONFIG = {
   testimonialsText:
     '“团队协作顺畅，内容在投放后转化显著提升。”|市场负责人|消费品牌\n“把复杂工艺讲清楚了，销售团队复用效率很高。”|销售总监|制造业企业\n“从策略到交付都很专业，节奏和质量都可控。”|品牌经理|新消费项目',
   brandNamesText: 'TOYVERSE\nINDUSTRIAL PRO\nMOTIONLAB\nNOVA BRAND\nEXPO TECH\nVISION MAKERS',
+  qrCodeImageUrl: '',
   servicesText:
     '商业视觉项目统筹|前期策略,拍摄执行,后期交付|2-6周|品牌新品发布/Campaign\n制造业内容营销体系|工艺可视化脚本,展会素材包,销售内容包|4-8周|ToB制造业企业\n长期内容资产服务|月度选题,拍摄排期,素材库维护|按月合作|需要持续内容输出的团队',
   caseStudies: DEFAULT_CASE_STUDIES,
@@ -384,6 +386,11 @@ function readStoredConfig() {
   return DEFAULT_CONFIG;
 }
 
+function getStoredToken() {
+  if (typeof window === 'undefined') return '';
+  return window.localStorage.getItem(TOKEN_STORAGE_KEY) || '';
+}
+
 function readStoredProjects() {
   return DEFAULT_PROJECTS;
 }
@@ -394,6 +401,10 @@ function readStoredAssets() {
 
 function readStoredProjectData() {
   return DEFAULT_PROJECT_DATA;
+}
+
+function isTokenPresent() {
+  return Boolean(getStoredToken());
 }
 
 function readStoredDeliveryUnlocks() {
@@ -443,6 +454,10 @@ function readStoredProjectUnlocks() {
   return {};
 }
 
+function readStoredDeliveryUnlocks() {
+  return {};
+}
+
 async function fetchJson(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
     headers: {
@@ -463,6 +478,8 @@ async function fetchJson(path, options = {}) {
 export function ConfigProvider({ children }) {
   const [config, setConfig] = useState(() => readStoredConfig());
   const [projects, setProjects] = useState(() => readStoredProjects());
+  const [isAdmin, setIsAdmin] = useState(() => isTokenPresent());
+  const [isEditMode, setIsEditMode] = useState(false);
   const [assets, setAssets] = useState(() => readStoredAssets());
   const [projectData, setProjectData] = useState(() => readStoredProjectData());
   const [projectUnlocks, setProjectUnlocks] = useState(() => readStoredProjectUnlocks());
@@ -471,13 +488,21 @@ export function ConfigProvider({ children }) {
   const [reviewAuditLogs, setReviewAuditLogs] = useState(() => readStoredReviewAuditLogs());
 
   useEffect(() => {
+    setIsAdmin(isTokenPresent());
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     const loadInitialData = async () => {
       try {
-        const [remoteConfig, remoteProjects] = await Promise.all([
+        const [remoteConfig, remoteProjects, remoteReviews, remoteReviewAuditLogs, remoteProjectUnlocks, remoteDeliveryUnlocks] = await Promise.all([
           fetchJson('/config'),
           fetchJson('/projects'),
+          fetchJson('/reviews').catch(() => []),
+          fetchJson('/review-audit-logs').catch(() => []),
+          fetchJson('/project-unlocks').catch(() => ({})),
+          fetchJson('/delivery-unlocks').catch(() => ({})),
         ]);
 
         if (cancelled) return;
@@ -501,6 +526,22 @@ export function ConfigProvider({ children }) {
         if (Array.isArray(remoteProjects)) {
           setProjects(remoteProjects.map(normalizeProject));
         }
+
+        if (Array.isArray(remoteReviews)) {
+          setReviews(remoteReviews.map((item, index) => normalizeReview(item, index)));
+        }
+
+        if (Array.isArray(remoteReviewAuditLogs)) {
+          setReviewAuditLogs(remoteReviewAuditLogs);
+        }
+
+        if (remoteProjectUnlocks && typeof remoteProjectUnlocks === 'object') {
+          setProjectUnlocks(remoteProjectUnlocks);
+        }
+
+        if (remoteDeliveryUnlocks && typeof remoteDeliveryUnlocks === 'object') {
+          setDeliveryUnlocks(remoteDeliveryUnlocks);
+        }
       } catch (error) {
         console.error('Failed to load CMS data from server:', error);
       }
@@ -517,23 +558,17 @@ export function ConfigProvider({ children }) {
     nextConfig = config,
     nextAssets = assets,
     nextProjectData = projectData,
-    nextReviews = reviews,
-    nextReviewAuditLogs = reviewAuditLogs,
-    nextProjectUnlocks = projectUnlocks,
-    nextDeliveryUnlocks = deliveryUnlocks,
   } = {}) => {
     const payload = {
       ...nextConfig,
       assets: nextAssets,
       projectData: nextProjectData,
-      reviews: nextReviews,
-      reviewAuditLogs: nextReviewAuditLogs,
-      projectUnlocks: nextProjectUnlocks,
-      deliveryUnlocks: nextDeliveryUnlocks,
     };
 
+    const token = getStoredToken();
     const data = await fetchJson('/config', {
       method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: JSON.stringify(payload),
     });
 
@@ -566,34 +601,77 @@ export function ConfigProvider({ children }) {
     return data;
   };
 
+  const login = async (username, password) => {
+    const data = await fetchJson('/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    });
+
+    const token = data?.token || '';
+    if (!token) throw new Error('Login failed.');
+
+    window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    setIsAdmin(true);
+    setIsEditMode(false);
+    return data;
+  };
+
+  const logout = () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+    }
+    setIsAdmin(false);
+    setIsEditMode(false);
+  };
+
   const resetConfig = () => setConfig(DEFAULT_CONFIG);
 
   const isUnlocked = (projectId) => Boolean(projectUnlocks?.[String(projectId || '')]);
 
-  const unlockProjectAccess = (projectId) => {
+  const syncProjectUnlock = async (projectId, unlocked) => {
     const key = String(projectId || '').trim();
     if (!key) return;
-    setProjectUnlocks((prev) => ({ ...prev, [key]: true }));
+    setProjectUnlocks((prev) => ({ ...prev, [key]: Boolean(unlocked) }));
+    await fetchJson('/project-unlocks', {
+      method: 'POST',
+      body: JSON.stringify({ projectId: key, unlocked: Boolean(unlocked) }),
+    });
+  };
+
+  const unlockProjectAccess = (projectId) => {
+    syncProjectUnlock(projectId, true).catch((error) => {
+      console.error('Failed to persist project unlock:', error);
+    });
   };
 
   const lockProjectAccess = (projectId) => {
-    const key = String(projectId || '').trim();
-    if (!key) return;
-    setProjectUnlocks((prev) => ({ ...prev, [key]: false }));
+    syncProjectUnlock(projectId, false).catch((error) => {
+      console.error('Failed to persist project lock:', error);
+    });
   };
 
   const isDeliveryUnlocked = (projectId) => Boolean(deliveryUnlocks?.[String(projectId || '')]);
 
-  const unlockDeliveryAccess = (projectId) => {
+  const syncDeliveryUnlock = async (projectId, unlocked) => {
     const key = String(projectId || '').trim();
     if (!key) return;
-    setDeliveryUnlocks((prev) => ({ ...prev, [key]: true }));
+    setDeliveryUnlocks((prev) => ({ ...prev, [key]: Boolean(unlocked) }));
+    await fetchJson('/delivery-unlocks', {
+      method: 'POST',
+      body: JSON.stringify({ projectId: key, unlocked: Boolean(unlocked) }),
+    });
+  };
+
+  const unlockDeliveryAccess = (projectId) => {
+    syncDeliveryUnlock(projectId, true).catch((error) => {
+      console.error('Failed to persist delivery unlock:', error);
+    });
   };
 
   const lockDeliveryAccess = (projectId) => {
-    const key = String(projectId || '').trim();
-    if (!key) return;
-    setDeliveryUnlocks((prev) => ({ ...prev, [key]: false }));
+    syncDeliveryUnlock(projectId, false).catch((error) => {
+      console.error('Failed to persist delivery lock:', error);
+    });
   };
 
   const submitReview = (input) => {
@@ -606,6 +684,12 @@ export function ConfigProvider({ children }) {
       0,
     );
     setReviews((prev) => [next, ...prev]);
+    fetchJson('/reviews', {
+      method: 'POST',
+      body: JSON.stringify(next),
+    }).catch((error) => {
+      console.error('Failed to persist review:', error);
+    });
     return next;
   };
 
@@ -614,14 +698,21 @@ export function ConfigProvider({ children }) {
   };
 
   const appendReviewAuditLog = (entry) => {
-    setReviewAuditLogs((prev) => [
-      {
-        id: `audit-${Date.now()}-${Math.round(Math.random() * 10000)}`,
-        at: new Date().toISOString(),
-        ...entry,
-      },
-      ...prev,
-    ]);
+    const next = {
+      id: `audit-${Date.now()}-${Math.round(Math.random() * 10000)}`,
+      at: new Date().toISOString(),
+      ...entry,
+    };
+    setReviewAuditLogs((prev) => [next, ...prev]);
+    fetchJson('/config', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...config,
+        reviewAuditLogs: [next, ...reviewAuditLogs],
+      }),
+    }).catch((error) => {
+      console.error('Failed to persist review audit log:', error);
+    });
   };
 
   const setReviewStatus = (reviewId, status, operator = 'console-admin') => {
@@ -958,6 +1049,11 @@ export function ConfigProvider({ children }) {
       reviewAuditLogs,
       updateConfig,
       saveConfigToServer,
+      login,
+      logout,
+      isAdmin,
+      isEditMode,
+      setIsEditMode,
       resetConfig,
       isUnlocked,
       unlockProjectAccess,

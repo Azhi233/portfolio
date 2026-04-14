@@ -1,5 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
+import OgilvyGalleryGrid from '../components/OgilvyGalleryGrid.jsx';
+import EditableText from '../components/EditableText.jsx';
+import EditableMedia from '../components/EditableMedia.jsx';
 import { useConfig } from '../context/ConfigContext.jsx';
 
 const PHOTO_TAGS = [
@@ -33,35 +36,6 @@ function getAltTags(project, tag) {
   return base.join(' · ');
 }
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.05,
-      delayChildren: 0.04,
-    },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 16, scale: 0.985, filter: 'blur(3px)' },
-  show: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    filter: 'blur(0px)',
-    transition: { duration: 0.42, ease: [0.22, 1, 0.36, 1] },
-  },
-  exit: {
-    opacity: 0,
-    y: -10,
-    scale: 0.985,
-    filter: 'blur(3px)',
-    transition: { duration: 0.28, ease: 'easeOut' },
-  },
-};
-
 function Photography() {
   const { projects } = useConfig();
   const [activeTag, setActiveTag] = useState('all');
@@ -83,9 +57,9 @@ function Photography() {
   return (
     <main className="min-h-screen bg-[#050507] pb-16 pt-24 text-zinc-100">
       <section className="mx-auto w-full max-w-7xl px-6 md:px-12">
-        <p className="text-xs tracking-[0.2em] text-zinc-500">CATEGORY</p>
-        <h1 className="mt-2 font-serif text-4xl tracking-[0.12em] md:text-6xl">PHOTOGRAPHY</h1>
-        <p className="mt-3 text-xs tracking-[0.14em] text-zinc-500">STATIC IMAGE WORKS · {filteredProjects.length}</p>
+        <EditableText as="p" className="text-xs tracking-[0.2em] text-zinc-500" value="CATEGORY" />
+        <EditableText as="h1" className="mt-2 font-serif text-4xl tracking-[0.12em] md:text-6xl" value="PHOTOGRAPHY" />
+        <EditableText as="p" className="mt-3 text-xs tracking-[0.14em] text-zinc-500" value={`STATIC IMAGE WORKS · ${filteredProjects.length}`} />
 
         <motion.div layout className="mt-7 flex flex-wrap gap-2 md:gap-3">
           {PHOTO_TAGS.map((tag) => {
@@ -108,45 +82,29 @@ function Photography() {
           })}
         </motion.div>
 
-        <div className="mt-8 rounded-3xl border border-white/8 bg-zinc-950/35 p-4 backdrop-blur-sm md:p-6">
+        <div className="mt-8 rounded-3xl border border-white/8 bg-zinc-950/35 p-2.5 backdrop-blur-sm md:p-4">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTag}
-              layout
-              variants={containerVariants}
-              initial="hidden"
-              animate="show"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0, transition: { duration: 0.18 } }}
-              className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4"
             >
-              {filteredProjects.map((project) => (
-                <motion.figure
-                  key={project.id}
-                  layout
-                  variants={itemVariants}
-                  initial="hidden"
-                  animate="show"
-                  exit="exit"
-                  className="group overflow-hidden rounded-2xl border border-white/10 bg-black/30"
-                >
-                  <div className="relative aspect-[4/5] overflow-hidden">
-                    <img
-                      src={project.coverUrl || FALLBACK_COVER}
-                      alt={getAltTags(project, project.photoTag)}
-                      loading="lazy"
-                      className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.035]"
-                      onError={(event) => {
-                        event.currentTarget.src = FALLBACK_COVER;
-                      }}
-                    />
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/0 to-black/5" />
-                  </div>
-                  <figcaption className="p-3">
-                    <p className="font-serif text-sm tracking-[0.08em] text-zinc-100">{project.title}</p>
-                    <p className="mt-1 text-[10px] tracking-[0.16em] text-zinc-500">{project.photoTag.toUpperCase()}</p>
-                  </figcaption>
-                </motion.figure>
-              ))}
+              <OgilvyGalleryGrid
+                items={filteredProjects.map((project, index) => ({
+                  id: project.id,
+                  title: project.title,
+                  coverUrl: project.coverUrl || FALLBACK_COVER,
+                  tagline: getAltTags(project, project.photoTag),
+                  category: project.photoTag,
+                  to: `/project/${project.id}`,
+                  span: project.photoPriority >= 90 ? 'wide' : project.photoPriority >= 70 ? 'tall' : index === 0 ? 'wide-soft' : '',
+                  priority: project.photoPriority,
+                  width: project.coverWidth,
+                  height: project.coverHeight,
+                  aspectRatio: project.coverAspectRatio,
+                }))}
+              />
             </motion.div>
           </AnimatePresence>
 

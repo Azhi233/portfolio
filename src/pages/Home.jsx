@@ -1,7 +1,9 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
-import CinematicMasonry from '../components/CinematicMasonry.jsx';
+import OgilvyGalleryGrid from '../components/OgilvyGalleryGrid.jsx';
 import ProjectShowcase from '../components/ProjectShowcase.jsx';
+import EditableText from '../components/EditableText.jsx';
+import EditableMedia from '../components/EditableMedia.jsx';
 import { useConfig } from '../context/ConfigContext.jsx';
 
 const STAGE_DURATION_MS = 2000;
@@ -116,8 +118,8 @@ function Home({ viewMode = 'expertise' }) {
         ) : (
           <section className="mx-auto min-h-[58vh] w-full max-w-7xl px-6 pb-10 pt-8 md:px-12 md:pt-10">
             <div className="mb-6">
-              <p className="font-serif text-2xl tracking-[0.16em] text-zinc-100 md:text-3xl">SELECTED WORKS</p>
-              <p className="mt-2 text-sm tracking-[0.14em] text-zinc-500">EXPERTISE VIEW · TECHNICAL EXECUTION</p>
+              <EditableText as="p" className="font-serif text-2xl tracking-[0.16em] text-zinc-100 md:text-3xl" value="SELECTED WORKS" />
+              <EditableText as="p" className="mt-2 text-sm tracking-[0.14em] text-zinc-500" value="EXPERTISE VIEW · TECHNICAL EXECUTION" />
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {[
                   { id: 'all', label: 'ALL' },
@@ -142,14 +144,8 @@ function Home({ viewMode = 'expertise' }) {
               <p className="mt-2 text-xs tracking-[0.14em] text-zinc-500">ASSETS {expertiseItems.length}</p>
             </div>
 
-            <div className="relative overflow-hidden rounded-3xl border border-white/8 bg-zinc-950/40 p-4 backdrop-blur-sm md:p-6">
-              {expertiseItems.length > 0 ? (
-                <CinematicMasonry items={expertiseItems} columns={4} />
-              ) : (
-                <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-950/70 p-10 text-center text-xs tracking-[0.16em] text-zinc-500">
-                  NO EXPERTISE ASSETS. ENABLE ITEMS IN DIRECTOR CONSOLE.
-                </div>
-              )}
+            <div className="relative">
+              <OgilvyGalleryGrid items={expertiseItems} />
             </div>
           </section>
         )}
@@ -157,16 +153,21 @@ function Home({ viewMode = 'expertise' }) {
         <section className="mx-auto w-full max-w-7xl px-6 pb-24 pt-10 md:px-12 md:pt-16">
           <div className="grid gap-10 rounded-3xl border border-white/8 bg-zinc-950/35 p-8 md:grid-cols-[220px_1fr] md:gap-14 md:p-12">
             <div className="flex items-start">
-              <div className="h-40 w-40 rounded-full border border-white/15 bg-gradient-to-b from-zinc-700/30 via-zinc-800/30 to-zinc-950/70" />
+              <EditableMedia
+                type="image"
+                src="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80"
+                className="h-40 w-40 rounded-full object-cover"
+                onChange={() => {}}
+              />
             </div>
 
             <div>
-              <p className="text-xs tracking-[0.22em] text-zinc-500">ABOUT THE DIRECTOR</p>
-              <h2 className="mt-3 font-serif text-3xl tracking-[0.1em] text-zinc-100 md:text-5xl">Silence, Frame, Emotion.</h2>
+              <EditableText as="p" className="text-xs tracking-[0.22em] text-zinc-500" value="ABOUT THE DIRECTOR" />
+              <EditableText as="h2" className="mt-3 font-serif text-3xl tracking-[0.1em] text-zinc-100 md:text-5xl" value="Silence, Frame, Emotion." />
 
               <div className="mt-8 grid gap-5 md:grid-cols-3">
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <p className="text-xs tracking-[0.2em] text-zinc-500">AWARDS</p>
+                  <EditableText as="p" className="text-xs tracking-[0.2em] text-zinc-500" value="AWARDS" />
                   {awards.length > 0 ? (
                     <ul className="mt-3 space-y-2 text-xs leading-relaxed text-zinc-300">
                       {awards.map((item) => (
@@ -179,7 +180,7 @@ function Home({ viewMode = 'expertise' }) {
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <p className="text-xs tracking-[0.2em] text-zinc-500">EXPERIENCE</p>
+                  <EditableText as="p" className="text-xs tracking-[0.2em] text-zinc-500" value="EXPERIENCE" />
                   {experiences.length > 0 ? (
                     <ul className="mt-3 space-y-2 text-xs leading-relaxed text-zinc-300">
                       {experiences.map((item) => (
@@ -192,7 +193,7 @@ function Home({ viewMode = 'expertise' }) {
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <p className="text-xs tracking-[0.2em] text-zinc-500">GEAR LIST</p>
+                  <EditableText as="p" className="text-xs tracking-[0.2em] text-zinc-500" value="GEAR LIST" />
                   {gearList.length > 0 ? (
                     <ul className="mt-3 space-y-2 text-xs leading-relaxed text-zinc-300">
                       {gearList.map((item) => (

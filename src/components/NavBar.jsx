@@ -8,8 +8,6 @@ const NAV_ITEMS = [
   { key: 'photography', to: '/photography' },
   { key: 'videography', to: '/videography' },
   { key: 'about', to: '/about' },
-  { key: 'services', to: '/services' },
-  { key: 'testimonials', to: '/testimonials' },
   { key: 'clientAccess', to: '/client-access' },
   { key: 'lab', to: '/lab' },
 ];

@@ -42,6 +42,12 @@ const EMPTY_FORM = {
   outlineTags: [],
 };
 
+const EMPTY_MEDIA_FORM = {
+  kind: 'image',
+  url: '',
+  title: 'WeChat QR Code',
+};
+
 const MODULE_SLOT_OPTIONS = [
   { value: '', label: 'Auto' },
   { value: 'brand-video', label: 'Brand Video 主视频位' },
@@ -685,6 +691,7 @@ function DirectorConsole() {
   const [uploadState, setUploadState] = useState({
     cover: { status: 'idle', progress: 0 },
     video: { status: 'idle', progress: 0 },
+    qrCode: { status: 'idle', progress: 0 },
   });
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -704,6 +711,7 @@ function DirectorConsole() {
     siteTitle: config.siteTitle || 'DIRECTOR.VISION',
     siteDescription: config.siteDescription || '',
     ogImage: config.ogImage || '',
+    qrCodeImageUrl: config.qrCodeImageUrl || '',
     contactEmail: config.contactEmail || '',
     contactPhone: config.contactPhone || '',
     contactLocation: config.contactLocation || '',
@@ -906,6 +914,7 @@ function DirectorConsole() {
     String(siteConfigDraft.siteTitle || '') !== String(config.siteTitle || '') ||
     String(siteConfigDraft.siteDescription || '') !== String(config.siteDescription || '') ||
     String(siteConfigDraft.ogImage || '') !== String(config.ogImage || '') ||
+    String(siteConfigDraft.qrCodeImageUrl || '') !== String(config.qrCodeImageUrl || '') ||
     String(siteConfigDraft.contactEmail || '') !== String(config.contactEmail || '') ||
     String(siteConfigDraft.contactPhone || '') !== String(config.contactPhone || '') ||
     String(siteConfigDraft.contactLocation || '') !== String(config.contactLocation || '') ||
@@ -1567,6 +1576,41 @@ function DirectorConsole() {
     }
   };
 
+  const handleUploadQrCode = async (file) => {
+    setUploadState((prev) => ({
+      ...prev,
+      qrCode: { status: 'uploading', progress: 0 },
+    }));
+
+    try {
+      const result = await uploadFileToOSS({
+        file,
+        dir: 'images/wechat-qr',
+        onProgress: (progress) => {
+          setUploadState((prev) => ({
+            ...prev,
+            qrCode: { status: 'uploading', progress },
+          }));
+        },
+      });
+
+      setSiteConfigDraft((prev) => ({ ...prev, qrCodeImageUrl: result.url }));
+      await saveConfigToServer({
+        qrCodeImageUrl: result.url,
+      });
+      setUploadState((prev) => ({
+        ...prev,
+        qrCode: { status: 'success', progress: 100 },
+      }));
+    } catch (error) {
+      console.error(error);
+      setUploadState((prev) => ({
+        ...prev,
+        qrCode: { status: 'error', progress: 0 },
+      }));
+    }
+  };
+
   const moveProject = (projectId, direction) => {
     const currentIndex = sortedProjects.findIndex((project) => project.id === projectId);
     if (currentIndex === -1) return;
@@ -1702,6 +1746,7 @@ function DirectorConsole() {
     updateConfig('siteTitle', String(siteConfigDraft.siteTitle || '').trim());
     updateConfig('siteDescription', String(siteConfigDraft.siteDescription || '').trim());
     updateConfig('ogImage', String(siteConfigDraft.ogImage || '').trim());
+    updateConfig('qrCodeImageUrl', String(siteConfigDraft.qrCodeImageUrl || '').trim());
     updateConfig('contactEmail', String(siteConfigDraft.contactEmail || '').trim());
     updateConfig('contactPhone', String(siteConfigDraft.contactPhone || '').trim());
     updateConfig('contactLocation', String(siteConfigDraft.contactLocation || '').trim());
@@ -4300,10 +4345,10 @@ function DirectorConsole() {
               </div>
 
               <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4 md:col-span-2">
-                <p className="mb-3 text-xs tracking-[0.18em] text-zinc-400">GLOBAL SEO</p>
+                <p className="mb-3 text-xs tracking-[0.18em] text-zinc-400">可修改内容 · 品牌基础层</p>
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="block md:col-span-2">
-                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Site Title</p>
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">站点标题</p>
                     <input
                       value={siteConfigDraft.siteTitle}
                       onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, siteTitle: event.target.value }))}
@@ -4313,7 +4358,7 @@ function DirectorConsole() {
                   </label>
 
                   <label className="block md:col-span-2">
-                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Site Description</p>
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">站点描述</p>
                     <textarea
                       value={siteConfigDraft.siteDescription}
                       onChange={(event) =>
@@ -4325,7 +4370,7 @@ function DirectorConsole() {
                   </label>
 
                   <label className="block md:col-span-2">
-                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Open Graph Image URL</p>
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">OG 封面图 URL</p>
                     <input
                       value={siteConfigDraft.ogImage}
                       onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, ogImage: event.target.value }))}
@@ -4333,14 +4378,25 @@ function DirectorConsole() {
                       placeholder="https://.../og-cover.jpg"
                     />
                   </label>
+
+                  <OssUploadField
+                    label="微信二维码"
+                    value={siteConfigDraft.qrCodeImageUrl || ''}
+                    placeholder="https://.../wechat-qr.jpg"
+                    accept="image/*"
+                    buttonText="上传二维码到 OSS"
+                    uploadState={uploadState.qrCode || { status: 'idle', progress: 0 }}
+                    onChange={(value) => setSiteConfigDraft((prev) => ({ ...prev, qrCodeImageUrl: value }))}
+                    onUpload={handleUploadQrCode}
+                  />
                 </div>
               </div>
 
               <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4">
-                <p className="mb-3 text-xs tracking-[0.18em] text-zinc-400">CONTACT</p>
+                <p className="mb-3 text-xs tracking-[0.18em] text-zinc-400">可修改内容 · 联络信息</p>
                 <div className="space-y-3">
                   <label className="block">
-                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Email</p>
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">邮箱</p>
                     <input
                       value={siteConfigDraft.contactEmail}
                       onChange={(event) =>
@@ -4352,7 +4408,7 @@ function DirectorConsole() {
                   </label>
 
                   <label className="block">
-                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Phone</p>
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">电话</p>
                     <input
                       value={siteConfigDraft.contactPhone}
                       onChange={(event) =>
@@ -4364,7 +4420,7 @@ function DirectorConsole() {
                   </label>
 
                   <label className="block">
-                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Location</p>
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">所在地</p>
                     <input
                       value={siteConfigDraft.contactLocation}
                       onChange={(event) =>
@@ -4378,10 +4434,10 @@ function DirectorConsole() {
               </div>
 
               <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4">
-                <p className="mb-3 text-xs tracking-[0.18em] text-zinc-400">RESUME / CV</p>
+                <p className="mb-3 text-xs tracking-[0.18em] text-zinc-400">可修改内容 · 履历与能力</p>
                 <div className="space-y-3">
                   <label className="block">
-                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Awards (one per line)</p>
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">奖项（每行一项）</p>
                     <textarea
                       value={siteConfigDraft.resumeAwardsText}
                       onChange={(event) =>
@@ -4393,7 +4449,7 @@ function DirectorConsole() {
                   </label>
 
                   <label className="block">
-                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Experience (one per line)</p>
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">经历（每行一项）</p>
                     <textarea
                       value={siteConfigDraft.resumeExperienceText}
                       onChange={(event) =>
@@ -4405,7 +4461,7 @@ function DirectorConsole() {
                   </label>
 
                   <label className="block">
-                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Gear List (one per line)</p>
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">器材清单（每行一项）</p>
                     <textarea
                       value={siteConfigDraft.resumeGearText}
                       onChange={(event) =>
@@ -4419,10 +4475,10 @@ function DirectorConsole() {
               </div>
 
               <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4 md:col-span-2">
-                <p className="mb-3 text-xs tracking-[0.18em] text-zinc-400">SOCIAL PROOF & SERVICES</p>
+                <p className="mb-3 text-xs tracking-[0.18em] text-zinc-400">可修改内容 · 社会证明与合作范围</p>
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="block md:col-span-2">
-                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Testimonials (quote|role|company per line)</p>
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">客户口碑（quote|role|company 每行一条）</p>
                     <textarea
                       value={siteConfigDraft.testimonialsText}
                       onChange={(event) =>
@@ -4434,7 +4490,7 @@ function DirectorConsole() {
                   </label>
 
                   <label className="block md:col-span-2">
-                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Brand Names (one per line)</p>
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">品牌名单（每行一项）</p>
                     <textarea
                       value={siteConfigDraft.brandNamesText}
                       onChange={(event) =>
@@ -4446,7 +4502,7 @@ function DirectorConsole() {
                   </label>
 
                   <label className="block md:col-span-2">
-                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Services (title|deliverables|timeline|bestFor per line)</p>
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">合作服务（title|deliverables|timeline|bestFor 每行一条）</p>
                     <textarea
                       value={siteConfigDraft.servicesText}
                       onChange={(event) =>

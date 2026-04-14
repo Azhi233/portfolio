@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Check } from 'lucide-react';
+import EditableText from '../../components/EditableText.jsx';
+import EditableMedia from '../../components/EditableMedia.jsx';
 import { useConfig } from '../../context/ConfigContext.jsx';
 import EncryptedEnvelope from '../../components/EncryptedEnvelope.jsx';
 import GlobalCompareModal from '../../components/GlobalCompareModal.jsx';
@@ -189,7 +191,30 @@ function ProjectDetail() {
             <div className="mt-8 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3 md:p-4">
               <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
                 {isMp4 ? (
-                  <video
+                  <EditableMedia type="video" src={embedUrl} className="h-full w-full object-cover" onChange={() => {}} />
+                ) : isEmbedIframe ? (
+                  <iframe src={embedUrl} title={project.title} allow="autoplay; fullscreen" allowFullScreen className="h-full w-full border-0" />
+                ) : (
+                  <div className="flex h-full items-center justify-center px-6 text-center text-sm tracking-[0.08em] text-zinc-400">
+                    Unsupported video URL.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-8 grid gap-8 border-t border-zinc-800 pt-8 md:grid-cols-[1.2fr_0.8fr] md:items-start">
+              <div>
+                <EditableText as="h1" className="font-serif text-4xl tracking-[0.08em] text-zinc-100 md:text-6xl" value={project.title} />
+                <div className="mt-6 h-px w-40 bg-zinc-700" />
+                <EditableText as="p" className="mt-6 max-w-3xl text-sm leading-relaxed tracking-[0.06em] text-zinc-300 md:text-base" value={project.description || 'Cinematic project detail.'} />
+              </div>
+              <div className="space-y-4 text-right md:text-left">
+                <EditableText as="p" className="text-xs tracking-[0.22em] text-zinc-500" value="CATEGORY" />
+                <EditableText as="p" className="text-sm tracking-[0.14em] text-zinc-200" value={project.category} />
+              </div>
+            </div>
+
+            {deliveryPinRequired ? (
                     src={embedUrl}
                     autoPlay
                     muted
@@ -219,13 +244,13 @@ function ProjectDetail() {
 
             <div className="mt-8 grid gap-8 border-t border-zinc-800 pt-8 md:grid-cols-[1.2fr_0.8fr] md:items-start">
               <div>
-                <h1 className="font-serif text-4xl tracking-[0.08em] text-zinc-100 md:text-6xl">{project.title}</h1>
+                <EditableText as="h1" className="font-serif text-4xl tracking-[0.08em] text-zinc-100 md:text-6xl" value={project.title} />
                 <div className="mt-6 h-px w-40 bg-zinc-700" />
-                <p className="mt-6 max-w-3xl text-sm leading-relaxed tracking-[0.06em] text-zinc-300 md:text-base">{project.description || 'Cinematic project detail.'}</p>
+                <EditableText as="p" className="mt-6 max-w-3xl text-sm leading-relaxed tracking-[0.06em] text-zinc-300 md:text-base" value={project.description || 'Cinematic project detail.'} />
               </div>
               <div className="space-y-4 text-right md:text-left">
-                <p className="text-xs tracking-[0.22em] text-zinc-500">CATEGORY</p>
-                <p className="text-sm tracking-[0.14em] text-zinc-200">{project.category}</p>
+                <EditableText as="p" className="text-xs tracking-[0.22em] text-zinc-500" value="CATEGORY" />
+                <EditableText as="p" className="text-sm tracking-[0.14em] text-zinc-200" value={project.category} />
               </div>
             </div>
 

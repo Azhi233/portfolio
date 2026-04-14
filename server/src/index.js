@@ -2,16 +2,28 @@ import crypto from 'node:crypto';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import OpenApi from '@alicloud/openapi-client';
 import Sts20150401 from '@alicloud/sts20150401';
-import {
+import db, {
+  appendReviewAuditLog,
   deleteProjectById,
   findProjectById,
   insertProject,
   readConfigObject,
+  readDeliveryUnlocks,
+  readMediaAssets,
+  readProjectUnlocks,
   readProjects,
+  readReviewAuditLogs,
+  readReviews,
   updateProject,
   upsertConfigObject,
+  upsertDeliveryUnlock,
+  upsertMediaAsset,
+  upsertProjectUnlock,
+  upsertReview,
 } from './db.js';
 
 dotenv.config();
@@ -19,6 +31,8 @@ dotenv.config();
 const app = express();
 app.use(cors({ origin: true, credentials: false }));
 app.use(express.json());
+
+const JWT_SECRET = process.env.JWT_SECRET || 'portfolio-dev-secret';
 
 const {
   OSS_BUCKET,
@@ -71,6 +85,22 @@ function toBase64(input) {
 
 function signPolicy(policyBase64, accessKeySecret) {
   return crypto.createHmac('sha1', accessKeySecret).update(policyBase64).digest('base64');
+}
+
+function authMiddleware(req, res, next) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+
+  if (!token) {
+    return res.status(401).json({ ok: false, message: 'Unauthorized' });
+  }
+
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+    return next();
+  } catch {
+    return res.status(403).json({ ok: false, message: 'Forbidden' });
+  }
 }
 
 async function createStsClient() {
@@ -137,7 +167,83 @@ app.get('/api/config', (_req, res) => {
   res.json({ ok: true, data: config });
 });
 
-app.post('/api/config', (req, res) => {
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body || {};
+
+  if (!username || !password) {
+    return res.status(400).json({ ok: false, message: 'username and password are required.' });
+  }
+
+  const user = db.prepare('SELECT id, username, password_hash, role FROM users WHERE username = ? LIMIT 1').get(String(username).trim());
+  if (!user) {
+    return res.status(401).json({ ok: false, message: 'Invalid credentials.' });
+  }
+
+  const passwordMatches = bcrypt.compareSync(String(password), user.password_hash);
+  if (!passwordMatches) {
+    return res.status(401).json({ ok: false, message: 'Invalid credentials.' });
+  }
+
+  const token = jwt.sign(
+    { sub: user.id, username: user.username, role: user.role },
+    JWT_SECRET,
+    { expiresIn: '7d' },
+  );
+
+  return res.json({ ok: true, data: { token, user: { id: user.id, username: user.username, role: user.role } } });
+});
+
+app.get('/api/reviews', (_req, res) => {
+  res.json({ ok: true, data: readReviews() });
+});
+
+app.post('/api/reviews', (req, res) => {
+  const payload = req.body || {};
+  if (!payload.projectId || !payload.projectName || !payload.content) {
+    return res.status(400).json({ ok: false, message: 'projectId, projectName and content are required.' });
+  }
+
+  const created = upsertReview({
+    ...payload,
+    status: payload.status || 'pending',
+    createdAt: payload.createdAt || new Date().toISOString(),
+  });
+  return res.status(201).json({ ok: true, data: created });
+});
+
+app.get('/api/review-audit-logs', (_req, res) => {
+  res.json({ ok: true, data: readReviewAuditLogs() });
+});
+
+app.get('/api/project-unlocks', (_req, res) => {
+  res.json({ ok: true, data: readProjectUnlocks() });
+});
+
+app.post('/api/project-unlocks', (req, res) => {
+  const { projectId, unlocked } = req.body || {};
+  if (!projectId) {
+    return res.status(400).json({ ok: false, message: 'projectId is required.' });
+  }
+
+  upsertProjectUnlock(projectId, Boolean(unlocked));
+  return res.json({ ok: true, data: readProjectUnlocks() });
+});
+
+app.get('/api/delivery-unlocks', (_req, res) => {
+  res.json({ ok: true, data: readDeliveryUnlocks() });
+});
+
+app.post('/api/delivery-unlocks', (req, res) => {
+  const { projectId, unlocked } = req.body || {};
+  if (!projectId) {
+    return res.status(400).json({ ok: false, message: 'projectId is required.' });
+  }
+
+  upsertDeliveryUnlock(projectId, Boolean(unlocked));
+  return res.json({ ok: true, data: readDeliveryUnlocks() });
+});
+
+app.post('/api/config', authMiddleware, (req, res) => {
   const payload = req.body;
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     return res.status(400).json({ ok: false, message: 'Config payload must be a JSON object.' });
@@ -145,6 +251,21 @@ app.post('/api/config', (req, res) => {
 
   const data = upsertConfigObject(payload);
   return res.json({ ok: true, data });
+});
+
+app.get('/api/media-assets', (_req, res) => {
+  const data = readMediaAssets();
+  res.json({ ok: true, data });
+});
+
+app.post('/api/media-assets', (req, res) => {
+  const payload = req.body || {};
+  if (!payload.url || !payload.kind) {
+    return res.status(400).json({ ok: false, message: 'kind and url are required.' });
+  }
+
+  const created = upsertMediaAsset(payload);
+  return res.status(201).json({ ok: true, data: created });
 });
 
 app.get('/api/projects', (_req, res) => {

@@ -8,7 +8,6 @@ import Home from './pages/Home.jsx';
 const Photography = lazy(() => import('./pages/Photography.jsx'));
 const Videography = lazy(() => import('./pages/Videography.jsx'));
 const AboutContact = lazy(() => import('./pages/AboutContact.jsx'));
-const Services = lazy(() => import('./pages/Services.jsx'));
 const InteractiveLab = lazy(() => import('./pages/InteractiveLab/index.jsx'));
 const DirectorConsole = lazy(() => import('./pages/DirectorConsole/index.jsx'));
 const ClientAccess = lazy(() => import('./pages/ClientAccess/index.jsx'));
@@ -16,10 +15,78 @@ const ProjectDetail = lazy(() => import('./pages/ProjectDetail/index.jsx'));
 const HealthCheck = lazy(() => import('./pages/HealthCheck/index.jsx'));
 const ToyProjectPage = lazy(() => import('./pages/projects/ToyProjectPage.jsx'));
 const IndustryProjectPage = lazy(() => import('./pages/projects/B2BCaseStudyPage.jsx'));
-const Testimonials = lazy(() => import('./pages/Testimonials.jsx'));
 import { useConfig } from './context/ConfigContext.jsx';
 import { trackPageView } from './utils/analytics.js';
 import { logRuntimeEvent } from './utils/runtimeDiagnostics.js';
+
+function AdminPanel() {
+  const { isEditMode, isAdmin, setIsEditMode, saveConfigToServer, logout } = useConfig();
+
+  if (!isAdmin) return null;
+
+  return (
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/80 p-4 shadow-2xl backdrop-blur-xl">
+      <button
+        type="button"
+        onClick={() => setIsEditMode((prev) => !prev)}
+        className="rounded-lg border border-white/10 px-4 py-2 text-xs tracking-[0.2em] text-white transition hover:border-white/30"
+      >
+        {isEditMode ? '退出编辑模式' : '切换编辑模式'}
+      </button>
+      {isEditMode ? (
+        <button
+          type="button"
+          onClick={() => saveConfigToServer().catch((error) => console.error('Failed to save config:', error))}
+          className="rounded-lg bg-white px-4 py-2 text-xs tracking-[0.2em] text-black transition hover:opacity-90"
+        >
+          保存并发布
+        </button>
+      ) : null}
+      <button
+        type="button"
+        onClick={logout}
+        className="rounded-lg border border-white/10 px-4 py-2 text-xs tracking-[0.2em] text-zinc-300 transition hover:border-white/30 hover:text-white"
+      >
+        退出登录
+      </button>
+    </div>
+  );
+}
+
+function LoginModal() {
+  const { isAdmin, login } = useConfig();
+  const [open, setOpen] = useState(false);
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('admin123');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setOpen(!isAdmin);
+  }, [isAdmin]);
+
+  if (isAdmin && !open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-zinc-950 p-6 shadow-2xl">
+        <p className="text-xs tracking-[0.28em] text-zinc-500">ADMIN LOGIN</p>
+        <h2 className="mt-3 font-serif text-3xl text-white">进入编辑后台</h2>
+        <div className="mt-6 space-y-4">
+          <input className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="用户名" />
+          <input className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="密码" type="password" />
+          {error ? <p className="text-sm text-red-300">{error}</p> : null}
+          <button
+            type="button"
+            className="w-full rounded-xl bg-white px-4 py-3 text-sm tracking-[0.2em] text-black"
+            onClick={() => login(username, password).then(() => setOpen(false)).catch((e) => setError(e.message || '登录失败'))}
+          >
+            登录
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function App() {
   const { scrollY } = useScroll();
@@ -104,9 +171,7 @@ function App() {
       '/': { title: baseTitle, description: baseDescription },
       '/photography': { title: `Photography | ${baseTitle}`, description: 'Commercial and cinematic photography portfolio.' },
       '/videography': { title: `Videography | ${baseTitle}`, description: 'Narrative and commercial video direction showcase.' },
-      '/about': { title: `About & Contact | ${baseTitle}`, description: 'Background, collaborations and contact details.' },
-      '/services': { title: `Services | ${baseTitle}`, description: 'Service packages, scope, timeline and deliverables.' },
-      '/testimonials': { title: `Testimonials | ${baseTitle}`, description: 'Client voices and project feedback wall.' },
+      '/about': { title: `About & Contact | ${baseTitle}`, description: 'Business manifesto and direct engagement page.' },
       '/project/toy': { title: `Toy Project | ${baseTitle}`, description: 'Case study for toy industry visual production pipeline.' },
       '/project/industry': { title: `Industry Project | ${baseTitle}`, description: 'Case study for industrial B2B visual communication.' },
     };
@@ -153,6 +218,8 @@ function App() {
         />
       ) : null}
       {!isProjectDetail ? <NavBar viewMode={viewMode} setViewMode={setViewMode} /> : null}
+      <LoginModal />
+      <AdminPanel />
       <Suspense
         fallback={
           <div className="flex min-h-screen items-center justify-center bg-[#050507] text-xs tracking-[0.2em] text-zinc-500">
@@ -165,8 +232,6 @@ function App() {
           <Route path="/photography" element={<Photography />} />
           <Route path="/videography" element={<Videography />} />
           <Route path="/about" element={<AboutContact />} />
-          <Route path="/services" element={<Services />} />
-          <Route path="/testimonials" element={<Testimonials />} />
           <Route path="/lab/*" element={<InteractiveLab />} />
           <Route path="/console" element={<DirectorConsole />} />
           <Route path="/client-access" element={<ClientAccess />} />
