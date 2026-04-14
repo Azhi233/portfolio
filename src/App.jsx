@@ -15,7 +15,7 @@ const ClientAccess = lazy(() => import('./pages/ClientAccess/index.jsx'));
 const ProjectDetail = lazy(() => import('./pages/ProjectDetail/index.jsx'));
 const HealthCheck = lazy(() => import('./pages/HealthCheck/index.jsx'));
 const ToyProjectPage = lazy(() => import('./pages/projects/ToyProjectPage.jsx'));
-const IndustryProjectPage = lazy(() => import('./pages/projects/IndustryProjectPage.jsx'));
+const IndustryProjectPage = lazy(() => import('./pages/projects/B2BCaseStudyPage.jsx'));
 const Testimonials = lazy(() => import('./pages/Testimonials.jsx'));
 import { useConfig } from './context/ConfigContext.jsx';
 import { trackPageView } from './utils/analytics.js';
