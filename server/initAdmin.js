@@ -2,8 +2,8 @@ import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import db from './src/db.js';
 
-const DEFAULT_USERNAME = 'admin';
-const DEFAULT_PASSWORD = 'admin123';
+const DEFAULT_USERNAME = 'zhizhi';
+const DEFAULT_PASSWORD = 'zhizhi233';
 const DEFAULT_ROLE = 'admin';
 
 function seedAdminUser() {

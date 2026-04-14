@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext.jsx';
+import { useConfig } from '../context/ConfigContext.jsx';
+import EditableMedia from './EditableMedia.jsx';
+import EditableText from './EditableText.jsx';
 
 const NAV_ITEMS = [
   { key: 'home', to: '/' },
@@ -51,12 +54,13 @@ function ModeToggle({ viewMode, setViewMode, t }) {
   );
 }
 
-function NavBar({ viewMode = 'expertise', setViewMode = () => {} }) {
+function NavBar({ viewMode = 'expertise', setViewMode = () => {}, logoUrl = '', logoAlt = 'DIRECTOR.VISION', onLogoDoubleClick = () => {} }) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const navRef = useRef(null);
   const location = useLocation();
   const { locale, switchLocale, t } = useI18n();
+  const { isAdmin, isEditMode, config, updateConfig } = useConfig();
 
   const isHome = location.pathname === '/';
 
@@ -116,6 +120,39 @@ function NavBar({ viewMode = 'expertise', setViewMode = () => {} }) {
           {isHome ? <ModeToggle viewMode={viewMode} setViewMode={setViewMode} t={t} /> : null}
         </div>
 
+        <div className="absolute left-1/2 top-1/2 z-[125] -translate-x-1/2 -translate-y-1/2">
+          <button
+            type="button"
+            onDoubleClick={() => onLogoDoubleClick?.()}
+            onClick={() => {
+              if (isEditMode && isAdmin) return;
+              handleNav('/');
+            }}
+            className="group inline-flex min-h-10 min-w-[120px] items-center justify-center rounded-xl px-2 py-1"
+            aria-label="Home"
+          >
+            {String(logoUrl || '').trim() ? (
+              <span className="inline-flex items-center overflow-hidden">
+                <EditableMedia
+                  type="image"
+                  src={logoUrl}
+                  className="block h-7 w-auto max-w-[150px] object-contain md:h-8 md:max-w-[180px]"
+                  onChange={(next) => updateConfig('logoImageUrl', next)}
+                />
+              </span>
+            ) : (
+              <EditableText
+                as="span"
+                className="select-none whitespace-nowrap text-[11px] tracking-[0.28em] text-zinc-100 md:text-xs"
+                value={logoAlt || config.siteTitle || 'DIRECTOR.VISION'}
+                label="NAV · LOGO TEXT"
+                maxLength={40}
+                onChange={(next) => updateConfig('logoAltText', next)}
+              />
+            )}
+          </button>
+        </div>
+
         <div className="hidden items-center gap-3 md:flex">
           <button
             type="button"
@@ -124,7 +161,6 @@ function NavBar({ viewMode = 'expertise', setViewMode = () => {} }) {
           >
             {locale === 'zh' ? 'EN' : '中文'}
           </button>
-
           <ul className="flex items-center gap-4 md:gap-7">
             {NAV_ITEMS.map((item) => {
               const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);

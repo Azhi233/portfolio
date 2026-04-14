@@ -12,9 +12,11 @@
     "@alicloud/openapi-client": "^0.4.8",
     "@alicloud/sts20150401": "^1.2.0",
     "@alicloud/tea-util": "^1.4.10",
+    "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.9.0",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3"
   }
 }

@@ -116,9 +116,21 @@ const DEFAULT_CONFIG = {
   siteTitle: 'DIRECTOR.VISION',
   siteDescription: 'Cinematic portfolio showcasing toys, industrial, and experimental visual storytelling.',
   ogImage: '',
+  logoImageUrl: '',
+  logoAltText: 'DIRECTOR.VISION',
   contactEmail: '',
   contactPhone: '',
   contactLocation: '',
+  loginEntryLabel: 'ADMIN',
+  loginModalTitle: '进入编辑后台',
+  loginRegisterLabel: '没有账号？去注册',
+  loginBackLabel: '返回登录',
+  loginButtonText: '登录',
+  registerButtonText: '注册并登录',
+  loginCloseLabel: '关闭',
+  loginUsernamePlaceholder: '用户名',
+  loginPasswordPlaceholder: '密码',
+  loginConfirmPasswordPlaceholder: '确认密码',
   resumeAwardsText: '',
   resumeExperienceText: '',
   resumeGearText: '',
@@ -129,6 +141,14 @@ const DEFAULT_CONFIG = {
   servicesText:
     '商业视觉项目统筹|前期策略,拍摄执行,后期交付|2-6周|品牌新品发布/Campaign\n制造业内容营销体系|工艺可视化脚本,展会素材包,销售内容包|4-8周|ToB制造业企业\n长期内容资产服务|月度选题,拍摄排期,素材库维护|按月合作|需要持续内容输出的团队',
   caseStudies: DEFAULT_CASE_STUDIES,
+  homeSelectedWorksTitle: 'SELECTED WORKS',
+  homeSelectedWorksSubtitle: 'EXPERTISE VIEW · TECHNICAL EXECUTION',
+  homeProfileImageUrl: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80',
+  homeAboutKicker: 'ABOUT THE DIRECTOR',
+  homeAboutHeadline: 'Silence, Frame, Emotion.',
+  homeAwardsLabel: 'AWARDS',
+  homeExperienceLabel: 'EXPERIENCE',
+  homeGearLabel: 'GEAR LIST',
 };
 
 const DEFAULT_ASSETS = [
@@ -241,6 +261,8 @@ function normalizeProject(project) {
     ? project.outlineTags.map((tag) => String(tag || '').trim()).filter(Boolean)
     : [];
 
+  const normalizedVideoUrl = String(project?.mainVideoUrl || project?.videoUrl || '');
+
   return {
     id: String(project?.id || ''),
     title: String(project?.title || 'Untitled Project'),
@@ -249,8 +271,9 @@ function normalizeProject(project) {
     releaseDate: String(project?.releaseDate || ''),
     coverUrl: String(project?.coverUrl || ''),
     thumbnailUrl: String(project?.thumbnailUrl || project?.coverUrl || ''),
-    videoUrl: String(project?.videoUrl || project?.mainVideoUrl || ''),
-    mainVideoUrl: String(project?.mainVideoUrl || project?.videoUrl || ''),
+    logoImageUrl: String(project?.logoImageUrl || ''),
+    videoUrl: normalizedVideoUrl,
+    mainVideoUrl: normalizedVideoUrl,
     btsMedia: Array.isArray(project?.btsMedia) ? project.btsMedia.map((item) => String(item || '')) : [],
     clientAgency: String(project?.clientAgency || ''),
     clientCode: String(project?.clientCode || ''),
@@ -258,6 +281,24 @@ function normalizeProject(project) {
     sortOrder: normalizeSortOrder(project?.sortOrder),
     description: String(project?.description || ''),
     credits: String(project?.credits || ''),
+    privateTitle: String(project?.privateTitle || ''),
+    privateDescription: String(project?.privateDescription || ''),
+    privateAccessLabel: String(project?.privateAccessLabel || ''),
+    privateAccessHint: String(project?.privateAccessHint || ''),
+    privateAccessButtonText: String(project?.privateAccessButtonText || ''),
+    privateErrorText: String(project?.privateErrorText || ''),
+    deliveryTitle: String(project?.deliveryTitle || ''),
+    deliverySuccessText: String(project?.deliverySuccessText || ''),
+    deliveryPinPlaceholder: String(project?.deliveryPinPlaceholder || ''),
+    deliveryErrorText: String(project?.deliveryErrorText || ''),
+    deliveryButtonText: String(project?.deliveryButtonText || ''),
+    downloadTitle: String(project?.downloadTitle || ''),
+    downloadAllButtonText: String(project?.downloadAllButtonText || ''),
+    downloadSelectedButtonText: String(project?.downloadSelectedButtonText || ''),
+    galleryTitle: String(project?.galleryTitle || ''),
+    galleryActionBarText: String(project?.galleryActionBarText || ''),
+    gallerySelectionText: String(project?.gallerySelectionText || ''),
+    buttonText: String(project?.buttonText || ''),
     isVisible: visibility !== 'Draft',
     publishStatus: normalizedPublishStatus,
     visibility,
@@ -454,10 +495,6 @@ function readStoredProjectUnlocks() {
   return {};
 }
 
-function readStoredDeliveryUnlocks() {
-  return {};
-}
-
 async function fetchJson(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
     headers: {
@@ -613,6 +650,15 @@ export function ConfigProvider({ children }) {
     window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
     setIsAdmin(true);
     setIsEditMode(false);
+    return data;
+  };
+
+  const register = async (username, password) => {
+    const data = await fetchJson('/register', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    });
+
     return data;
   };
 
@@ -846,12 +892,27 @@ export function ConfigProvider({ children }) {
     });
   };
 
+  const saveAssetsToServer = (nextAssets) => {
+    persistConfigSnapshot({ nextAssets }).catch((error) => {
+      console.error('Failed to persist assets:', error);
+    });
+  };
+
   const addAsset = (assetInput) => {
     setAssets((prev) => {
       const nextAssets = [...prev, normalizeAsset({ ...assetInput, id: createAssetId() })];
-      persistConfigSnapshot({ nextAssets }).catch((error) => {
-        console.error('Failed to persist assets after add:', error);
-      });
+      saveAssetsToServer(nextAssets);
+      return nextAssets;
+    });
+  };
+
+  const addAssets = (assetInputs) => {
+    setAssets((prev) => {
+      const createdAssets = Array.isArray(assetInputs)
+        ? assetInputs.map((assetInput) => normalizeAsset({ ...assetInput, id: createAssetId() }))
+        : [];
+      const nextAssets = [...prev, ...createdAssets];
+      saveAssetsToServer(nextAssets);
       return nextAssets;
     });
   };
@@ -1050,6 +1111,7 @@ export function ConfigProvider({ children }) {
       updateConfig,
       saveConfigToServer,
       login,
+      register,
       logout,
       isAdmin,
       isEditMode,
@@ -1070,6 +1132,7 @@ export function ConfigProvider({ children }) {
       updateProject,
       deleteProject,
       addAsset,
+      addAssets,
       updateAsset,
       deleteAsset,
       updateProjectModule,

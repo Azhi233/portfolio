@@ -9,7 +9,7 @@ import { useConfig } from '../context/ConfigContext.jsx';
 const STAGE_DURATION_MS = 2000;
 
 function Home({ viewMode = 'expertise' }) {
-  const { assets, config } = useConfig();
+  const { assets, config, updateConfig } = useConfig();
   const [expertiseCategoryFilter, setExpertiseCategoryFilter] = useState('all');
 
   const [showIntro, setShowIntro] = useState(() => {
@@ -118,8 +118,22 @@ function Home({ viewMode = 'expertise' }) {
         ) : (
           <section className="mx-auto min-h-[58vh] w-full max-w-7xl px-6 pb-10 pt-8 md:px-12 md:pt-10">
             <div className="mb-6">
-              <EditableText as="p" className="font-serif text-2xl tracking-[0.16em] text-zinc-100 md:text-3xl" value="SELECTED WORKS" />
-              <EditableText as="p" className="mt-2 text-sm tracking-[0.14em] text-zinc-500" value="EXPERTISE VIEW · TECHNICAL EXECUTION" />
+              <EditableText
+                as="p"
+                className="font-serif text-2xl tracking-[0.16em] text-zinc-100 md:text-3xl"
+                value={config.homeSelectedWorksTitle || 'SELECTED WORKS'}
+                label="HOME · SELECTED WORKS TITLE"
+                maxLength={80}
+                onChange={(next) => updateConfig('homeSelectedWorksTitle', next)}
+              />
+              <EditableText
+                as="p"
+                className="mt-2 text-sm tracking-[0.14em] text-zinc-500"
+                value={config.homeSelectedWorksSubtitle || 'EXPERTISE VIEW · TECHNICAL EXECUTION'}
+                label="HOME · SELECTED WORKS SUBTITLE"
+                maxLength={120}
+                onChange={(next) => updateConfig('homeSelectedWorksSubtitle', next)}
+              />
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {[
                   { id: 'all', label: 'ALL' },
@@ -155,19 +169,42 @@ function Home({ viewMode = 'expertise' }) {
             <div className="flex items-start">
               <EditableMedia
                 type="image"
-                src="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80"
+                src={config.homeProfileImageUrl || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80'}
                 className="h-40 w-40 rounded-full object-cover"
-                onChange={() => {}}
+                onChange={(value) => {
+                  updateConfig('homeProfileImageUrl', value);
+                }}
               />
             </div>
 
             <div>
-              <EditableText as="p" className="text-xs tracking-[0.22em] text-zinc-500" value="ABOUT THE DIRECTOR" />
-              <EditableText as="h2" className="mt-3 font-serif text-3xl tracking-[0.1em] text-zinc-100 md:text-5xl" value="Silence, Frame, Emotion." />
+              <EditableText
+                as="p"
+                className="text-xs tracking-[0.22em] text-zinc-500"
+                value={config.homeAboutKicker || 'ABOUT THE DIRECTOR'}
+                label="HOME · ABOUT KICKER"
+                maxLength={80}
+                onChange={(next) => updateConfig('homeAboutKicker', next)}
+              />
+              <EditableText
+                as="h2"
+                className="mt-3 font-serif text-3xl tracking-[0.1em] text-zinc-100 md:text-5xl"
+                value={config.homeAboutHeadline || 'Silence, Frame, Emotion.'}
+                label="HOME · ABOUT HEADLINE"
+                maxLength={120}
+                onChange={(next) => updateConfig('homeAboutHeadline', next)}
+              />
 
               <div className="mt-8 grid gap-5 md:grid-cols-3">
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <EditableText as="p" className="text-xs tracking-[0.2em] text-zinc-500" value="AWARDS" />
+                  <EditableText
+                    as="p"
+                    className="text-xs tracking-[0.2em] text-zinc-500"
+                    value={config.homeAwardsLabel || 'AWARDS'}
+                    label="HOME · AWARDS LABEL"
+                    maxLength={40}
+                    onChange={(next) => updateConfig('homeAwardsLabel', next)}
+                  />
                   {awards.length > 0 ? (
                     <ul className="mt-3 space-y-2 text-xs leading-relaxed text-zinc-300">
                       {awards.map((item) => (
@@ -180,7 +217,14 @@ function Home({ viewMode = 'expertise' }) {
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <EditableText as="p" className="text-xs tracking-[0.2em] text-zinc-500" value="EXPERIENCE" />
+                  <EditableText
+                    as="p"
+                    className="text-xs tracking-[0.2em] text-zinc-500"
+                    value={config.homeExperienceLabel || 'EXPERIENCE'}
+                    label="HOME · EXPERIENCE LABEL"
+                    maxLength={40}
+                    onChange={(next) => updateConfig('homeExperienceLabel', next)}
+                  />
                   {experiences.length > 0 ? (
                     <ul className="mt-3 space-y-2 text-xs leading-relaxed text-zinc-300">
                       {experiences.map((item) => (
@@ -193,7 +237,14 @@ function Home({ viewMode = 'expertise' }) {
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <EditableText as="p" className="text-xs tracking-[0.2em] text-zinc-500" value="GEAR LIST" />
+                  <EditableText
+                    as="p"
+                    className="text-xs tracking-[0.2em] text-zinc-500"
+                    value={config.homeGearLabel || 'GEAR LIST'}
+                    label="HOME · GEAR LABEL"
+                    maxLength={40}
+                    onChange={(next) => updateConfig('homeGearLabel', next)}
+                  />
                   {gearList.length > 0 ? (
                     <ul className="mt-3 space-y-2 text-xs leading-relaxed text-zinc-300">
                       {gearList.map((item) => (

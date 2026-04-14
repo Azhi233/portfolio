@@ -1,5 +1,6 @@
 import { Check, ScanLine } from 'lucide-react';
 import { useMemo } from 'react';
+import EditableMedia from './EditableMedia.jsx';
 
 const VARIANT_ORDER = ['raw', 'graded', 'styled'];
 
@@ -35,18 +36,28 @@ function ImageCompareCard({
   };
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={handleClick}
-      className={`group relative block overflow-hidden rounded-2xl border bg-black/35 text-left ${
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') handleClick();
+      }}
+      className={`group relative block overflow-hidden rounded-2xl border bg-black/35 text-left outline-none ${
         isSelected ? 'border-emerald-300/80 ring-2 ring-emerald-400/40' : 'border-white/10'
       } ${className}`}
     >
       {coverSrc ? (
-        <img
+        <EditableMedia
+          type="image"
           src={coverSrc}
-          alt={asset?.title || 'image'}
           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+          onChange={(nextUrl) => {
+            if (asset?.id && typeof window !== 'undefined') {
+              window.localStorage.setItem(`asset.url.override.${asset.id}`, nextUrl);
+            }
+            onToggleSelect?.({ ...(asset || {}), url: nextUrl });
+          }}
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-xs tracking-[0.12em] text-zinc-500">NO IMAGE SOURCE</div>
@@ -73,7 +84,7 @@ function ImageCompareCard({
           </div>
         </>
       ) : null}
-    </button>
+    </div>
   );
 }
 

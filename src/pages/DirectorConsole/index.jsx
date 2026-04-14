@@ -27,6 +27,7 @@ const EMPTY_FORM = {
   releaseDate: '',
   coverUrl: '',
   videoUrl: '',
+  mainVideoUrl: '',
   btsMediaText: '',
   clientAgency: '',
   clientCode: '',
@@ -94,6 +95,11 @@ const EMPTY_BULK_ASSET_FORM = {
   projectDescription: '',
 };
 
+const EMPTY_BULK_VIDEO_FORM = {
+  urlsText: '',
+  projectId: '',
+};
+
 const EMPTY_PRIVATE_FILE_FORM = {
   projectId: '',
   name: '',
@@ -101,6 +107,11 @@ const EMPTY_PRIVATE_FILE_FORM = {
   actionType: 'download',
   note: '',
   enabled: true,
+};
+
+const EMPTY_BULK_PROJECT_VIDEO_FORM = {
+  projectId: '',
+  urlsText: '',
 };
 
 const FORM_INPUT_CLASS =
@@ -652,6 +663,7 @@ function DirectorConsole() {
     updateProject,
     deleteProject,
     addAsset,
+    addAssets,
     updateAsset,
     deleteAsset,
     updateProjectModule,
@@ -711,8 +723,45 @@ function DirectorConsole() {
     siteTitle: config.siteTitle || 'DIRECTOR.VISION',
     siteDescription: config.siteDescription || '',
     ogImage: config.ogImage || '',
+    logoImageUrl: config.logoImageUrl || '',
+    logoAltText: config.logoAltText || '',
     qrCodeImageUrl: config.qrCodeImageUrl || '',
     contactEmail: config.contactEmail || '',
+    projectPrivateTitle: config.projectPrivateTitle || 'PRIVATE PROJECT',
+    projectPrivateDescription: config.projectPrivateDescription || '该项目为私密访问，请输入密码后查看。',
+    projectPrivateEmptyText: config.projectPrivateEmptyText || '暂无私密说明。',
+    projectPrivatePasswordPlaceholder: config.projectPrivatePasswordPlaceholder || '请输入项目访问密码',
+    projectPrivateUnlockButtonText: config.projectPrivateUnlockButtonText || 'UNSEAL PROJECT',
+    projectPrivateErrorText: config.projectPrivateErrorText || '密码错误，请重试。',
+    projectDownloadTitle: config.projectDownloadTitle || 'PRIVATE DELIVERY FILES',
+    projectDownloadEmptyText: config.projectDownloadEmptyText || '暂无可下载文件。',
+    projectDownloadAllButtonText: config.projectDownloadAllButtonText || '一键下载全部',
+    projectDownloadSelectedButtonText: config.projectDownloadSelectedButtonText || '打包下载已选 (ZIP)',
+    projectGalleryTitle: config.projectGalleryTitle || 'ALBUM',
+    projectGalleryEmptyText: config.projectGalleryEmptyText || '暂无画廊内容。',
+    projectGalleryActionBarText: config.projectGalleryActionBarText || 'ALBUM ACTION BAR',
+    projectGallerySelectionText: config.projectGallerySelectionText || '已选择 X 张',
+    projectButtonText: config.projectButtonText || 'BUTTON TEXT',
+    privateTitle: config.privateTitle || '',
+    privateDescription: config.privateDescription || '',
+    privateAccessLabel: config.privateAccessLabel || '',
+    privateAccessHint: config.privateAccessHint || '',
+    privateAccessButtonText: config.privateAccessButtonText || '',
+    privateErrorText: config.privateErrorText || '',
+    deliveryTitle: config.deliveryTitle || '',
+    deliverySuccessText: config.deliverySuccessText || '',
+    deliveryPinPlaceholder: config.deliveryPinPlaceholder || '',
+    deliveryErrorText: config.deliveryErrorText || '',
+    deliveryButtonText: config.deliveryButtonText || '',
+    downloadTitle: config.downloadTitle || '',
+    downloadAllButtonText: config.downloadAllButtonText || '',
+    downloadSelectedButtonText: config.downloadSelectedButtonText || '',
+    galleryTitle: config.galleryTitle || '',
+    galleryActionBarText: config.galleryActionBarText || '',
+    gallerySelectionText: config.gallerySelectionText || '',
+    buttonText: config.buttonText || '',
+    contactPhone: config.contactPhone || '',
+    contactLocation: config.contactLocation || '',
     contactPhone: config.contactPhone || '',
     contactLocation: config.contactLocation || '',
     resumeAwardsText: config.resumeAwardsText || '',
@@ -786,6 +835,8 @@ function DirectorConsole() {
   const [privateFileForm, setPrivateFileForm] = useState(EMPTY_PRIVATE_FILE_FORM);
   const [editingPrivateFileId, setEditingPrivateFileId] = useState(null);
   const [privateFileError, setPrivateFileError] = useState('');
+  const [bulkProjectVideoForm, setBulkProjectVideoForm] = useState(EMPTY_BULK_PROJECT_VIDEO_FORM);
+  const [bulkProjectVideoError, setBulkProjectVideoError] = useState('');
   const [preflightResult, setPreflightResult] = useState(() => runProjectPreflight(projects));
   const [migrationMessage, setMigrationMessage] = useState('');
   const [isMigratingLocalData, setIsMigratingLocalData] = useState(false);
@@ -914,8 +965,43 @@ function DirectorConsole() {
     String(siteConfigDraft.siteTitle || '') !== String(config.siteTitle || '') ||
     String(siteConfigDraft.siteDescription || '') !== String(config.siteDescription || '') ||
     String(siteConfigDraft.ogImage || '') !== String(config.ogImage || '') ||
+    String(siteConfigDraft.logoImageUrl || '') !== String(config.logoImageUrl || '') ||
+    String(siteConfigDraft.logoAltText || '') !== String(config.logoAltText || '') ||
     String(siteConfigDraft.qrCodeImageUrl || '') !== String(config.qrCodeImageUrl || '') ||
     String(siteConfigDraft.contactEmail || '') !== String(config.contactEmail || '') ||
+    String(siteConfigDraft.projectPrivateTitle || '') !== String(config.projectPrivateTitle || '') ||
+    String(siteConfigDraft.projectPrivateDescription || '') !== String(config.projectPrivateDescription || '') ||
+    String(siteConfigDraft.projectPrivateEmptyText || '') !== String(config.projectPrivateEmptyText || '') ||
+    String(siteConfigDraft.projectPrivatePasswordPlaceholder || '') !== String(config.projectPrivatePasswordPlaceholder || '') ||
+    String(siteConfigDraft.projectPrivateUnlockButtonText || '') !== String(config.projectPrivateUnlockButtonText || '') ||
+    String(siteConfigDraft.projectPrivateErrorText || '') !== String(config.projectPrivateErrorText || '') ||
+    String(siteConfigDraft.projectDownloadTitle || '') !== String(config.projectDownloadTitle || '') ||
+    String(siteConfigDraft.projectDownloadEmptyText || '') !== String(config.projectDownloadEmptyText || '') ||
+    String(siteConfigDraft.projectDownloadAllButtonText || '') !== String(config.projectDownloadAllButtonText || '') ||
+    String(siteConfigDraft.projectDownloadSelectedButtonText || '') !== String(config.projectDownloadSelectedButtonText || '') ||
+    String(siteConfigDraft.projectGalleryTitle || '') !== String(config.projectGalleryTitle || '') ||
+    String(siteConfigDraft.projectGalleryEmptyText || '') !== String(config.projectGalleryEmptyText || '') ||
+    String(siteConfigDraft.projectGalleryActionBarText || '') !== String(config.projectGalleryActionBarText || '') ||
+    String(siteConfigDraft.projectGallerySelectionText || '') !== String(config.projectGallerySelectionText || '') ||
+    String(siteConfigDraft.projectButtonText || '') !== String(config.projectButtonText || '') ||
+    String(siteConfigDraft.privateTitle || '') !== String(config.privateTitle || '') ||
+    String(siteConfigDraft.privateDescription || '') !== String(config.privateDescription || '') ||
+    String(siteConfigDraft.privateAccessLabel || '') !== String(config.privateAccessLabel || '') ||
+    String(siteConfigDraft.privateAccessHint || '') !== String(config.privateAccessHint || '') ||
+    String(siteConfigDraft.privateAccessButtonText || '') !== String(config.privateAccessButtonText || '') ||
+    String(siteConfigDraft.privateErrorText || '') !== String(config.privateErrorText || '') ||
+    String(siteConfigDraft.deliveryTitle || '') !== String(config.deliveryTitle || '') ||
+    String(siteConfigDraft.deliverySuccessText || '') !== String(config.deliverySuccessText || '') ||
+    String(siteConfigDraft.deliveryPinPlaceholder || '') !== String(config.deliveryPinPlaceholder || '') ||
+    String(siteConfigDraft.deliveryErrorText || '') !== String(config.deliveryErrorText || '') ||
+    String(siteConfigDraft.deliveryButtonText || '') !== String(config.deliveryButtonText || '') ||
+    String(siteConfigDraft.downloadTitle || '') !== String(config.downloadTitle || '') ||
+    String(siteConfigDraft.downloadAllButtonText || '') !== String(config.downloadAllButtonText || '') ||
+    String(siteConfigDraft.downloadSelectedButtonText || '') !== String(config.downloadSelectedButtonText || '') ||
+    String(siteConfigDraft.galleryTitle || '') !== String(config.galleryTitle || '') ||
+    String(siteConfigDraft.galleryActionBarText || '') !== String(config.galleryActionBarText || '') ||
+    String(siteConfigDraft.gallerySelectionText || '') !== String(config.gallerySelectionText || '') ||
+    String(siteConfigDraft.buttonText || '') !== String(config.buttonText || '') ||
     String(siteConfigDraft.contactPhone || '') !== String(config.contactPhone || '') ||
     String(siteConfigDraft.contactLocation || '') !== String(config.contactLocation || '') ||
     String(siteConfigDraft.resumeAwardsText || '') !== String(config.resumeAwardsText || '') ||
@@ -965,7 +1051,42 @@ function DirectorConsole() {
       siteTitle: config.siteTitle || 'DIRECTOR.VISION',
       siteDescription: config.siteDescription || '',
       ogImage: config.ogImage || '',
+      logoImageUrl: config.logoImageUrl || '',
+      logoAltText: config.logoAltText || '',
       contactEmail: config.contactEmail || '',
+      projectPrivateTitle: config.projectPrivateTitle || 'PRIVATE PROJECT',
+      projectPrivateDescription: config.projectPrivateDescription || '该项目为私密访问，请输入密码后查看。',
+      projectPrivateEmptyText: config.projectPrivateEmptyText || '暂无私密说明。',
+      projectPrivatePasswordPlaceholder: config.projectPrivatePasswordPlaceholder || '请输入项目访问密码',
+      projectPrivateUnlockButtonText: config.projectPrivateUnlockButtonText || 'UNSEAL PROJECT',
+      projectPrivateErrorText: config.projectPrivateErrorText || '密码错误，请重试。',
+      projectDownloadTitle: config.projectDownloadTitle || 'PRIVATE DELIVERY FILES',
+      projectDownloadEmptyText: config.projectDownloadEmptyText || '暂无可下载文件。',
+      projectDownloadAllButtonText: config.projectDownloadAllButtonText || '一键下载全部',
+      projectDownloadSelectedButtonText: config.projectDownloadSelectedButtonText || '打包下载已选 (ZIP)',
+      projectGalleryTitle: config.projectGalleryTitle || 'ALBUM',
+      projectGalleryEmptyText: config.projectGalleryEmptyText || '暂无画廊内容。',
+      projectGalleryActionBarText: config.projectGalleryActionBarText || 'ALBUM ACTION BAR',
+      projectGallerySelectionText: config.projectGallerySelectionText || '已选择 X 张',
+      projectButtonText: config.projectButtonText || 'BUTTON TEXT',
+      privateTitle: config.privateTitle || '',
+      privateDescription: config.privateDescription || '',
+      privateAccessLabel: config.privateAccessLabel || '',
+      privateAccessHint: config.privateAccessHint || '',
+      privateAccessButtonText: config.privateAccessButtonText || '',
+      privateErrorText: config.privateErrorText || '',
+      deliveryTitle: config.deliveryTitle || '',
+      deliverySuccessText: config.deliverySuccessText || '',
+      deliveryPinPlaceholder: config.deliveryPinPlaceholder || '',
+      deliveryErrorText: config.deliveryErrorText || '',
+      deliveryButtonText: config.deliveryButtonText || '',
+      downloadTitle: config.downloadTitle || '',
+      downloadAllButtonText: config.downloadAllButtonText || '',
+      downloadSelectedButtonText: config.downloadSelectedButtonText || '',
+      galleryTitle: config.galleryTitle || '',
+      galleryActionBarText: config.galleryActionBarText || '',
+      gallerySelectionText: config.gallerySelectionText || '',
+      buttonText: config.buttonText || '',
       contactPhone: config.contactPhone || '',
       contactLocation: config.contactLocation || '',
       resumeAwardsText: config.resumeAwardsText || '',
@@ -1334,6 +1455,7 @@ function DirectorConsole() {
       releaseDate: project.releaseDate || '',
       coverUrl: project.coverUrl,
       videoUrl: project.videoUrl,
+      mainVideoUrl: project.mainVideoUrl || project.videoUrl,
       btsMediaText: Array.isArray(project.btsMedia) ? project.btsMedia.join('\n') : '',
       clientAgency: project.clientAgency || '',
       clientCode: project.clientCode || '',
@@ -1456,6 +1578,8 @@ function DirectorConsole() {
 
     const payload = {
       ...formState,
+      videoUrl: String(formState.videoUrl || formState.mainVideoUrl || '').trim(),
+      mainVideoUrl: String(formState.mainVideoUrl || formState.videoUrl || '').trim(),
       publishStatus: nextVisibility,
       btsMedia: formState.btsMediaText
         .split('\n')
@@ -1562,7 +1686,19 @@ function DirectorConsole() {
         },
       });
 
-      setFormState((prev) => ({ ...prev, videoUrl: result.url }));
+      setFormState((prev) => ({
+        ...prev,
+        videoUrl: result.url,
+        mainVideoUrl: result.url,
+      }));
+
+      if (editingProjectId) {
+        updateProject(editingProjectId, {
+          videoUrl: result.url,
+          mainVideoUrl: result.url,
+        });
+      }
+
       setUploadState((prev) => ({
         ...prev,
         video: { status: 'success', progress: 100 },
@@ -1572,6 +1708,83 @@ function DirectorConsole() {
       setUploadState((prev) => ({
         ...prev,
         video: { status: 'error', progress: 0 },
+      }));
+    }
+  };
+
+  const saveBulkProjectVideos = () => {
+    const projectId = String(bulkProjectVideoForm.projectId || '').trim();
+    const urls = String(bulkProjectVideoForm.urlsText || '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (!projectId) {
+      setBulkProjectVideoError('请先选择目标项目。');
+      return;
+    }
+
+    if (urls.length === 0) {
+      setBulkProjectVideoError('请先粘贴至少一条视频 URL。');
+      return;
+    }
+
+    const validUrls = urls.filter((url) => /^https?:\/\//i.test(url));
+    if (validUrls.length === 0) {
+      setBulkProjectVideoError('视频 URL 必须以 http(s) 开头。');
+      return;
+    }
+
+    const uniqueUrls = [...new Set(validUrls)];
+    updateProject(projectId, {
+      videoUrl: uniqueUrls[0],
+      mainVideoUrl: uniqueUrls[0],
+      btsMedia: uniqueUrls,
+    });
+
+    setBulkProjectVideoError('');
+    setBulkProjectVideoForm(EMPTY_BULK_PROJECT_VIDEO_FORM);
+  };
+
+  const syncVideoUrlToProject = (projectId, nextUrl) => {
+    if (!projectId) return;
+    updateProject(projectId, {
+      videoUrl: nextUrl,
+      mainVideoUrl: nextUrl,
+    });
+  };
+
+  const handleUploadLogo = async (file) => {
+    setUploadState((prev) => ({
+      ...prev,
+      logo: { status: 'uploading', progress: 0 },
+    }));
+
+    try {
+      const result = await uploadFileToOSS({
+        file,
+        dir: 'images/logo',
+        onProgress: (progress) => {
+          setUploadState((prev) => ({
+            ...prev,
+            logo: { status: 'uploading', progress },
+          }));
+        },
+      });
+
+      setSiteConfigDraft((prev) => ({ ...prev, logoImageUrl: result.url }));
+      await saveConfigToServer({
+        logoImageUrl: result.url,
+      });
+      setUploadState((prev) => ({
+        ...prev,
+        logo: { status: 'success', progress: 100 },
+      }));
+    } catch (error) {
+      console.error(error);
+      setUploadState((prev) => ({
+        ...prev,
+        logo: { status: 'error', progress: 0 },
       }));
     }
   };
@@ -1746,8 +1959,43 @@ function DirectorConsole() {
     updateConfig('siteTitle', String(siteConfigDraft.siteTitle || '').trim());
     updateConfig('siteDescription', String(siteConfigDraft.siteDescription || '').trim());
     updateConfig('ogImage', String(siteConfigDraft.ogImage || '').trim());
+    updateConfig('logoImageUrl', String(siteConfigDraft.logoImageUrl || '').trim());
+    updateConfig('logoAltText', String(siteConfigDraft.logoAltText || '').trim());
     updateConfig('qrCodeImageUrl', String(siteConfigDraft.qrCodeImageUrl || '').trim());
     updateConfig('contactEmail', String(siteConfigDraft.contactEmail || '').trim());
+    updateConfig('projectPrivateTitle', String(siteConfigDraft.projectPrivateTitle || '').trim());
+    updateConfig('projectPrivateDescription', String(siteConfigDraft.projectPrivateDescription || '').trim());
+    updateConfig('projectPrivateEmptyText', String(siteConfigDraft.projectPrivateEmptyText || '').trim());
+    updateConfig('projectPrivatePasswordPlaceholder', String(siteConfigDraft.projectPrivatePasswordPlaceholder || '').trim());
+    updateConfig('projectPrivateUnlockButtonText', String(siteConfigDraft.projectPrivateUnlockButtonText || '').trim());
+    updateConfig('projectPrivateErrorText', String(siteConfigDraft.projectPrivateErrorText || '').trim());
+    updateConfig('projectDownloadTitle', String(siteConfigDraft.projectDownloadTitle || '').trim());
+    updateConfig('projectDownloadEmptyText', String(siteConfigDraft.projectDownloadEmptyText || '').trim());
+    updateConfig('projectDownloadAllButtonText', String(siteConfigDraft.projectDownloadAllButtonText || '').trim());
+    updateConfig('projectDownloadSelectedButtonText', String(siteConfigDraft.projectDownloadSelectedButtonText || '').trim());
+    updateConfig('projectGalleryTitle', String(siteConfigDraft.projectGalleryTitle || '').trim());
+    updateConfig('projectGalleryEmptyText', String(siteConfigDraft.projectGalleryEmptyText || '').trim());
+    updateConfig('projectGalleryActionBarText', String(siteConfigDraft.projectGalleryActionBarText || '').trim());
+    updateConfig('projectGallerySelectionText', String(siteConfigDraft.projectGallerySelectionText || '').trim());
+    updateConfig('projectButtonText', String(siteConfigDraft.projectButtonText || '').trim());
+    updateConfig('privateTitle', String(siteConfigDraft.privateTitle || '').trim());
+    updateConfig('privateDescription', String(siteConfigDraft.privateDescription || '').trim());
+    updateConfig('privateAccessLabel', String(siteConfigDraft.privateAccessLabel || '').trim());
+    updateConfig('privateAccessHint', String(siteConfigDraft.privateAccessHint || '').trim());
+    updateConfig('privateAccessButtonText', String(siteConfigDraft.privateAccessButtonText || '').trim());
+    updateConfig('privateErrorText', String(siteConfigDraft.privateErrorText || '').trim());
+    updateConfig('deliveryTitle', String(siteConfigDraft.deliveryTitle || '').trim());
+    updateConfig('deliverySuccessText', String(siteConfigDraft.deliverySuccessText || '').trim());
+    updateConfig('deliveryPinPlaceholder', String(siteConfigDraft.deliveryPinPlaceholder || '').trim());
+    updateConfig('deliveryErrorText', String(siteConfigDraft.deliveryErrorText || '').trim());
+    updateConfig('deliveryButtonText', String(siteConfigDraft.deliveryButtonText || '').trim());
+    updateConfig('downloadTitle', String(siteConfigDraft.downloadTitle || '').trim());
+    updateConfig('downloadAllButtonText', String(siteConfigDraft.downloadAllButtonText || '').trim());
+    updateConfig('downloadSelectedButtonText', String(siteConfigDraft.downloadSelectedButtonText || '').trim());
+    updateConfig('galleryTitle', String(siteConfigDraft.galleryTitle || '').trim());
+    updateConfig('galleryActionBarText', String(siteConfigDraft.galleryActionBarText || '').trim());
+    updateConfig('gallerySelectionText', String(siteConfigDraft.gallerySelectionText || '').trim());
+    updateConfig('buttonText', String(siteConfigDraft.buttonText || '').trim());
     updateConfig('contactPhone', String(siteConfigDraft.contactPhone || '').trim());
     updateConfig('contactLocation', String(siteConfigDraft.contactLocation || '').trim());
     updateConfig('resumeAwardsText', String(siteConfigDraft.resumeAwardsText || '').trim());
@@ -2831,26 +3079,24 @@ function DirectorConsole() {
                         return;
                       }
 
-                      selected.forEach((item) => {
-                        const payload = {
-                          title: item.token.title,
-                          url: item.url,
-                          type: item.type,
-                          views: {
-                            expertise: {
-                              isActive: assetForm.publishTarget === 'expertise' || assetForm.publishTarget === 'both',
-                              category: assetForm.expertiseCategory,
-                              description: String(assetForm.expertiseDescription || '').trim(),
-                            },
-                            project: {
-                              isActive: assetForm.publishTarget === 'project' || assetForm.publishTarget === 'both',
-                              projectId: assetForm.projectId,
-                              description: String(assetForm.projectDescription || '').trim(),
-                            },
+                      const payloads = selected.map((item) => ({
+                        title: item.token.title,
+                        url: item.url,
+                        type: item.type,
+                        views: {
+                          expertise: {
+                            isActive: assetForm.publishTarget === 'expertise' || assetForm.publishTarget === 'both',
+                            category: assetForm.expertiseCategory,
+                            description: String(assetForm.expertiseDescription || '').trim(),
                           },
-                        };
-                        addAsset(payload);
-                      });
+                          project: {
+                            isActive: assetForm.publishTarget === 'project' || assetForm.publishTarget === 'both',
+                            projectId: assetForm.projectId,
+                            description: String(assetForm.projectDescription || '').trim(),
+                          },
+                        },
+                      }));
+                      addAssets(payloads);
 
                       setBulkAssetInput('');
                       setBulkAssetPreview([]);
@@ -4345,6 +4591,137 @@ function DirectorConsole() {
               </div>
 
               <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4 md:col-span-2">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-xs tracking-[0.18em] text-zinc-400">BULK PROJECT VIDEO IMPORT</p>
+                  <button
+                    type="button"
+                    onClick={saveBulkProjectVideos}
+                    className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-4 py-2 text-xs tracking-[0.12em] text-emerald-200"
+                  >
+                    SAVE TO DB
+                  </button>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Target Project</p>
+                    <select
+                      value={bulkProjectVideoForm.projectId}
+                      onChange={(event) => {
+                        setBulkProjectVideoForm((prev) => ({ ...prev, projectId: event.target.value }));
+                        if (bulkProjectVideoError) setBulkProjectVideoError('');
+                      }}
+                      className={FORM_INPUT_CLASS}
+                    >
+                      <option value="">-- Select project --</option>
+                      {sortedProjects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Video URLs (one per line)</p>
+                    <textarea
+                      value={bulkProjectVideoForm.urlsText}
+                      onChange={(event) => {
+                        setBulkProjectVideoForm((prev) => ({ ...prev, urlsText: event.target.value }));
+                        if (bulkProjectVideoError) setBulkProjectVideoError('');
+                      }}
+                      className={FORM_TEXTAREA_CLASS}
+                      placeholder="https://.../video-1.mp4\nhttps://.../video-2.mp4"
+                    />
+                  </label>
+
+                  {bulkProjectVideoError ? (
+                    <p className="md:col-span-2 rounded-md border border-rose-400/60 bg-rose-400/10 px-3 py-2 text-xs tracking-[0.1em] text-rose-200">
+                      {bulkProjectVideoError}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4 md:col-span-2">
+                <p className="mb-3 text-xs tracking-[0.18em] text-zinc-400">可修改内容 · 私密 / 下载文案</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">私密页标题</p>
+                    <input value={siteConfigDraft.privateTitle} onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, privateTitle: event.target.value }))} className={FORM_INPUT_CLASS} placeholder="Private Project" />
+                  </label>
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">私密页说明</p>
+                    <textarea value={siteConfigDraft.privateDescription} onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, privateDescription: event.target.value }))} className={FORM_TEXTAREA_CLASS} placeholder="该项目为私密访问，请输入密码后查看。" />
+                  </label>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">封面按钮文案</p>
+                    <input value={siteConfigDraft.privateAccessLabel} onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, privateAccessLabel: event.target.value }))} className={FORM_INPUT_CLASS} placeholder="TAP TO UNSEAL" />
+                  </label>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">密码输入提示</p>
+                    <input value={siteConfigDraft.privateAccessHint} onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, privateAccessHint: event.target.value }))} className={FORM_INPUT_CLASS} placeholder="请输入项目访问密码" />
+                  </label>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">验证按钮文案</p>
+                    <input value={siteConfigDraft.privateAccessButtonText} onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, privateAccessButtonText: event.target.value }))} className={FORM_INPUT_CLASS} placeholder="UNSEAL PROJECT" />
+                  </label>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">错误文案</p>
+                    <input value={siteConfigDraft.privateErrorText} onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, privateErrorText: event.target.value }))} className={FORM_INPUT_CLASS} placeholder="密码错误，请重试。" />
+                  </label>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">提货区标题</p>
+                    <input value={siteConfigDraft.deliveryTitle} onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, deliveryTitle: event.target.value }))} className={FORM_INPUT_CLASS} placeholder="DELIVERY PIN VERIFICATION" />
+                  </label>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">验证成功文案</p>
+                    <input value={siteConfigDraft.deliverySuccessText} onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, deliverySuccessText: event.target.value }))} className={FORM_INPUT_CLASS} placeholder="DELIVERY ACCESS VERIFIED" />
+                  </label>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">提货码输入提示</p>
+                    <input value={siteConfigDraft.deliveryPinPlaceholder} onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, deliveryPinPlaceholder: event.target.value }))} className={FORM_INPUT_CLASS} placeholder="请输入提货码" />
+                  </label>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">提货码错误文案</p>
+                    <input value={siteConfigDraft.deliveryErrorText} onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, deliveryErrorText: event.target.value }))} className={FORM_INPUT_CLASS} placeholder="提货码错误。" />
+                  </label>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">提货验证按钮文案</p>
+                    <input value={siteConfigDraft.deliveryButtonText} onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, deliveryButtonText: event.target.value }))} className={FORM_INPUT_CLASS} placeholder="验证提货码" />
+                  </label>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">下载区块标题</p>
+                    <input value={siteConfigDraft.downloadTitle} onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, downloadTitle: event.target.value }))} className={FORM_INPUT_CLASS} placeholder="PRIVATE DELIVERY FILES" />
+                  </label>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">全部下载按钮文案</p>
+                    <input value={siteConfigDraft.downloadAllButtonText} onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, downloadAllButtonText: event.target.value }))} className={FORM_INPUT_CLASS} placeholder="一键下载全部" />
+                  </label>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">已选下载按钮文案</p>
+                    <input value={siteConfigDraft.downloadSelectedButtonText} onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, downloadSelectedButtonText: event.target.value }))} className={FORM_INPUT_CLASS} placeholder="打包下载已选 (ZIP)" />
+                  </label>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">画廊标题</p>
+                    <input value={siteConfigDraft.galleryTitle} onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, galleryTitle: event.target.value }))} className={FORM_INPUT_CLASS} placeholder="ALBUM" />
+                  </label>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">画廊操作条文案</p>
+                    <input value={siteConfigDraft.galleryActionBarText} onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, galleryActionBarText: event.target.value }))} className={FORM_INPUT_CLASS} placeholder="ALBUM ACTION BAR" />
+                  </label>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">画廊选择状态文案</p>
+                    <input value={siteConfigDraft.gallerySelectionText} onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, gallerySelectionText: event.target.value }))} className={FORM_INPUT_CLASS} placeholder="已选择 X 张" />
+                  </label>
+                  <label className="block">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">通用按钮文案</p>
+                    <input value={siteConfigDraft.buttonText} onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, buttonText: event.target.value }))} className={FORM_INPUT_CLASS} placeholder="BUTTON TEXT" />
+                  </label>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-700/60 bg-zinc-950/55 p-4 md:col-span-2">
                 <p className="mb-3 text-xs tracking-[0.18em] text-zinc-400">可修改内容 · 品牌基础层</p>
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="block md:col-span-2">
@@ -4370,6 +4747,26 @@ function DirectorConsole() {
                   </label>
 
                   <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Logo 占位图 URL</p>
+                    <input
+                      value={siteConfigDraft.logoImageUrl || ''}
+                      onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, logoImageUrl: event.target.value }))}
+                      className={FORM_INPUT_CLASS}
+                      placeholder="https://.../logo.png"
+                    />
+                  </label>
+
+                  <label className="block md:col-span-2">
+                    <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Logo 替代文字</p>
+                    <input
+                      value={siteConfigDraft.logoAltText || ''}
+                      onChange={(event) => setSiteConfigDraft((prev) => ({ ...prev, logoAltText: event.target.value }))}
+                      className={FORM_INPUT_CLASS}
+                      placeholder="DIRECTOR.VISION"
+                    />
+                  </label>
+
+                  <label className="block md:col-span-2">
                     <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">OG 封面图 URL</p>
                     <input
                       value={siteConfigDraft.ogImage}
@@ -4378,6 +4775,17 @@ function DirectorConsole() {
                       placeholder="https://.../og-cover.jpg"
                     />
                   </label>
+
+                  <OssUploadField
+                    label="Logo 占位图"
+                    value={siteConfigDraft.logoImageUrl || ''}
+                    placeholder="https://.../logo.png"
+                    accept="image/*"
+                    buttonText="上传 Logo 到 OSS"
+                    uploadState={uploadState.logo || { status: 'idle', progress: 0 }}
+                    onChange={(value) => setSiteConfigDraft((prev) => ({ ...prev, logoImageUrl: value }))}
+                    onUpload={handleUploadLogo}
+                  />
 
                   <OssUploadField
                     label="微信二维码"

@@ -146,6 +146,8 @@ function normalizeProjectRow(row) {
     extra = {};
   }
 
+  const normalizedVideoUrl = row.main_video_url || row.video_url || '';
+
   return {
     id: row.id,
     title: row.title,
@@ -154,8 +156,8 @@ function normalizeProjectRow(row) {
     releaseDate: row.release_date || '',
     coverUrl: row.cover_url || '',
     thumbnailUrl: row.thumbnail_url || row.cover_url || '',
-    videoUrl: row.video_url || '',
-    mainVideoUrl: row.main_video_url || row.video_url || '',
+    videoUrl: normalizedVideoUrl,
+    mainVideoUrl: normalizedVideoUrl,
     btsMedia: parseJsonArray(row.bts_media_json, []),
     clientAgency: row.client_agency || '',
     clientCode: row.client_code || '',

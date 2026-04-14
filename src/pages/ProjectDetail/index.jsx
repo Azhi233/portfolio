@@ -68,6 +68,10 @@ function ProjectDetail() {
   const { id } = useParams();
   const {
     projects,
+    config,
+    updateProject,
+    isAdmin,
+    isEditMode,
     isUnlocked,
     unlockProjectAccess,
     isDeliveryUnlocked,
@@ -113,7 +117,8 @@ function ProjectDetail() {
 
   const galleryAssets = normalizeGalleryAssets(project).filter((item) => /^https?:\/\//i.test(item.url));
 
-  const mainVideoUrl = project.mainVideoUrl || project.videoUrl;
+  const overrideVideoUrl = typeof window !== 'undefined' ? window.localStorage.getItem(`project.video.override.${project.id}`) : '';
+  const mainVideoUrl = overrideVideoUrl || project.mainVideoUrl || project.videoUrl;
   const embedUrl = getEmbedUrl(mainVideoUrl);
   const isMp4 = /\.mp4(\?.*)?$/i.test(embedUrl);
   const isEmbedIframe =
@@ -158,7 +163,12 @@ function ProjectDetail() {
 
         {isPrivate && !canViewPrivate ? (
           <EncryptedEnvelope
-            projectTitle={project.title}
+            projectTitle={config.projectPrivateTitle || project.privateTitle || project.title}
+            hint={config.projectPrivateDescription || project.privateDescription || '该项目为私密访问，请输入密码后查看。'}
+            sealButtonText={config.projectPrivateSealButtonText || project.privateAccessLabel || 'TAP TO UNSEAL'}
+            passwordPlaceholder={config.projectPrivatePasswordPlaceholder || project.privateAccessHint || '请输入项目访问密码'}
+            unlockButtonText={config.projectPrivateUnlockButtonText || project.privateAccessButtonText || 'UNSEAL PROJECT'}
+            errorText={config.projectPrivateErrorText || project.privateErrorText || '密码错误，请重试。'}
             onUnlock={(input) => {
               const matched = String(input || '') === String(project.accessPassword || '');
               if (!matched) return false;
@@ -191,49 +201,33 @@ function ProjectDetail() {
             <div className="mt-8 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3 md:p-4">
               <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
                 {isMp4 ? (
-                  <EditableMedia type="video" src={embedUrl} className="h-full w-full object-cover" onChange={() => {}} />
-                ) : isEmbedIframe ? (
-                  <iframe src={embedUrl} title={project.title} allow="autoplay; fullscreen" allowFullScreen className="h-full w-full border-0" />
-                ) : (
-                  <div className="flex h-full items-center justify-center px-6 text-center text-sm tracking-[0.08em] text-zinc-400">
-                    Unsupported video URL.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-8 grid gap-8 border-t border-zinc-800 pt-8 md:grid-cols-[1.2fr_0.8fr] md:items-start">
-              <div>
-                <EditableText as="h1" className="font-serif text-4xl tracking-[0.08em] text-zinc-100 md:text-6xl" value={project.title} />
-                <div className="mt-6 h-px w-40 bg-zinc-700" />
-                <EditableText as="p" className="mt-6 max-w-3xl text-sm leading-relaxed tracking-[0.06em] text-zinc-300 md:text-base" value={project.description || 'Cinematic project detail.'} />
-              </div>
-              <div className="space-y-4 text-right md:text-left">
-                <EditableText as="p" className="text-xs tracking-[0.22em] text-zinc-500" value="CATEGORY" />
-                <EditableText as="p" className="text-sm tracking-[0.14em] text-zinc-200" value={project.category} />
-              </div>
-            </div>
-
-            {deliveryPinRequired ? (
+                  <EditableMedia
+                    type="video"
                     src={embedUrl}
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    onPlay={() => {
-                      setVideoStartAt(Date.now());
-                      trackEvent('video_play_clicked', { projectId: project.id, title: project.title, videoUrl: mainVideoUrl });
-                    }}
-                    onPause={() => {
-                      if (!videoStartAt) return;
-                      const seconds = Math.max(1, Math.round((Date.now() - videoStartAt) / 1000));
-                      trackEvent('video_watch_duration', { projectId: project.id, title: project.title, seconds });
-                      setVideoStartAt(null);
-                    }}
                     className="h-full w-full object-cover"
+                    onChange={(nextUrl) => {
+                      const next = String(nextUrl || '').trim();
+                      if (!next) return;
+                      updateProject(project.id, {
+                        mainVideoUrl: next,
+                        videoUrl: next,
+                      });
+                    }}
                   />
                 ) : isEmbedIframe ? (
-                  <iframe src={embedUrl} title={project.title} allow="autoplay; fullscreen" allowFullScreen className="h-full w-full border-0" />
+                  <EditableMedia
+                    type="image"
+                    src={`https://img.youtube.com/vi/${project.id}/hqdefault.jpg`}
+                    className="h-full w-full object-cover"
+                    onChange={(nextUrl) => {
+                      const next = String(nextUrl || '').trim();
+                      if (!next) return;
+                      updateProject(project.id, {
+                        mainVideoUrl: next,
+                        videoUrl: next,
+                      });
+                    }}
+                  />
                 ) : (
                   <div className="flex h-full items-center justify-center px-6 text-center text-sm tracking-[0.08em] text-zinc-400">
                     Unsupported video URL.
@@ -244,9 +238,24 @@ function ProjectDetail() {
 
             <div className="mt-8 grid gap-8 border-t border-zinc-800 pt-8 md:grid-cols-[1.2fr_0.8fr] md:items-start">
               <div>
-                <EditableText as="h1" className="font-serif text-4xl tracking-[0.08em] text-zinc-100 md:text-6xl" value={project.title} />
+                <EditableText
+                  as="h1"
+                  className="font-serif text-4xl tracking-[0.08em] text-zinc-100 md:text-6xl"
+                  value={project.title}
+                  label="PROJECT · TITLE"
+                  maxLength={120}
+                  onChange={(next) => updateProject(project.id, { title: next })}
+                />
                 <div className="mt-6 h-px w-40 bg-zinc-700" />
-                <EditableText as="p" className="mt-6 max-w-3xl text-sm leading-relaxed tracking-[0.06em] text-zinc-300 md:text-base" value={project.description || 'Cinematic project detail.'} />
+                <EditableText
+                  as="p"
+                  className="mt-6 max-w-3xl text-sm leading-relaxed tracking-[0.06em] text-zinc-300 md:text-base"
+                  value={project.description || 'Cinematic project detail.'}
+                  label="PROJECT · DESCRIPTION"
+                  multiline
+                  maxLength={1200}
+                  onChange={(next) => updateProject(project.id, { description: next })}
+                />
               </div>
               <div className="space-y-4 text-right md:text-left">
                 <EditableText as="p" className="text-xs tracking-[0.22em] text-zinc-500" value="CATEGORY" />
@@ -256,10 +265,24 @@ function ProjectDetail() {
 
             {deliveryPinRequired ? (
               <section className="mt-8 rounded-xl border border-zinc-800 bg-zinc-950/75 p-4">
-                <p className="text-xs tracking-[0.2em] text-zinc-500">DELIVERY PIN VERIFICATION</p>
+                <EditableText
+                  as="p"
+                  className="text-xs tracking-[0.2em] text-zinc-500"
+                  value={project.deliveryTitle || 'DELIVERY PIN VERIFICATION'}
+                  label="PROJECT · DELIVERY TITLE"
+                  maxLength={120}
+                  onChange={(next) => updateProject(project.id, { deliveryTitle: next })}
+                />
                 {deliveryUnlocked ? (
                   <p className="mt-2 inline-flex items-center gap-1 text-xs tracking-[0.12em] text-emerald-300">
-                    <Check className="h-3.5 w-3.5" /> DELIVERY ACCESS VERIFIED
+                    <Check className="h-3.5 w-3.5" />
+                    <EditableText
+                      as="span"
+                      value={project.deliverySuccessText || 'DELIVERY ACCESS VERIFIED'}
+                      label="PROJECT · DELIVERY SUCCESS TEXT"
+                      maxLength={120}
+                      onChange={(next) => updateProject(project.id, { deliverySuccessText: next })}
+                    />
                   </p>
                 ) : (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -270,7 +293,7 @@ function ProjectDetail() {
                         setDeliveryPinInput(event.target.value);
                         if (deliveryPinError) setDeliveryPinError('');
                       }}
-                      placeholder="请输入提货码"
+                      placeholder={project.deliveryPinPlaceholder || '请输入提货码'}
                       className="w-full max-w-xs rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none ring-cyan-400 transition focus:ring-2"
                     />
                     <button
@@ -278,7 +301,7 @@ function ProjectDetail() {
                       onClick={() => {
                         const ok = String(deliveryPinInput || '') === String(project.deliveryPin || '');
                         if (!ok) {
-                          setDeliveryPinError('提货码错误。');
+                          setDeliveryPinError(config.projectPrivateErrorText || project.deliveryErrorText || '提货码错误。');
                           return;
                         }
                         unlockDeliveryAccess(project.id);
@@ -286,7 +309,13 @@ function ProjectDetail() {
                       }}
                       className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-3 py-2 text-xs tracking-[0.12em] text-emerald-200"
                     >
-                      验证提货码
+                      <EditableText
+                        as="span"
+                        value={project.deliveryButtonText || '验证提货码'}
+                        label="PROJECT · DELIVERY BUTTON TEXT"
+                        maxLength={80}
+                        onChange={(next) => updateProject(project.id, { deliveryButtonText: next })}
+                      />
                     </button>
                   </div>
                 )}
@@ -294,25 +323,32 @@ function ProjectDetail() {
               </section>
             ) : null}
 
-            {galleryAssets.length > 0 ? (
+            {config.projectDownloadTitle || config.projectGalleryTitle || project.downloadTitle || project.galleryTitle || galleryAssets.length > 0 ? (
               <section className="mt-8 border-t border-zinc-800 pt-8">
                 <div className="sticky top-3 z-20 mb-4 rounded-xl border border-zinc-700 bg-zinc-950/90 p-3 backdrop-blur">
                   {!isSelectionMode ? (
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs tracking-[0.16em] text-zinc-400">ALBUM ACTION BAR</p>
+                      <EditableText
+                        as="p"
+                        className="text-xs tracking-[0.16em] text-zinc-400"
+                        value={config.projectGalleryActionBarText || project.galleryActionBarText || 'ALBUM ACTION BAR'}
+                        label="PROJECT · GALLERY ACTION BAR"
+                        maxLength={160}
+                        onChange={(next) => updateProject(project.id, { galleryActionBarText: next })}
+                      />
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => {
                             if (!deliveryUnlocked) {
-                              setDeliveryPinError('请先完成提货码验证。');
+                              setDeliveryPinError(config.projectPrivateErrorText || project.deliveryErrorText || '请先完成提货码验证。');
                               return;
                             }
                             setIsSelectionMode(true);
                           }}
                           className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs tracking-[0.12em] text-zinc-200"
                         >
-                          选择下载
+                          {config.projectGallerySelectionText || project.gallerySelectionText || '选择下载'}
                         </button>
                         <button
                           type="button"
@@ -326,13 +362,13 @@ function ProjectDetail() {
                           }}
                           className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-3 py-1.5 text-xs tracking-[0.12em] text-emerald-200"
                         >
-                          一键下载全部
+                          {config.projectDownloadAllButtonText || project.downloadAllButtonText || '一键下载全部'}
                         </button>
                       </div>
                     </div>
                   ) : (
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs tracking-[0.16em] text-zinc-300">已选择 {selectedIds.length} 张</p>
+                      <p className="text-xs tracking-[0.16em] text-zinc-300">{config.projectGallerySelectionText || project.gallerySelectionText || `已选择 ${selectedIds.length} 张`}</p>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -347,7 +383,7 @@ function ProjectDetail() {
                           disabled={selectedIds.length === 0}
                           className="rounded-md border border-cyan-300/70 bg-cyan-300/10 px-3 py-1.5 text-xs tracking-[0.12em] text-cyan-200 disabled:cursor-not-allowed disabled:opacity-40"
                         >
-                          打包下载已选 (ZIP)
+                          {config.projectDownloadSelectedButtonText || project.downloadSelectedButtonText || '打包下载已选 (ZIP)'}
                         </button>
                         <button
                           type="button"
@@ -386,7 +422,14 @@ function ProjectDetail() {
 
             {privateFiles.length > 0 ? (
               <section className="mt-10 border-t border-zinc-800 pt-8">
-                <h2 className="text-xs tracking-[0.24em] text-zinc-500">PRIVATE DELIVERY FILES</h2>
+                <EditableText
+                  as="h2"
+                  className="text-xs tracking-[0.24em] text-zinc-500"
+                  value={config.projectDownloadTitle || project.downloadTitle || 'PRIVATE DELIVERY FILES'}
+                  label="PROJECT · DOWNLOAD TITLE"
+                  maxLength={120}
+                  onChange={(next) => updateProject(project.id, { downloadTitle: next })}
+                />
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   {privateFiles.map((file) => (
                     <article key={file.id} className="rounded-xl border border-zinc-800 bg-zinc-950/75 p-4">

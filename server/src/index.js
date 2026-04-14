@@ -1,13 +1,13 @@
 import crypto from 'node:crypto';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import OpenApi from '@alicloud/openapi-client';
-import Sts20150401 from '@alicloud/sts20150401';
 import db, {
-  appendReviewAuditLog,
   deleteProjectById,
   findProjectById,
   insertProject,
@@ -25,40 +25,20 @@ import db, {
   upsertProjectUnlock,
   upsertReview,
 } from './db.js';
+import '../initAdmin.js';
 
 dotenv.config();
 
 const app = express();
 app.use(cors({ origin: true, credentials: false }));
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
 
 const JWT_SECRET = process.env.JWT_SECRET || 'portfolio-dev-secret';
+const PORT = process.env.PORT || '8787';
+const LOCAL_UPLOAD_DIR = process.env.LOCAL_UPLOAD_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'uploads');
 
-const {
-  OSS_BUCKET,
-  OSS_REGION = 'oss-cn-shanghai',
-  OSS_DIR_PREFIX = 'portfolio',
-  OSS_POLICY_EXPIRE_SECONDS = '120',
-  OSS_STS_DURATION_SECONDS = '900',
-  OSS_STS_ACCESS_KEY_ID,
-  OSS_STS_ACCESS_KEY_SECRET,
-  OSS_STS_ROLE_ARN,
-  OSS_STS_ROLE_SESSION_NAME = 'portfolio-web-upload',
-  PORT = '8787',
-} = process.env;
-
-function assertEnv() {
-  const missing = [];
-
-  if (!OSS_BUCKET) missing.push('OSS_BUCKET');
-  if (!OSS_REGION) missing.push('OSS_REGION');
-  if (!OSS_STS_ACCESS_KEY_ID) missing.push('OSS_STS_ACCESS_KEY_ID');
-  if (!OSS_STS_ACCESS_KEY_SECRET) missing.push('OSS_STS_ACCESS_KEY_SECRET');
-  if (!OSS_STS_ROLE_ARN) missing.push('OSS_STS_ROLE_ARN');
-
-  if (missing.length > 0) {
-    throw new Error(`Missing required env: ${missing.join(', ')}`);
-  }
+async function ensureDir(dirPath) {
+  await fs.mkdir(dirPath, { recursive: true });
 }
 
 function safeExt(fileName = '') {
@@ -75,16 +55,7 @@ function safeDir(inputDir = '') {
     .replace(/^\/+/, '')
     .replace(/\/+$/, '');
 
-  if (!cleaned) return OSS_DIR_PREFIX;
-  return `${OSS_DIR_PREFIX}/${cleaned}`;
-}
-
-function toBase64(input) {
-  return Buffer.from(input).toString('base64');
-}
-
-function signPolicy(policyBase64, accessKeySecret) {
-  return crypto.createHmac('sha1', accessKeySecret).update(policyBase64).digest('base64');
+  return cleaned || 'uploads';
 }
 
 function authMiddleware(req, res, next) {
@@ -103,61 +74,6 @@ function authMiddleware(req, res, next) {
   }
 }
 
-async function createStsClient() {
-  const config = new OpenApi.Config({
-    accessKeyId: OSS_STS_ACCESS_KEY_ID,
-    accessKeySecret: OSS_STS_ACCESS_KEY_SECRET,
-    endpoint: 'sts.cn-hangzhou.aliyuncs.com',
-  });
-  return new Sts20150401(config);
-}
-
-async function assumeUploadRole({ objectKey, contentType }) {
-  const stsClient = await createStsClient();
-
-  const bucketArn = `acs:oss:*:*:${OSS_BUCKET}`;
-  const objectArn = `acs:oss:*:*:${OSS_BUCKET}/${objectKey}`;
-
-  const inlinePolicy = {
-    Version: '1',
-    Statement: [
-      {
-        Effect: 'Allow',
-        Action: ['oss:PutObject', 'oss:AbortMultipartUpload'],
-        Resource: [bucketArn, objectArn],
-        Condition: contentType
-          ? {
-              StringEquals: {
-                'oss:ContentType': contentType,
-              },
-            }
-          : {},
-      },
-    ],
-  };
-
-  const request = new Sts20150401.AssumeRoleRequest({
-    roleArn: OSS_STS_ROLE_ARN,
-    roleSessionName: OSS_STS_ROLE_SESSION_NAME,
-    durationSeconds: Math.max(900, Number(OSS_STS_DURATION_SECONDS) || 900),
-    policy: JSON.stringify(inlinePolicy),
-  });
-
-  const response = await stsClient.assumeRole(request);
-  const credentials = response?.body?.credentials;
-
-  if (!credentials) {
-    throw new Error('STS credentials not returned');
-  }
-
-  return {
-    accessKeyId: credentials.accessKeyId,
-    accessKeySecret: credentials.accessKeySecret,
-    securityToken: credentials.securityToken,
-    expiration: credentials.expiration,
-  };
-}
-
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'oss-policy-api-sts' });
 });
@@ -166,6 +82,7 @@ app.get('/api/config', (_req, res) => {
   const config = readConfigObject();
   res.json({ ok: true, data: config });
 });
+
 
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body || {};
@@ -191,6 +108,50 @@ app.post('/api/login', (req, res) => {
   );
 
   return res.json({ ok: true, data: { token, user: { id: user.id, username: user.username, role: user.role } } });
+});
+
+app.post('/api/register', (req, res) => {
+  const { username, password } = req.body || {};
+
+  if (!username || !password) {
+    return res.status(400).json({ ok: false, message: 'username and password are required.' });
+  }
+
+  const normalizedUsername = String(username).trim();
+  if (normalizedUsername.length < 3) {
+    return res.status(400).json({ ok: false, message: 'Username must be at least 3 characters.' });
+  }
+
+  if (String(password).length < 8) {
+    return res.status(400).json({ ok: false, message: 'Password must be at least 8 characters.' });
+  }
+
+  const existing = db.prepare('SELECT id FROM users WHERE username = ? LIMIT 1').get(normalizedUsername);
+  if (existing) {
+    return res.status(409).json({ ok: false, message: 'Username already exists.' });
+  }
+
+  const passwordHash = bcrypt.hashSync(String(password), 10);
+  const user = {
+    id: `user-${crypto.randomUUID()}`,
+    username: normalizedUsername,
+    password_hash: passwordHash,
+    role: 'admin',
+    created_at: new Date().toISOString(),
+  };
+
+  db.prepare(
+    `INSERT INTO users (id, username, password_hash, role, created_at)
+     VALUES (@id, @username, @password_hash, @role, @created_at)`,
+  ).run(user);
+
+  const token = jwt.sign(
+    { sub: user.id, username: user.username, role: user.role },
+    JWT_SECRET,
+    { expiresIn: '7d' },
+  );
+
+  return res.status(201).json({ ok: true, data: { token, user: { id: user.id, username: user.username, role: user.role } } });
 });
 
 app.get('/api/reviews', (_req, res) => {
@@ -319,56 +280,44 @@ app.delete('/api/projects/:id', (req, res) => {
   return res.json({ ok: true, data: { id } });
 });
 
-app.post('/api/oss/policy', async (req, res, next) => {
+app.post('/api/uploads/local', async (req, res, next) => {
   try {
-    assertEnv();
-
-    const { fileName = '', contentType = '', dir = 'uploads' } = req.body || {};
-    if (!fileName) return res.status(400).json({ message: 'fileName is required' });
+    const { fileName = '', contentType = '', data = '', dir = 'uploads' } = req.body || {};
+    if (!fileName || !data) {
+      return res.status(400).json({ ok: false, message: 'fileName and data are required.' });
+    }
 
     const ext = safeExt(fileName);
     const folder = safeDir(dir);
-    const objectKey = `${folder}/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${ext}`;
+    const dateFolder = new Date().toISOString().slice(0, 10);
+    const relativeDir = path.posix.join(folder, dateFolder);
+    const fileBase = `${crypto.randomUUID()}.${ext}`;
+    const relativePath = path.posix.join(relativeDir, fileBase);
+    const absoluteDir = path.join(LOCAL_UPLOAD_DIR, relativeDir);
+    const absolutePath = path.join(absoluteDir, fileBase);
 
-    const sts = await assumeUploadRole({ objectKey, contentType });
+    await ensureDir(absoluteDir);
+    const buffer = Buffer.from(String(data).replace(/^data:[^;]+;base64,/, ''), 'base64');
+    await fs.writeFile(absolutePath, buffer);
 
-    const now = Date.now();
-    const policyExpireSeconds = Math.max(30, Number(OSS_POLICY_EXPIRE_SECONDS) || 120);
-    const expireAt = now + policyExpireSeconds * 1000;
+    const url = `/uploads/${relativePath.replace(/\\/g, '/')}`;
 
-    const policyObj = {
-      expiration: new Date(expireAt).toISOString(),
-      conditions: [
-        ['content-length-range', 0, 1024 * 1024 * 1024],
-        { bucket: OSS_BUCKET },
-        ['eq', '$key', objectKey],
-        ['eq', '$x-oss-security-token', sts.securityToken],
-        ...(contentType ? [['eq', '$Content-Type', contentType]] : []),
-      ],
-    };
-
-    const policy = toBase64(JSON.stringify(policyObj));
-    const signature = signPolicy(policy, sts.accessKeySecret);
-
-    const host = `https://${OSS_BUCKET}.${OSS_REGION}.aliyuncs.com`;
-    const url = `${host}/${objectKey}`;
-
-    return res.json({
-      accessKeyId: sts.accessKeyId,
-      securityToken: sts.securityToken,
-      securityTokenExpireAt: sts.expiration,
-      policy,
-      signature,
-      host,
-      key: objectKey,
-      dir: folder,
-      expireAt,
-      url,
+    return res.status(201).json({
+      ok: true,
+      data: {
+        url,
+        path: relativePath.replace(/\\/g, '/'),
+        size: buffer.length,
+        contentType,
+        fileName,
+      },
     });
   } catch (error) {
     return next(error);
   }
 });
+
+app.use('/uploads', express.static(LOCAL_UPLOAD_DIR, { fallthrough: false }));
 
 app.use((error, _req, res, _next) => {
   console.error(error);

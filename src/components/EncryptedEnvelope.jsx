@@ -4,6 +4,10 @@ import { useState } from 'react';
 function EncryptedEnvelope({
   projectTitle = 'Private Project',
   hint = '该项目为私密访问，请输入密码后查看。',
+  sealButtonText = 'TAP TO UNSEAL',
+  passwordPlaceholder = '请输入项目访问密码',
+  unlockButtonText = 'UNSEAL PROJECT',
+  errorText = '密码错误，请重试。',
   onUnlock,
 }) {
   const [input, setInput] = useState('');
@@ -15,7 +19,7 @@ function EncryptedEnvelope({
     event.preventDefault();
     const ok = onUnlock?.(input);
     if (!ok) {
-      setError('密码错误，请重试。');
+      setError(errorText);
       return;
     }
     setError('');
@@ -48,7 +52,7 @@ function EncryptedEnvelope({
             />
             <div className="absolute inset-x-0 bottom-0 h-1/2 border-t border-zinc-800 bg-zinc-900/80" />
             <div className="absolute inset-0 flex items-center justify-center text-xs tracking-[0.18em] text-zinc-300">
-              TAP TO UNSEAL
+              {sealButtonText}
             </div>
           </motion.button>
         </div>
@@ -69,7 +73,7 @@ function EncryptedEnvelope({
                   setInput(event.target.value);
                   if (error) setError('');
                 }}
-                placeholder="请输入项目访问密码"
+                placeholder={passwordPlaceholder}
                 className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none ring-cyan-400 transition focus:ring-2"
               />
 
@@ -81,7 +85,7 @@ function EncryptedEnvelope({
                 animate={unlocking ? { boxShadow: ['0 0 0 rgba(16,185,129,0)', '0 0 28px rgba(16,185,129,0.45)', '0 0 0 rgba(16,185,129,0)'] } : {}}
                 className="mt-4 rounded-md border border-cyan-300/70 bg-cyan-300/10 px-4 py-2 text-xs tracking-[0.14em] text-cyan-200 transition hover:bg-cyan-300/20"
               >
-                UNSEAL PROJECT
+                {unlockButtonText}
               </motion.button>
             </motion.form>
           ) : null}
