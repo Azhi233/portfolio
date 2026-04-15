@@ -7,6 +7,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { Client } from 'minio';
 import { pool, testConnection } from './db.js';
 import '../initAdmin.js';
 
@@ -19,10 +20,40 @@ app.use(express.json({ limit: '25mb' }));
 const JWT_SECRET = process.env.JWT_SECRET || 'portfolio-dev-secret';
 const PORT = process.env.PORT || '8787';
 const LOCAL_UPLOAD_DIR = process.env.LOCAL_UPLOAD_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'uploads');
+const MINIO_ENABLED = String(process.env.MINIO_ENABLED || '').toLowerCase() === 'true';
+const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT || '';
+const MINIO_PORT = Number(process.env.MINIO_PORT || '9000');
+const MINIO_USE_SSL = String(process.env.MINIO_USE_SSL || '').toLowerCase() === 'true';
+const MINIO_ACCESS_KEY = process.env.MINIO_ACCESS_KEY || '';
+const MINIO_SECRET_KEY = process.env.MINIO_SECRET_KEY || '';
+const MINIO_BUCKET = process.env.MINIO_BUCKET || '';
+const MINIO_UPLOAD_PREFIX = process.env.MINIO_UPLOAD_PREFIX || 'portfolio';
+
+const minioClient = MINIO_ENABLED && MINIO_ENDPOINT && MINIO_ACCESS_KEY && MINIO_SECRET_KEY
+  ? new Client({
+      endPoint: MINIO_ENDPOINT,
+      port: MINIO_PORT,
+      useSSL: MINIO_USE_SSL,
+      accessKey: MINIO_ACCESS_KEY,
+      secretKey: MINIO_SECRET_KEY,
+    })
+  : null;
 
 async function ensureDir(dirPath) {
   await fs.mkdir(dirPath, { recursive: true });
 }
+
+async function ensureMinioBucket() {
+  if (!minioClient || !MINIO_BUCKET) return false;
+
+  const exists = await minioClient.bucketExists(MINIO_BUCKET);
+  if (!exists) {
+    await minioClient.makeBucket(MINIO_BUCKET, process.env.MINIO_REGION || '');
+  }
+
+  return true;
+}
+
 
 function safeExt(fileName = '') {
   const parts = String(fileName).split('.');
@@ -451,11 +482,39 @@ app.post('/api/uploads/local', async (req, res, next) => {
     const relativeDir = path.posix.join(folder, dateFolder);
     const fileBase = `${crypto.randomUUID()}.${ext}`;
     const relativePath = path.posix.join(relativeDir, fileBase);
+    const buffer = Buffer.from(String(data).replace(/^data:[^;]+;base64,/, ''), 'base64');
+
+    if (minioClient && MINIO_BUCKET) {
+      await ensureMinioBucket();
+      const objectName = path.posix.join(MINIO_UPLOAD_PREFIX, relativePath);
+      await minioClient.putObject(MINIO_BUCKET, objectName, buffer, buffer.length, {
+        'Content-Type': contentType || 'application/octet-stream',
+      });
+
+      const url = await minioClient.presignedGetObject(MINIO_BUCKET, objectName, Number(process.env.MINIO_PRESIGN_EXPIRES_SECONDS || '3600'));
+
+      const responsePayload = {
+        url,
+        path: objectName,
+        size: buffer.length,
+        contentType,
+        fileName,
+        storage: 'minio',
+        expiresInSeconds: Number(process.env.MINIO_PRESIGN_EXPIRES_SECONDS || '3600'),
+      };
+
+      notifyConfigChanged('uploads');
+
+      return res.status(201).json({
+        ok: true,
+        data: responsePayload,
+      });
+    }
+
     const absoluteDir = path.join(LOCAL_UPLOAD_DIR, relativeDir);
     const absolutePath = path.join(absoluteDir, fileBase);
 
     await ensureDir(absoluteDir);
-    const buffer = Buffer.from(String(data).replace(/^data:[^;]+;base64,/, ''), 'base64');
     await fs.writeFile(absolutePath, buffer);
 
     const url = `/uploads/${relativePath.replace(/\\/g, '/')}`;
@@ -466,6 +525,7 @@ app.post('/api/uploads/local', async (req, res, next) => {
       size: buffer.length,
       contentType,
       fileName,
+      storage: 'local',
     };
 
     notifyConfigChanged('uploads');
