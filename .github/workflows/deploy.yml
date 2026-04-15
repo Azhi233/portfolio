@@ -33,7 +33,7 @@ jobs:
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT }}
           source: "dist/*"
-          target: "/www/wwwroot/portfolio-web/"
+          target: "/www/wwwroot/portfolio-web/dist/"
           strip_components: 1
           overwrite: true
 

@@ -39,8 +39,12 @@ function AdminPanel() {
           <button
             type="button"
             aria-pressed={isEditMode}
-            onClick={() => setIsEditMode((prev) => !prev)}
-            className="rounded-lg border border-white/10 px-4 py-2 text-xs tracking-[0.2em] text-white transition hover:border-white/30"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setIsEditMode((prev) => !prev);
+            }}
+            className="pointer-events-auto rounded-lg border border-white/10 px-4 py-2 text-xs tracking-[0.2em] text-white transition hover:border-white/30"
           >
             {isEditMode ? '退出编辑模式' : '切换编辑模式'}
           </button>
@@ -126,17 +130,41 @@ function LoginModal({ open, onClose }) {
           </div>
           <button type="button" onClick={onClose} className="rounded-full border border-white/10 px-3 py-1 text-xs text-zinc-300">{config.loginCloseLabel || '关闭'}</button>
         </div>
-        <div className="mt-6 space-y-4">
-          <input className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none" value={username} onChange={(e) => setUsername(e.target.value)} placeholder={config.loginUsernamePlaceholder || '用户名'} />
-          <input className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={config.loginPasswordPlaceholder || '密码'} type="password" />
+        <form className="mt-6 space-y-4" autoComplete="off" onSubmit={(event) => { event.preventDefault(); mode === 'login' ? handleLogin() : handleRegister(); }}>
+          <input
+            className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder={config.loginUsernamePlaceholder || '用户名'}
+            autoComplete="off"
+            autoCapitalize="off"
+            spellCheck="false"
+            name="admin-username"
+          />
+          <input
+            className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder={config.loginPasswordPlaceholder || '密码'}
+            type="password"
+            autoComplete="off"
+            name="admin-password"
+          />
           {mode === 'register' ? (
-            <input className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder={config.loginConfirmPasswordPlaceholder || '确认密码'} type="password" />
+            <input
+              className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder={config.loginConfirmPasswordPlaceholder || '确认密码'}
+              type="password"
+              autoComplete="off"
+              name="admin-password-confirm"
+            />
           ) : null}
           {error ? <p className="text-sm text-red-300">{error}</p> : null}
           <button
-            type="button"
+            type="submit"
             className="w-full rounded-xl bg-white px-4 py-3 text-sm tracking-[0.2em] text-black"
-            onClick={mode === 'login' ? handleLogin : handleRegister}
           >
             {mode === 'login' ? (config.loginButtonText || '登录') : (config.registerButtonText || '注册并登录')}
           </button>
@@ -150,7 +178,7 @@ function LoginModal({ open, onClose }) {
           >
             {mode === 'login' ? (config.loginRegisterLabel || '没有账号？去注册') : (config.loginBackLabel || '返回登录')}
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );

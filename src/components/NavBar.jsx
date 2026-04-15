@@ -57,6 +57,7 @@ function ModeToggle({ viewMode, setViewMode, t }) {
 function NavBar({ viewMode = 'expertise', setViewMode = () => {}, logoUrl = '', logoAlt = 'DIRECTOR.VISION', onLogoDoubleClick = () => {} }) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [suppressLogoClick, setSuppressLogoClick] = useState(false);
   const navRef = useRef(null);
   const location = useLocation();
   const { locale, switchLocale, t } = useI18n();
@@ -123,8 +124,13 @@ function NavBar({ viewMode = 'expertise', setViewMode = () => {}, logoUrl = '', 
         <div className="absolute left-1/2 top-1/2 z-[125] -translate-x-1/2 -translate-y-1/2">
           <button
             type="button"
-            onDoubleClick={() => onLogoDoubleClick?.()}
+            onDoubleClick={() => {
+              setSuppressLogoClick(true);
+              window.setTimeout(() => setSuppressLogoClick(false), 250);
+              onLogoDoubleClick?.();
+            }}
             onClick={() => {
+              if (suppressLogoClick) return;
               if (isEditMode && isAdmin) return;
               handleNav('/');
             }}

@@ -1281,7 +1281,7 @@ export function ConfigProvider({ children }) {
       defaults: DEFAULT_CONFIG,
       projectDefaults: DEFAULT_PROJECT_DATA,
     }),
-    [config, projects, assets, projectData, projectUnlocks, deliveryUnlocks, reviews, reviewAuditLogs],
+    [config, projects, assets, projectData, projectUnlocks, deliveryUnlocks, reviews, reviewAuditLogs, isAdmin, isEditMode],
   );
 
   return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>;
