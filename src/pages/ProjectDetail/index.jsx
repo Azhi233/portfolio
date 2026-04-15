@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import EditableText from '../../components/EditableText.jsx';
 import EditableMedia from '../../components/EditableMedia.jsx';
+import AutoRefreshMedia from '../../components/AutoRefreshMedia.jsx';
 import { useConfig } from '../../context/ConfigContext.jsx';
 import EncryptedEnvelope from '../../components/EncryptedEnvelope.jsx';
 import GlobalCompareModal from '../../components/GlobalCompareModal.jsx';
@@ -215,18 +216,10 @@ function ProjectDetail() {
                     }}
                   />
                 ) : isEmbedIframe ? (
-                  <EditableMedia
-                    type="image"
+                  <AutoRefreshMedia
                     src={`https://img.youtube.com/vi/${project.id}/hqdefault.jpg`}
+                    alt={project.title}
                     className="h-full w-full object-cover"
-                    onChange={(nextUrl) => {
-                      const next = String(nextUrl || '').trim();
-                      if (!next) return;
-                      updateProject(project.id, {
-                        mainVideoUrl: next,
-                        videoUrl: next,
-                      });
-                    }}
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center px-6 text-center text-sm tracking-[0.08em] text-zinc-400">

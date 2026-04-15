@@ -1,16 +1,50 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useConfig } from '../context/ConfigContext.jsx';
+
+const REFRESH_BUFFER_MS = 60 * 1000;
 
 export default function EditableMedia({ src, type = 'image', onChange, className = '' }) {
   const { isEditMode } = useConfig();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(src || '');
   const [error, setError] = useState('');
+  const [resolvedSrc, setResolvedSrc] = useState(src || '');
 
   useEffect(() => {
     if (open) setDraft(src || '');
   }, [src, open]);
+
+  useEffect(() => {
+    setResolvedSrc(src || '');
+  }, [src]);
+
+  useEffect(() => {
+    if (!resolvedSrc) return undefined;
+    const expiresAt = Number(resolvedSrc?.expiresAt || 0);
+    if (!expiresAt) return undefined;
+
+    const refreshAt = Math.max(0, expiresAt - Date.now() - REFRESH_BUFFER_MS);
+    const timer = window.setTimeout(async () => {
+      try {
+        const nextUrl = await resolvedSrc.refreshUrl?.();
+        if (nextUrl) {
+          setResolvedSrc((prev) => ({ ...(prev || {}), url: nextUrl }));
+          if (typeof onChange === 'function') onChange(nextUrl);
+        }
+      } catch {
+        // ignore refresh failures and let the next render/interaction retry
+      }
+    }, refreshAt);
+
+    return () => window.clearTimeout(timer);
+  }, [resolvedSrc, onChange]);
+
+  const mediaSrc = useMemo(() => {
+    if (!resolvedSrc) return '';
+    if (typeof resolvedSrc === 'string') return resolvedSrc;
+    return resolvedSrc.url || '';
+  }, [resolvedSrc]);
 
   const handleOpen = (event) => {
     if (!isEditMode) return;
@@ -34,16 +68,19 @@ export default function EditableMedia({ src, type = 'image', onChange, className
 
   return (
     <>
+      {resolvedSrc && typeof resolvedSrc === 'object' && resolvedSrc.isExpiringSoon ? (
+        <span className="sr-only">链接即将刷新</span>
+      ) : null}
       {type === 'video' ? (
         <video
-          src={src}
+          src={mediaSrc}
           controls={!isEditMode}
           onClick={handleOpen}
           className={mediaClass}
         />
       ) : (
         <img
-          src={src}
+          src={mediaSrc}
           alt="editable media"
           onClick={handleOpen}
           className={mediaClass}

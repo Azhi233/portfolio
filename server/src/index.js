@@ -28,6 +28,7 @@ const MINIO_ACCESS_KEY = process.env.MINIO_ACCESS_KEY || '';
 const MINIO_SECRET_KEY = process.env.MINIO_SECRET_KEY || '';
 const MINIO_BUCKET = process.env.MINIO_BUCKET || '';
 const MINIO_UPLOAD_PREFIX = process.env.MINIO_UPLOAD_PREFIX || 'portfolio';
+const MINIO_PRESIGN_EXPIRES_SECONDS = Number(process.env.MINIO_PRESIGN_EXPIRES_SECONDS || '2592000');
 
 const minioClient = MINIO_ENABLED && MINIO_ENDPOINT && MINIO_ACCESS_KEY && MINIO_SECRET_KEY
   ? new Client({
@@ -469,6 +470,21 @@ app.delete('/api/projects/:id', async (req, res) => {
   return res.json({ ok: true, data: { id } });
 });
 
+app.post('/api/uploads/sign', async (req, res) => {
+  const { path: objectPath = '' } = req.body || {};
+  if (!objectPath) {
+    return res.status(400).json({ ok: false, message: 'path is required.' });
+  }
+
+  if (!minioClient || !MINIO_BUCKET) {
+    return res.status(400).json({ ok: false, message: 'MinIO is not enabled.' });
+  }
+
+  const expiresInSeconds = MINIO_PRESIGN_EXPIRES_SECONDS;
+  const url = await minioClient.presignedGetObject(MINIO_BUCKET, objectPath, expiresInSeconds);
+  return res.json({ ok: true, data: { url, expiresInSeconds, path: objectPath } });
+});
+
 app.post('/api/uploads/local', async (req, res, next) => {
   try {
     const { fileName = '', contentType = '', data = '', dir = 'uploads' } = req.body || {};
@@ -491,7 +507,7 @@ app.post('/api/uploads/local', async (req, res, next) => {
         'Content-Type': contentType || 'application/octet-stream',
       });
 
-      const url = await minioClient.presignedGetObject(MINIO_BUCKET, objectName, Number(process.env.MINIO_PRESIGN_EXPIRES_SECONDS || '3600'));
+      const url = await minioClient.presignedGetObject(MINIO_BUCKET, objectName, MINIO_PRESIGN_EXPIRES_SECONDS);
 
       const responsePayload = {
         url,

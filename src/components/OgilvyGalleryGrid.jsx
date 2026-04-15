@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import AutoRefreshMedia from './AutoRefreshMedia.jsx';
 
 const imageLikePattern = /\.(avif|webp|png|jpe?g|gif|svg)(\?.*)?$/i;
 
@@ -72,7 +73,7 @@ function OgilvyGalleryGrid({ items = [] }) {
           >
             <div className={`relative w-full overflow-hidden ${aspectClass}`}>
               {hasCover ? (
-                <img
+                <AutoRefreshMedia
                   src={item.coverUrl}
                   alt={item.title}
                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"

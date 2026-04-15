@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useConfig } from '../context/ConfigContext.jsx';
+import AutoRefreshMedia from './AutoRefreshMedia.jsx';
 
 function ProjectShowcase() {
   const { projectData } = useConfig();
@@ -32,7 +33,7 @@ function ProjectShowcase() {
               className="group relative block overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/45 shadow-[0_22px_64px_rgba(0,0,0,0.62)]"
             >
               <div className="aspect-[16/11] w-full overflow-hidden">
-                <img
+                <AutoRefreshMedia
                   src={card.image}
                   alt={card.title}
                   className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.04]"

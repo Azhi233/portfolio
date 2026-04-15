@@ -2,7 +2,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
 import OgilvyGalleryGrid from '../components/OgilvyGalleryGrid.jsx';
 import EditableText from '../components/EditableText.jsx';
-import EditableMedia from '../components/EditableMedia.jsx';
 import { useConfig } from '../context/ConfigContext.jsx';
 
 const PHOTO_TAGS = [

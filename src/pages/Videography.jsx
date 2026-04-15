@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
 import OgilvyGalleryGrid from '../components/OgilvyGalleryGrid.jsx';
 import EditableText from '../components/EditableText.jsx';
+import AutoRefreshMedia from '../components/AutoRefreshMedia.jsx';
 import { videoCategories, videos } from '../data/videoData.js';
 
 const FALLBACK_COVER =
@@ -48,6 +49,20 @@ function Videography() {
             <h2 className="font-serif text-2xl tracking-[0.08em] text-zinc-100 md:text-3xl">
               {videoCategories.find((item) => item.id === activeFilter)?.subtitle || '全部视频作品'}
             </h2>
+          </div>
+
+          <div className="mb-6 overflow-hidden rounded-2xl border border-white/10 bg-black/25">
+            <AutoRefreshMedia
+              as="video"
+              src={filteredVideos[0]?.videoUrl || ''}
+              className="h-[42vh] w-full object-cover"
+              muted
+              loop
+              autoPlay
+              playsInline
+              preload="metadata"
+              controls={false}
+            />
           </div>
 
           <AnimatePresence mode="wait">

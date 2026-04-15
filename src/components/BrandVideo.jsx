@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
+import AutoRefreshMedia from './AutoRefreshMedia.jsx';
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -83,7 +84,8 @@ function BrandVideo({ videoSrc, poster, captionTitle, captionSubtitle }) {
 
   return (
     <section ref={rootRef} className="relative h-[80vh] overflow-hidden bg-black">
-      <video
+      <AutoRefreshMedia
+        as="video"
         ref={videoRef}
         className="brand-video-layer h-full w-full object-cover"
         muted

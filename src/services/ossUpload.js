@@ -1,4 +1,5 @@
 const LOCAL_API_BASE = (import.meta.env.VITE_API_BASE || 'http://47.114.95.49:8787').replace(/\/$/, '');
+const SIGNED_URL_REFRESH_BUFFER_MS = 60 * 1000;
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -13,6 +14,22 @@ function fileToDataUrl(file) {
  * 上传文件到本地服务器，由后端落盘到 /uploads
  * @returns {{url: string, path: string, size?: number, contentType?: string, fileName?: string}}
  */
+async function refreshSignedUrl(path) {
+  const response = await fetch(`${LOCAL_API_BASE}/api/uploads/sign`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Refresh signed url failed: ${response.status} ${detail}`);
+  }
+
+  const result = await response.json();
+  return result?.data?.url || '';
+}
+
 export async function uploadFileToOSS({ file, dir = 'uploads', onProgress }) {
   if (!(file instanceof File)) {
     throw new Error('Invalid file');
@@ -45,7 +62,24 @@ export async function uploadFileToOSS({ file, dir = 'uploads', onProgress }) {
     throw new Error('Invalid local upload response');
   }
 
+  const expiresInSeconds = Number(payload?.expiresInSeconds || 0);
+  const expiresAt = expiresInSeconds > 0 ? Date.now() + expiresInSeconds * 1000 : 0;
+
   onProgress?.(100);
 
-  return payload;
+  return {
+    ...payload,
+    expiresAt,
+    async refreshUrl() {
+      if (!payload?.path) return payload.url;
+      const nextUrl = await refreshSignedUrl(payload.path);
+      if (!nextUrl) throw new Error('Failed to refresh signed url');
+      payload.url = nextUrl;
+      payload.expiresAt = expiresAt > 0 ? Date.now() + expiresInSeconds * 1000 : 0;
+      return nextUrl;
+    },
+    isExpiringSoon() {
+      return expiresAt > 0 && Date.now() >= expiresAt - SIGNED_URL_REFRESH_BUFFER_MS;
+    },
+  };
 }

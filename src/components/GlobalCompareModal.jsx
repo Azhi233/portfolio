@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import AutoRefreshMedia from './AutoRefreshMedia.jsx';
 
 const VARIANT_ORDER = ['raw', 'graded', 'styled'];
 const VARIANT_LABELS = {
@@ -117,7 +118,11 @@ function GlobalCompareModal({ isOpen, asset, onClose }) {
             >
               {activeSrc ? (
                 <>
-                  <img src={activeSrc} alt={asset?.title || 'asset'} className="h-full w-full object-contain" />
+                  <AutoRefreshMedia
+                    src={activeSrc}
+                    alt={asset?.title || 'asset'}
+                    className="h-full w-full object-contain"
+                  />
 
                   {hasCompare ? (
                     <>
@@ -125,7 +130,11 @@ function GlobalCompareModal({ isOpen, asset, onClose }) {
                         className="pointer-events-none absolute inset-0"
                         style={{ clipPath: `inset(0 ${100 - slider}% 0 0)` }}
                       >
-                        <img src={compareSrc} alt="comparison" className="h-full w-full object-contain" />
+                        <AutoRefreshMedia
+                          src={compareSrc}
+                          alt="comparison"
+                          className="h-full w-full object-contain"
+                        />
                       </div>
                       <div
                         className="pointer-events-none absolute bottom-0 top-0 w-px bg-white/80"

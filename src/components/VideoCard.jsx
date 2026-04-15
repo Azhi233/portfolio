@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import AutoRefreshMedia from './AutoRefreshMedia.jsx';
 
 const FALLBACK_COVER =
   'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=1200&q=80';
@@ -59,7 +60,7 @@ function VideoCard({ item, onHoverStart, onHoverEnd }) {
       className="group/card relative w-full overflow-hidden rounded-2xl border border-white/5 bg-[#050507] text-left shadow-[0_22px_64px_rgba(0,0,0,0.62)] outline-none transition-shadow duration-500 ease-out hover:shadow-[0_28px_96px_rgba(0,0,0,0.82),0_0_120px_rgba(18,18,22,0.55)] focus-visible:ring-2 focus-visible:ring-white/30"
     >
       <div className="relative aspect-[4/5] w-full overflow-hidden bg-zinc-900">
-        <img
+        <AutoRefreshMedia
           src={coverUrl}
           alt={title}
           className="h-full w-full object-cover"
