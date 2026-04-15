@@ -1,7 +1,6 @@
-import { AnimatePresence, motion } from 'framer-motion';
-import { X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AutoRefreshMedia from './AutoRefreshMedia.jsx';
+import MediaCompareModalShell from './MediaCompareModalShell.jsx';
 
 const VARIANT_ORDER = ['raw', 'graded', 'styled'];
 const VARIANT_LABELS = {
@@ -84,108 +83,82 @@ function GlobalCompareModal({ isOpen, asset, onClose }) {
   };
 
   return (
-    <AnimatePresence>
-      {isOpen ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.24 }}
-          className="fixed inset-0 z-[120] bg-black/95"
+    <MediaCompareModalShell isOpen={isOpen} onClose={onClose}>
+      <div className="flex h-full w-full items-center justify-center p-6 pt-16">
+        <div
+          ref={canvasRef}
+          className="relative h-full w-full overflow-hidden rounded-2xl border border-zinc-800 bg-black"
+          onPointerMove={(event) => {
+            if (!hasCompare || event.buttons !== 1) return;
+            updateSliderFromPointer(event.clientX);
+          }}
+          onTouchMove={(event) => {
+            if (!hasCompare) return;
+            const touch = event.touches?.[0];
+            if (!touch) return;
+            updateSliderFromPointer(touch.clientX);
+          }}
         >
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute right-6 top-6 z-20 rounded-full border border-zinc-600 bg-zinc-900/80 p-2 text-zinc-200 transition hover:border-zinc-300"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          {activeSrc ? (
+            <>
+              <AutoRefreshMedia src={activeSrc} alt={asset?.title || 'asset'} className="h-full w-full object-contain" />
 
-          <div className="flex h-full w-full items-center justify-center p-6 pt-16">
-            <div
-              ref={canvasRef}
-              className="relative h-full w-full overflow-hidden rounded-2xl border border-zinc-800 bg-black"
-              onPointerMove={(event) => {
-                if (!hasCompare || event.buttons !== 1) return;
-                updateSliderFromPointer(event.clientX);
-              }}
-              onTouchMove={(event) => {
-                if (!hasCompare) return;
-                const touch = event.touches?.[0];
-                if (!touch) return;
-                updateSliderFromPointer(touch.clientX);
-              }}
-            >
-              {activeSrc ? (
+              {hasCompare ? (
                 <>
-                  <AutoRefreshMedia
-                    src={activeSrc}
-                    alt={asset?.title || 'asset'}
-                    className="h-full w-full object-contain"
+                  <div
+                    className="pointer-events-none absolute inset-0"
+                    style={{ clipPath: `inset(0 ${100 - slider}% 0 0)` }}
+                  >
+                    <AutoRefreshMedia src={compareSrc} alt="comparison" className="h-full w-full object-contain" />
+                  </div>
+                  <div
+                    className="pointer-events-none absolute bottom-0 top-0 w-px bg-white/80"
+                    style={{ left: `${slider}%` }}
+                  >
+                    <div className="absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/80 bg-black/60 shadow-[0_0_20px_rgba(255,255,255,0.25)]" />
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={slider}
+                    onChange={(event) => setSlider(Number(event.target.value))}
+                    className="absolute inset-x-10 bottom-6 z-10 accent-white"
                   />
-
-                  {hasCompare ? (
-                    <>
-                      <div
-                        className="pointer-events-none absolute inset-0"
-                        style={{ clipPath: `inset(0 ${100 - slider}% 0 0)` }}
-                      >
-                        <AutoRefreshMedia
-                          src={compareSrc}
-                          alt="comparison"
-                          className="h-full w-full object-contain"
-                        />
-                      </div>
-                      <div
-                        className="pointer-events-none absolute bottom-0 top-0 w-px bg-white/80"
-                        style={{ left: `${slider}%` }}
-                      >
-                        <div className="absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/80 bg-black/60 shadow-[0_0_20px_rgba(255,255,255,0.25)]" />
-                      </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        step={1}
-                        value={slider}
-                        onChange={(event) => setSlider(Number(event.target.value))}
-                        className="absolute inset-x-10 bottom-6 z-10 accent-white"
-                      />
-                    </>
-                  ) : null}
                 </>
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-sm tracking-[0.12em] text-zinc-500">
-                  NO IMAGE SOURCE
-                </div>
-              )}
+              ) : null}
+            </>
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-sm tracking-[0.12em] text-zinc-500">
+              NO IMAGE SOURCE
             </div>
-          </div>
+          )}
+        </div>
+      </div>
 
-          {variantKeys.length > 0 ? (
-            <div className="absolute bottom-8 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900/80 p-1.5">
-              {variantKeys.map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => {
-                    setActiveKey(key);
-                    setSlider(50);
-                  }}
-                  className={`rounded-full border px-3 py-1 text-[11px] tracking-[0.14em] transition ${
-                    activeKey === key
-                      ? 'border-cyan-300/70 bg-cyan-300/15 text-cyan-200'
-                      : 'border-zinc-600 bg-zinc-900 text-zinc-300 hover:border-zinc-400'
-                  }`}
-                >
-                  {VARIANT_LABELS[key] || key.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </motion.div>
+      {variantKeys.length > 0 ? (
+        <div className="absolute bottom-8 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900/80 p-1.5">
+          {variantKeys.map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => {
+                setActiveKey(key);
+                setSlider(50);
+              }}
+              className={`rounded-full border px-3 py-1 text-[11px] tracking-[0.14em] transition ${
+                activeKey === key
+                  ? 'border-cyan-300/70 bg-cyan-300/15 text-cyan-200'
+                  : 'border-zinc-600 bg-zinc-900 text-zinc-300 hover:border-zinc-400'
+              }`}
+            >
+              {VARIANT_LABELS[key] || key.toUpperCase()}
+            </button>
+          ))}
+        </div>
       ) : null}
-    </AnimatePresence>
+    </MediaCompareModalShell>
   );
 }
 

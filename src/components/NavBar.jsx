@@ -5,6 +5,7 @@ import { useI18n } from '../context/I18nContext.jsx';
 import { useConfig } from '../context/ConfigContext.jsx';
 import EditableMedia from './EditableMedia.jsx';
 import EditableText from './EditableText.jsx';
+import LocaleToggleButton from './LocaleToggleButton.jsx';
 
 const NAV_ITEMS = [
   { key: 'home', to: '/' },
@@ -160,13 +161,11 @@ function NavBar({ viewMode = 'expertise', setViewMode = () => {}, logoUrl = '', 
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
-          <button
-            type="button"
-            onClick={() => switchLocale(locale === 'zh' ? 'en' : 'zh')}
+          <LocaleToggleButton
+            locale={locale}
+            onToggle={() => switchLocale(locale === 'zh' ? 'en' : 'zh')}
             className="rounded-full border border-white/20 bg-zinc-900/60 px-3 py-1 text-[10px] tracking-[0.14em] text-zinc-300 transition hover:border-zinc-400 hover:text-zinc-100"
-          >
-            {locale === 'zh' ? 'EN' : '中文'}
-          </button>
+          />
           <ul className="flex items-center gap-4 md:gap-7">
             {NAV_ITEMS.map((item) => {
               const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);
@@ -192,13 +191,11 @@ function NavBar({ viewMode = 'expertise', setViewMode = () => {}, logoUrl = '', 
         </div>
 
         <div className="flex items-center gap-2 md:hidden">
-          <button
-            type="button"
-            onClick={() => switchLocale(locale === 'zh' ? 'en' : 'zh')}
+          <LocaleToggleButton
+            locale={locale}
+            onToggle={() => switchLocale(locale === 'zh' ? 'en' : 'zh')}
             className="touch-manipulation inline-flex min-h-10 items-center rounded-full border border-white/35 bg-zinc-900/85 px-3 py-2 text-xs tracking-[0.14em] text-zinc-100"
-          >
-            {locale === 'zh' ? 'EN' : '中文'}
-          </button>
+          />
           {isHome ? <ModeToggle viewMode={viewMode} setViewMode={setViewMode} t={t} /> : null}
           <button
             type="button"
