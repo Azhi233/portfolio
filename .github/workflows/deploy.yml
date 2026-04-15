@@ -37,5 +37,5 @@ jobs:
           username: ${{ secrets.SERVER_USERNAME }}
           password: ${{ secrets.SERVER_PASSWORD }}
           source: "dist/*" # 只传送打包后的 dist 文件夹里的内容
-          target: "/www/wwwroot/47.114.95.49/" # 传送到你宝塔的网站根目录
+          target: "/www/wwwroot/portfolio-web/dist/" # 传送到你宝塔的网站根目录
           strip_components: 1 # 极其关键：剥离外层 dist 文件夹，直接把里面的文件平铺进去
