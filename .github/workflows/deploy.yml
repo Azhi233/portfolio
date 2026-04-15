@@ -56,7 +56,17 @@ jobs:
               echo "Repository not found. Please clone the repo to /www/wwwroot/portfolio-web first."
               exit 1
             fi
-            git fetch origin main
+            for i in 1 2 3; do
+              if git fetch origin main; then
+                break
+              fi
+              if [ "$i" -eq 3 ]; then
+                echo "git fetch failed after 3 attempts"
+                exit 1
+              fi
+              echo "git fetch failed, retrying in 5s..."
+              sleep 5
+            done
             git reset --hard origin/main
             cd server
             npm ci --omit=dev
