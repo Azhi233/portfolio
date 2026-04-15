@@ -46,6 +46,11 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
           script: |
             set -e
+            export PATH=/www/server/nodejs/v20.20.2/bin:$PATH
+            echo "node: $(node -v || true)"
+            echo "npm: $(npm -v || true)"
+            echo "which node: $(which node || true)"
+            echo "which npm: $(which npm || true)"
             cd /www/wwwroot/portfolio-web
             if [ ! -d .git ]; then
               echo "Repository not found. Please clone the repo to /www/wwwroot/portfolio-web first."
