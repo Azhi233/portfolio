@@ -1,131 +1,125 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import Database from 'better-sqlite3';
+import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+dotenv.config();
 
-const dbPath = path.join(__dirname, '..', 'portfolio.db');
+export const pool = mysql.createPool({
+  host: process.env.DB_HOST || '127.0.0.1',
+  user: process.env.DB_USER || 'mywebsite',
+  password: process.env.DB_PASSWORD || process.env.DB_PASS || '',
+  database: process.env.DB_NAME || 'mywebsite',
+  port: Number(process.env.DB_PORT || 3306),
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+});
 
-const db = new Database(dbPath);
-db.pragma('journal_mode = WAL');
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS global_config (
-    key_name TEXT PRIMARY KEY,
-    json_value TEXT NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS projects (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    category TEXT,
-    role TEXT,
-    release_date TEXT,
-    cover_url TEXT,
-    thumbnail_url TEXT,
-    video_url TEXT,
-    main_video_url TEXT,
-    bts_media_json TEXT,
-    client_agency TEXT,
-    client_code TEXT,
-    is_featured INTEGER NOT NULL DEFAULT 0,
-    sort_order INTEGER NOT NULL DEFAULT 0,
-    description TEXT,
-    credits TEXT,
-    is_visible INTEGER NOT NULL DEFAULT 1,
-    publish_status TEXT,
-    visibility TEXT,
-    access_password TEXT,
-    delivery_pin TEXT,
-    status TEXT,
-    password TEXT,
-    private_files_json TEXT,
-    outline_tags_json TEXT,
-    content_json TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    username TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'admin',
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS media_assets (
-    id TEXT PRIMARY KEY,
-    kind TEXT NOT NULL,
-    url TEXT NOT NULL,
-    meta_json TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS reviews (
-    id TEXT PRIMARY KEY,
-    payload_json TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS review_audit_logs (
-    id TEXT PRIMARY KEY,
-    payload_json TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS project_unlocks (
-    project_id TEXT PRIMARY KEY,
-    unlocked INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS delivery_unlocks (
-    project_id TEXT PRIMARY KEY,
-    unlocked INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-`);
-
-export function readConfigObject() {
-  const rows = db.prepare('SELECT key_name, json_value FROM global_config').all();
-  return rows.reduce((acc, row) => {
-    try {
-      acc[row.key_name] = JSON.parse(row.json_value);
-    } catch {
-      acc[row.key_name] = row.json_value;
-    }
-    return acc;
-  }, {});
-}
-
-export function upsertConfigObject(config = {}) {
-  const entries = Object.entries(config || {}).filter(([key]) => Boolean(key));
-  const stmt = db.prepare(`
-    INSERT INTO global_config (key_name, json_value)
-    VALUES (@key_name, @json_value)
-    ON CONFLICT(key_name) DO UPDATE SET json_value = excluded.json_value
+async function initSchema() {
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS global_config (
+      key_name VARCHAR(191) PRIMARY KEY,
+      json_value LONGTEXT NOT NULL
+    )
   `);
 
-  const trx = db.transaction((items) => {
-    for (const [key, value] of items) {
-      stmt.run({ key_name: key, json_value: JSON.stringify(value ?? null) });
-    }
-  });
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS projects (
+      id VARCHAR(191) PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      category VARCHAR(255) NULL,
+      role VARCHAR(255) NULL,
+      release_date VARCHAR(64) NULL,
+      cover_url TEXT NULL,
+      thumbnail_url TEXT NULL,
+      video_url TEXT NULL,
+      main_video_url TEXT NULL,
+      bts_media_json LONGTEXT NULL,
+      client_agency VARCHAR(255) NULL,
+      client_code VARCHAR(255) NULL,
+      is_featured TINYINT(1) NOT NULL DEFAULT 0,
+      sort_order INT NOT NULL DEFAULT 0,
+      description LONGTEXT NULL,
+      credits LONGTEXT NULL,
+      is_visible TINYINT(1) NOT NULL DEFAULT 1,
+      publish_status VARCHAR(64) NULL,
+      visibility VARCHAR(64) NULL,
+      access_password VARCHAR(255) NULL,
+      delivery_pin VARCHAR(255) NULL,
+      status VARCHAR(64) NULL,
+      password VARCHAR(255) NULL,
+      private_files_json LONGTEXT NULL,
+      outline_tags_json LONGTEXT NULL,
+      content_json LONGTEXT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
-  trx(entries);
-  return readConfigObject();
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS users (
+      id VARCHAR(191) PRIMARY KEY,
+      username VARCHAR(191) NOT NULL UNIQUE,
+      password_hash VARCHAR(255) NOT NULL,
+      role VARCHAR(64) NOT NULL DEFAULT 'admin',
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS media_assets (
+      id VARCHAR(191) PRIMARY KEY,
+      kind VARCHAR(64) NOT NULL,
+      url TEXT NOT NULL,
+      meta_json LONGTEXT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS reviews (
+      id VARCHAR(191) PRIMARY KEY,
+      payload_json LONGTEXT NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS review_audit_logs (
+      id VARCHAR(191) PRIMARY KEY,
+      payload_json LONGTEXT NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS project_unlocks (
+      project_id VARCHAR(191) PRIMARY KEY,
+      unlocked TINYINT(1) NOT NULL DEFAULT 0,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS delivery_unlocks (
+      project_id VARCHAR(191) PRIMARY KEY,
+      unlocked TINYINT(1) NOT NULL DEFAULT 0,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 }
 
-function parseJsonArray(value, fallback = []) {
+export async function testConnection() {
   try {
-    return value ? JSON.parse(value) : fallback;
-  } catch {
-    return fallback;
+    await pool.query('SELECT 1 + 1 AS result');
+    await initSchema();
+    console.log('✅ MySQL 连接成功');
+    return true;
+  } catch (error) {
+    console.error('❌ MySQL 连接失败:', error.message);
+    return false;
   }
 }
 
-function parseJsonObject(value, fallback = {}) {
+function parseJson(value, fallback) {
   try {
     return value ? JSON.parse(value) : fallback;
   } catch {
@@ -138,14 +132,13 @@ function toInt(value, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
-function normalizeProjectRow(row) {
-  let extra = {};
-  try {
-    extra = row.content_json ? JSON.parse(row.content_json) : {};
-  } catch {
-    extra = {};
-  }
+function toDateTime(value) {
+  if (!value) return new Date();
+  return value instanceof Date ? value : new Date(value);
+}
 
+function normalizeProjectRow(row) {
+  const extra = parseJson(row.content_json, {});
   const normalizedVideoUrl = row.main_video_url || row.video_url || '';
 
   return {
@@ -158,7 +151,7 @@ function normalizeProjectRow(row) {
     thumbnailUrl: row.thumbnail_url || row.cover_url || '',
     videoUrl: normalizedVideoUrl,
     mainVideoUrl: normalizedVideoUrl,
-    btsMedia: parseJsonArray(row.bts_media_json, []),
+    btsMedia: parseJson(row.bts_media_json, []),
     clientAgency: row.client_agency || '',
     clientCode: row.client_code || '',
     isFeatured: Boolean(toInt(row.is_featured, 0)),
@@ -172,117 +165,14 @@ function normalizeProjectRow(row) {
     deliveryPin: row.delivery_pin || '',
     status: row.status || 'draft',
     password: row.password || '',
-    privateFiles: parseJsonArray(row.private_files_json, []),
-    outlineTags: parseJsonArray(row.outline_tags_json, []),
+    privateFiles: parseJson(row.private_files_json, []),
+    outlineTags: parseJson(row.outline_tags_json, []),
     createdAt: row.created_at,
     ...extra,
   };
 }
 
-export function readProjects() {
-  const rows = db
-    .prepare(
-      `SELECT id, title, category, role, release_date, cover_url, thumbnail_url, video_url, main_video_url,
-              bts_media_json, client_agency, client_code, is_featured, sort_order, description, credits,
-              is_visible, publish_status, visibility, access_password, delivery_pin, status, password,
-              private_files_json, outline_tags_json, content_json, created_at
-       FROM projects
-       ORDER BY datetime(created_at) DESC`,
-    )
-    .all();
-
-  return rows.map(normalizeProjectRow);
-}
-
-function normalizeReviewRow(row) {
-  return {
-    ...parseJsonObject(row.payload_json, {}),
-    id: row.id,
-    createdAt: row.created_at,
-  };
-}
-
-export function readReviews() {
-  return db
-    .prepare('SELECT id, payload_json, created_at FROM reviews ORDER BY datetime(created_at) DESC')
-    .all()
-    .map(normalizeReviewRow);
-}
-
-export function upsertReview(review) {
-  const payload = { ...(review || {}) };
-  const id = payload.id || `review-${Date.now()}`;
-  db.prepare(
-    `INSERT INTO reviews (id, payload_json, created_at)
-     VALUES (@id, @payload_json, @created_at)
-     ON CONFLICT(id) DO UPDATE SET payload_json = excluded.payload_json`,
-  ).run({
-    id,
-    payload_json: JSON.stringify(payload),
-    created_at: payload.createdAt || new Date().toISOString(),
-  });
-  return { ...payload, id };
-}
-
-export function readReviewAuditLogs() {
-  return db
-    .prepare('SELECT id, payload_json, created_at FROM review_audit_logs ORDER BY datetime(created_at) DESC')
-    .all()
-    .map(normalizeReviewRow);
-}
-
-export function appendReviewAuditLog(entry) {
-  const payload = { ...(entry || {}) };
-  const id = payload.id || `audit-${Date.now()}`;
-  db.prepare(
-    `INSERT INTO review_audit_logs (id, payload_json, created_at)
-     VALUES (@id, @payload_json, @created_at)`,
-  ).run({
-    id,
-    payload_json: JSON.stringify(payload),
-    created_at: payload.at || payload.createdAt || new Date().toISOString(),
-  });
-  return { ...payload, id };
-}
-
-export function readProjectUnlocks() {
-  return db
-    .prepare('SELECT project_id, unlocked FROM project_unlocks')
-    .all()
-    .reduce((acc, row) => {
-      acc[row.project_id] = Boolean(row.unlocked);
-      return acc;
-    }, {});
-}
-
-export function upsertProjectUnlock(projectId, unlocked) {
-  db.prepare(
-    `INSERT INTO project_unlocks (project_id, unlocked, created_at)
-     VALUES (?, ?, datetime('now'))
-     ON CONFLICT(project_id) DO UPDATE SET unlocked = excluded.unlocked`,
-  ).run(projectId, unlocked ? 1 : 0);
-}
-
-export function readDeliveryUnlocks() {
-  return db
-    .prepare('SELECT project_id, unlocked FROM delivery_unlocks')
-    .all()
-    .reduce((acc, row) => {
-      acc[row.project_id] = Boolean(row.unlocked);
-      return acc;
-    }, {});
-}
-
-export function upsertDeliveryUnlock(projectId, unlocked) {
-  db.prepare(
-    `INSERT INTO delivery_unlocks (project_id, unlocked, created_at)
-     VALUES (?, ?, datetime('now'))
-     ON CONFLICT(project_id) DO UPDATE SET unlocked = excluded.unlocked`,
-  ).run(projectId, unlocked ? 1 : 0);
-}
-
 function normalizeProjectPayload(project = {}) {
-  const payload = { ...(project || {}) };
   const {
     id,
     title,
@@ -311,7 +201,7 @@ function normalizeProjectPayload(project = {}) {
     outlineTags,
     createdAt,
     ...extra
-  } = payload;
+  } = project || {};
 
   return {
     id,
@@ -340,106 +230,230 @@ function normalizeProjectPayload(project = {}) {
     private_files_json: JSON.stringify(Array.isArray(privateFiles) ? privateFiles : []),
     outline_tags_json: JSON.stringify(Array.isArray(outlineTags) ? outlineTags : []),
     content_json: JSON.stringify(extra),
-    created_at: createdAt || new Date().toISOString(),
+    created_at: toDateTime(createdAt),
   };
 }
 
-export function insertProject(project) {
-  const values = normalizeProjectPayload(project);
+export async function readConfigObject() {
+  const [rows] = await pool.query('SELECT key_name, json_value FROM global_config');
+  return rows.reduce((acc, row) => {
+    acc[row.key_name] = parseJson(row.json_value, row.json_value);
+    return acc;
+  }, {});
+}
 
-  db.prepare(
+export async function upsertConfigObject(config = {}) {
+  const entries = Object.entries(config || {}).filter(([key]) => Boolean(key));
+  for (const [key, value] of entries) {
+    await pool.execute(
+      `INSERT INTO global_config (key_name, json_value)
+       VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
+      [key, JSON.stringify(value ?? null)],
+    );
+  }
+  return readConfigObject();
+}
+
+export async function readProjects() {
+  const [rows] = await pool.query(
+    `SELECT id, title, category, role, release_date, cover_url, thumbnail_url, video_url, main_video_url,
+            bts_media_json, client_agency, client_code, is_featured, sort_order, description, credits,
+            is_visible, publish_status, visibility, access_password, delivery_pin, status, password,
+            private_files_json, outline_tags_json, content_json, created_at
+     FROM projects
+     ORDER BY created_at DESC`,
+  );
+  return rows.map(normalizeProjectRow);
+}
+
+export async function findProjectById(id) {
+  const [rows] = await pool.execute(
+    `SELECT id, title, category, role, release_date, cover_url, thumbnail_url, video_url, main_video_url,
+            bts_media_json, client_agency, client_code, is_featured, sort_order, description, credits,
+            is_visible, publish_status, visibility, access_password, delivery_pin, status, password,
+            private_files_json, outline_tags_json, content_json, created_at
+     FROM projects WHERE id = ? LIMIT 1`,
+    [id],
+  );
+
+  return rows[0] ? normalizeProjectRow(rows[0]) : null;
+}
+
+export async function insertProject(project) {
+  const values = normalizeProjectPayload(project);
+  await pool.execute(
     `INSERT INTO projects (id, title, category, role, release_date, cover_url, thumbnail_url, video_url, main_video_url,
      bts_media_json, client_agency, client_code, is_featured, sort_order, description, credits, is_visible,
      publish_status, visibility, access_password, delivery_pin, status, password, private_files_json, outline_tags_json,
      content_json, created_at)
-     VALUES (@id, @title, @category, @role, @release_date, @cover_url, @thumbnail_url, @video_url, @main_video_url,
-     @bts_media_json, @client_agency, @client_code, @is_featured, @sort_order, @description, @credits, @is_visible,
-     @publish_status, @visibility, @access_password, @delivery_pin, @status, @password, @private_files_json, @outline_tags_json,
-     @content_json, @created_at)`,
-  ).run(values);
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      values.id,
+      values.title,
+      values.category,
+      values.role,
+      values.release_date,
+      values.cover_url,
+      values.thumbnail_url,
+      values.video_url,
+      values.main_video_url,
+      values.bts_media_json,
+      values.client_agency,
+      values.client_code,
+      values.is_featured,
+      values.sort_order,
+      values.description,
+      values.credits,
+      values.is_visible,
+      values.publish_status,
+      values.visibility,
+      values.access_password,
+      values.delivery_pin,
+      values.status,
+      values.password,
+      values.private_files_json,
+      values.outline_tags_json,
+      values.content_json,
+      values.created_at,
+    ],
+  );
+  return findProjectById(values.id);
 }
 
-export function updateProject(id, project) {
+export async function updateProject(id, project) {
   const values = normalizeProjectPayload({ ...project, id });
-
-  db.prepare(
+  await pool.execute(
     `UPDATE projects
-     SET title = @title,
-         category = @category,
-         role = @role,
-         release_date = @release_date,
-         cover_url = @cover_url,
-         thumbnail_url = @thumbnail_url,
-         video_url = @video_url,
-         main_video_url = @main_video_url,
-         bts_media_json = @bts_media_json,
-         client_agency = @client_agency,
-         client_code = @client_code,
-         is_featured = @is_featured,
-         sort_order = @sort_order,
-         description = @description,
-         credits = @credits,
-         is_visible = @is_visible,
-         publish_status = @publish_status,
-         visibility = @visibility,
-         access_password = @access_password,
-         delivery_pin = @delivery_pin,
-         status = @status,
-         password = @password,
-         private_files_json = @private_files_json,
-         outline_tags_json = @outline_tags_json,
-         content_json = @content_json,
-         created_at = @created_at
-     WHERE id = @id`,
-  ).run(values);
+     SET title = ?, category = ?, role = ?, release_date = ?, cover_url = ?, thumbnail_url = ?, video_url = ?, main_video_url = ?,
+         bts_media_json = ?, client_agency = ?, client_code = ?, is_featured = ?, sort_order = ?, description = ?, credits = ?,
+         is_visible = ?, publish_status = ?, visibility = ?, access_password = ?, delivery_pin = ?, status = ?, password = ?,
+         private_files_json = ?, outline_tags_json = ?, content_json = ?, created_at = ?
+     WHERE id = ?`,
+    [
+      values.title,
+      values.category,
+      values.role,
+      values.release_date,
+      values.cover_url,
+      values.thumbnail_url,
+      values.video_url,
+      values.main_video_url,
+      values.bts_media_json,
+      values.client_agency,
+      values.client_code,
+      values.is_featured,
+      values.sort_order,
+      values.description,
+      values.credits,
+      values.is_visible,
+      values.publish_status,
+      values.visibility,
+      values.access_password,
+      values.delivery_pin,
+      values.status,
+      values.password,
+      values.private_files_json,
+      values.outline_tags_json,
+      values.content_json,
+      values.created_at,
+      id,
+    ],
+  );
+  return findProjectById(id);
 }
 
-export function deleteProjectById(id) {
-  const result = db.prepare('DELETE FROM projects WHERE id = ?').run(id);
-  return result.changes > 0;
+export async function deleteProjectById(id) {
+  const [result] = await pool.execute('DELETE FROM projects WHERE id = ?', [id]);
+  return result.affectedRows > 0;
 }
 
-export function upsertMediaAsset(asset) {
-  const payload = { ...(asset || {}) };
-  const id = payload.id || `asset-${Date.now()}`;
-  db.prepare(
-    `INSERT INTO media_assets (id, kind, url, meta_json, created_at)
-     VALUES (@id, @kind, @url, @meta_json, @created_at)
-     ON CONFLICT(id) DO UPDATE SET kind = excluded.kind, url = excluded.url, meta_json = excluded.meta_json`,
-  ).run({
-    id,
-    kind: payload.kind || 'image',
-    url: payload.url || '',
-    meta_json: JSON.stringify(payload.meta || {}),
-    created_at: payload.createdAt || new Date().toISOString(),
-  });
-  return { id, kind: payload.kind || 'image', url: payload.url || '', meta: payload.meta || {} };
+export async function readReviews() {
+  const [rows] = await pool.query('SELECT id, payload_json, created_at FROM reviews ORDER BY created_at DESC');
+  return rows.map((row) => ({ ...parseJson(row.payload_json, {}), id: row.id, createdAt: row.created_at }));
 }
 
-export function readMediaAssets() {
-  return db.prepare('SELECT id, kind, url, meta_json, created_at FROM media_assets ORDER BY datetime(created_at) DESC').all().map((row) => ({
+export async function upsertReview(review) {
+  const payload = { ...(review || {}) };
+  const id = payload.id || `review-${Date.now()}`;
+  await pool.execute(
+    `INSERT INTO reviews (id, payload_json, created_at)
+     VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE payload_json = VALUES(payload_json), created_at = VALUES(created_at)`,
+    [id, JSON.stringify(payload), toDateTime(payload.createdAt || new Date())],
+  );
+  return { ...payload, id };
+}
+
+export async function readReviewAuditLogs() {
+  const [rows] = await pool.query('SELECT id, payload_json, created_at FROM review_audit_logs ORDER BY created_at DESC');
+  return rows.map((row) => ({ ...parseJson(row.payload_json, {}), id: row.id, createdAt: row.created_at }));
+}
+
+export async function appendReviewAuditLog(entry) {
+  const payload = { ...(entry || {}) };
+  const id = payload.id || `audit-${Date.now()}`;
+  await pool.execute(
+    `INSERT INTO review_audit_logs (id, payload_json, created_at)
+     VALUES (?, ?, ?)`,
+    [id, JSON.stringify(payload), toDateTime(payload.at || payload.createdAt || new Date())],
+  );
+  return { ...payload, id };
+}
+
+export async function readProjectUnlocks() {
+  const [rows] = await pool.query('SELECT project_id, unlocked FROM project_unlocks');
+  return rows.reduce((acc, row) => {
+    acc[row.project_id] = Boolean(row.unlocked);
+    return acc;
+  }, {});
+}
+
+export async function upsertProjectUnlock(projectId, unlocked) {
+  await pool.execute(
+    `INSERT INTO project_unlocks (project_id, unlocked, created_at)
+     VALUES (?, ?, CURRENT_TIMESTAMP)
+     ON DUPLICATE KEY UPDATE unlocked = VALUES(unlocked)`,
+    [projectId, unlocked ? 1 : 0],
+  );
+}
+
+export async function readDeliveryUnlocks() {
+  const [rows] = await pool.query('SELECT project_id, unlocked FROM delivery_unlocks');
+  return rows.reduce((acc, row) => {
+    acc[row.project_id] = Boolean(row.unlocked);
+    return acc;
+  }, {});
+}
+
+export async function upsertDeliveryUnlock(projectId, unlocked) {
+  await pool.execute(
+    `INSERT INTO delivery_unlocks (project_id, unlocked, created_at)
+     VALUES (?, ?, CURRENT_TIMESTAMP)
+     ON DUPLICATE KEY UPDATE unlocked = VALUES(unlocked)`,
+    [projectId, unlocked ? 1 : 0],
+  );
+}
+
+export async function readMediaAssets() {
+  const [rows] = await pool.query('SELECT id, kind, url, meta_json, created_at FROM media_assets ORDER BY created_at DESC');
+  return rows.map((row) => ({
     id: row.id,
     kind: row.kind,
     url: row.url,
     createdAt: row.created_at,
-    meta: row.meta_json ? JSON.parse(row.meta_json) : {},
+    meta: parseJson(row.meta_json, {}),
   }));
 }
 
-export function findProjectById(id) {
-  const row = db
-    .prepare(
-      `SELECT id, title, category, role, release_date, cover_url, thumbnail_url, video_url, main_video_url,
-              bts_media_json, client_agency, client_code, is_featured, sort_order, description, credits,
-              is_visible, publish_status, visibility, access_password, delivery_pin, status, password,
-              private_files_json, outline_tags_json, content_json, created_at
-       FROM projects WHERE id = ?`,
-    )
-    .get(id);
-
-  if (!row) return null;
-
-  return normalizeProjectRow(row);
+export async function upsertMediaAsset(asset) {
+  const payload = { ...(asset || {}) };
+  const id = payload.id || `asset-${Date.now()}`;
+  await pool.execute(
+    `INSERT INTO media_assets (id, kind, url, meta_json, created_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE kind = VALUES(kind), url = VALUES(url), meta_json = VALUES(meta_json), created_at = VALUES(created_at)`,
+    [id, payload.kind || 'image', payload.url || '', JSON.stringify(payload.meta || {}), toDateTime(payload.createdAt || new Date())],
+  );
+  return { id, kind: payload.kind || 'image', url: payload.url || '', meta: payload.meta || {} };
 }
-
-export default db;

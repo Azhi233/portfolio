@@ -1,4 +1,4 @@
-const LOCAL_API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:8787').replace(/\/$/, '');
+const LOCAL_API_BASE = (import.meta.env.VITE_API_BASE || 'http://47.114.95.49:8787').replace(/\/$/, '');
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {

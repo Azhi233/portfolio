@@ -1,41 +1,63 @@
-name: Deploy to Aliyun
+name: Deploy to Baota
 
-# 触发条件：当你把代码 push 到 main 分支时执行
 on:
   push:
     branches:
-      - main # 如果你的主分支叫 master，请改成 master
+      - main
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest # 使用 GitHub 免费提供的 Linux 服务器
-    
+    runs-on: ubuntu-latest
+
     steps:
-      # 1. 拉取你的最新代码
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # 2. 安装 Node.js 环境
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '20' # 如果你用的是更高版本可以改，18 是通用的
+          node-version: '20'
+          cache: 'npm'
 
-      # 3. 安装依赖包 (如果你平时用 yarn/pnpm，这里就改成 yarn install / pnpm install)
-      - name: Install Dependencies
-        run: npm install
+      - name: Install frontend dependencies
+        run: npm ci
 
-      # 4. 开始打包构建 (同上，根据你用的包管理器调整)
-      - name: Build Project
+      - name: Build frontend
         run: npm run build
 
-      # 5. 见证奇迹：把 dist 文件夹里的东西推送到阿里云
-      - name: Deploy to Server
-        uses: appleboy/scp-action@v0.1.4
+      - name: Upload frontend dist to server
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USERNAME }}
           password: ${{ secrets.SERVER_PASSWORD }}
-          source: "dist/*" # 只传送打包后的 dist 文件夹里的内容
-          target: "/www/wwwroot/portfolio-web/dist/" # 传送到你宝塔的网站根目录
-          strip_components: 1 # 极其关键：剥离外层 dist 文件夹，直接把里面的文件平铺进去
+          port: ${{ secrets.SERVER_PORT }}
+          source: "dist/*"
+          target: "/www/wwwroot/portfolio-web/"
+          strip_components: 1
+          overwrite: true
+
+      - name: Update backend and restart service
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            set -e
+            cd /www/wwwroot/portfolio-web
+            if [ ! -d .git ]; then
+              echo "Repository not found. Please clone the repo to /www/wwwroot/portfolio-web first."
+              exit 1
+            fi
+            git fetch origin main
+            git reset --hard origin/main
+            cd server
+            npm ci --omit=dev
+            if command -v pm2 >/dev/null 2>&1; then
+              pm2 restart portfolio-server || pm2 start src/index.js --name portfolio-server
+              pm2 save
+            else
+              nohup npm start >/tmp/portfolio-server.log 2>&1 &
+            fi
