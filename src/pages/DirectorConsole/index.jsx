@@ -1,6 +1,6 @@
 import { Server } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import OssUploadField from '../../components/OssUploadField.jsx';
+import LocalUploadField from '../../components/LocalUploadField.jsx';
 import { useConfig } from '../../context/ConfigContext.jsx';
 import { uploadFileToOSS } from '../../services/ossUpload.js';
 import { clearAnalytics, getAnalyticsSnapshot, trackEvent } from '../../utils/analytics.js';
@@ -207,7 +207,7 @@ function buildProjectDescriptionWithSlot(description = '', moduleSlot = '') {
 function getAssetUrlWarning(url, type) {
   const value = String(url || '').trim();
   if (!value) return '';
-  if (!/^https?:\/\//i.test(value)) return '建议使用 http(s) OSS 链接，当前可能无法在前台稳定访问。';
+  if (!/^https?:\/\//i.test(value)) return '建议使用 http(s) 链接，当前可能无法在前台稳定访问。';
   if (/localhost|127\.0\.0\.1|192\.168\./i.test(value)) return '检测到本地/内网地址，线上访问时可能失效。';
   if (type === 'image' && /\.(mp4|webm|mov)(\?.*)?$/i.test(value)) return '当前类型是 Image，但 URL 更像视频资源。';
   if (type === 'video' && /\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(value)) return '当前类型是 Video，但 URL 更像图片资源。';
@@ -492,23 +492,23 @@ function ProjectForm({
           />
         </label>
 
-        <OssUploadField
+        <LocalUploadField
           label="Cover URL"
           value={formState.coverUrl}
           placeholder="https://images.unsplash.com/..."
           accept="image/*"
-          buttonText="上传图片到 OSS"
+          buttonText="上传图片到本地服务器"
           uploadState={uploadState.cover}
           onChange={(nextValue) => onChange('coverUrl', nextValue)}
           onUpload={onUploadCover}
         />
 
-        <OssUploadField
+        <LocalUploadField
           label="Main Video URL"
           value={formState.videoUrl}
           placeholder="https://vimeo.com/..."
           accept="video/*"
-          buttonText="上传视频到 OSS"
+          buttonText="上传视频到本地服务器"
           uploadState={uploadState.video}
           onChange={(nextValue) => onChange('videoUrl', nextValue)}
           onUpload={onUploadVideo}
@@ -727,6 +727,8 @@ function DirectorConsole() {
     logoAltText: config.logoAltText || '',
     qrCodeImageUrl: config.qrCodeImageUrl || '',
     contactEmail: config.contactEmail || '',
+    contactPhone: config.contactPhone || '',
+    contactLocation: config.contactLocation || '',
     projectPrivateTitle: config.projectPrivateTitle || 'PRIVATE PROJECT',
     projectPrivateDescription: config.projectPrivateDescription || '该项目为私密访问，请输入密码后查看。',
     projectPrivateEmptyText: config.projectPrivateEmptyText || '暂无私密说明。',
@@ -760,8 +762,6 @@ function DirectorConsole() {
     galleryActionBarText: config.galleryActionBarText || '',
     gallerySelectionText: config.gallerySelectionText || '',
     buttonText: config.buttonText || '',
-    contactPhone: config.contactPhone || '',
-    contactLocation: config.contactLocation || '',
     contactPhone: config.contactPhone || '',
     contactLocation: config.contactLocation || '',
     resumeAwardsText: config.resumeAwardsText || '',
@@ -2421,7 +2421,7 @@ function DirectorConsole() {
                     : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
                 }`}
               >
-                SAVE SETTINGS
+                SAVE TO SERVER
               </button>
             </div>
           </>
@@ -3279,7 +3279,7 @@ function DirectorConsole() {
 
               {assetForm.type !== 'image-comparison' ? (
                 <label className="block md:col-span-2">
-                  <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Asset URL (OSS Link)</p>
+                  <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Asset URL (Local Link)</p>
                   <input
                     value={assetForm.url}
                     onChange={(event) => {
@@ -4446,7 +4446,7 @@ function DirectorConsole() {
                       : 'cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500'
                   }`}
                 >
-                  SAVE SITE CONFIG
+                  SAVE TO SERVER
                 </button>
               </div>
             </div>
@@ -4776,23 +4776,23 @@ function DirectorConsole() {
                     />
                   </label>
 
-                  <OssUploadField
+                  <LocalUploadField
                     label="Logo 占位图"
                     value={siteConfigDraft.logoImageUrl || ''}
                     placeholder="https://.../logo.png"
                     accept="image/*"
-                    buttonText="上传 Logo 到 OSS"
+                    buttonText="上传 Logo 到本地服务器"
                     uploadState={uploadState.logo || { status: 'idle', progress: 0 }}
                     onChange={(value) => setSiteConfigDraft((prev) => ({ ...prev, logoImageUrl: value }))}
                     onUpload={handleUploadLogo}
                   />
 
-                  <OssUploadField
+                  <LocalUploadField
                     label="微信二维码"
                     value={siteConfigDraft.qrCodeImageUrl || ''}
                     placeholder="https://.../wechat-qr.jpg"
                     accept="image/*"
-                    buttonText="上传二维码到 OSS"
+                    buttonText="上传二维码到本地服务器"
                     uploadState={uploadState.qrCode || { status: 'idle', progress: 0 }}
                     onChange={(value) => setSiteConfigDraft((prev) => ({ ...prev, qrCodeImageUrl: value }))}
                     onUpload={handleUploadQrCode}

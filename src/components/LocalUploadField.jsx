@@ -15,9 +15,9 @@ function statusClass(status) {
 }
 
 /**
- * 通用 OSS 上传字段组件（React + Vite）
+ * 通用本地上传字段组件（React + Vite）
  */
-function OssUploadField({
+function LocalUploadField({
   label,
   value,
   placeholder,
@@ -83,4 +83,4 @@ function OssUploadField({
   );
 }
 
-export default OssUploadField;
+export default LocalUploadField;

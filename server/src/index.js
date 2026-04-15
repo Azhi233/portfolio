@@ -74,6 +74,18 @@ function authMiddleware(req, res, next) {
   }
 }
 
+const sseClients = new Set();
+const notifyConfigChanged = (reason = 'config-updated') => {
+  const message = `event: config-updated\ndata: ${JSON.stringify({ reason, at: new Date().toISOString() })}\n\n`;
+  for (const client of sseClients) {
+    try {
+      client.write(message);
+    } catch {
+      sseClients.delete(client);
+    }
+  }
+};
+
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'oss-policy-api-sts' });
 });
@@ -81,6 +93,30 @@ app.get('/api/health', (_req, res) => {
 app.get('/api/config', (_req, res) => {
   const config = readConfigObject();
   res.json({ ok: true, data: config });
+});
+
+app.get('/api/events', (_req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+  });
+  res.write(': connected\n\n');
+  sseClients.add(res);
+
+  const keepAlive = setInterval(() => {
+    try {
+      res.write(': ping\n\n');
+    } catch {
+      clearInterval(keepAlive);
+      sseClients.delete(res);
+    }
+  }, 25000);
+
+  req.on('close', () => {
+    clearInterval(keepAlive);
+    sseClients.delete(res);
+  });
 });
 
 
@@ -211,6 +247,7 @@ app.post('/api/config', authMiddleware, (req, res) => {
   }
 
   const data = upsertConfigObject(payload);
+  notifyConfigChanged('config');
   return res.json({ ok: true, data });
 });
 
@@ -243,6 +280,7 @@ app.post('/api/projects', (req, res) => {
 
   insertProject(project);
   const created = findProjectById(project.id);
+  notifyConfigChanged('projects');
   return res.status(201).json({ ok: true, data: created });
 });
 
@@ -266,6 +304,7 @@ app.put('/api/projects/:id', (req, res) => {
 
   updateProject(id, merged);
   const updated = findProjectById(id);
+  notifyConfigChanged('projects');
   return res.json({ ok: true, data: updated });
 });
 
@@ -277,6 +316,7 @@ app.delete('/api/projects/:id', (req, res) => {
     return res.status(404).json({ ok: false, message: 'Project not found.' });
   }
 
+  notifyConfigChanged('projects');
   return res.json({ ok: true, data: { id } });
 });
 
@@ -302,15 +342,19 @@ app.post('/api/uploads/local', async (req, res, next) => {
 
     const url = `/uploads/${relativePath.replace(/\\/g, '/')}`;
 
+    const responsePayload = {
+      url,
+      path: relativePath.replace(/\\/g, '/'),
+      size: buffer.length,
+      contentType,
+      fileName,
+    };
+
+    notifyConfigChanged('uploads');
+
     return res.status(201).json({
       ok: true,
-      data: {
-        url,
-        path: relativePath.replace(/\\/g, '/'),
-        size: buffer.length,
-        contentType,
-        fileName,
-      },
+      data: responsePayload,
     });
   } catch (error) {
     return next(error);

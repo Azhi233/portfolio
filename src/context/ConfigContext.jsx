@@ -3,6 +3,35 @@ import seedReviews from '../data/reviews.json';
 
 const API_BASE = '/api';
 const TOKEN_STORAGE_KEY = 'portfolio.auth.token';
+const SYNC_CHANNEL_NAME = 'portfolio-config-sync';
+const SYNC_EVENT_NAME = 'portfolio-config-updated';
+const CONFIG_STORAGE_KEY = 'portfolio.cms.config';
+const PROJECTS_STORAGE_KEY = 'portfolio.cms.projects';
+const ASSETS_STORAGE_KEY = 'portfolio.cms.assets';
+const PROJECT_DATA_STORAGE_KEY = 'portfolio.cms.projectData';
+const PROJECT_UNLOCKS_STORAGE_KEY = 'portfolio.cms.projectUnlocks';
+const DELIVERY_UNLOCKS_STORAGE_KEY = 'portfolio.cms.deliveryUnlocks';
+const REVIEWS_STORAGE_KEY = 'portfolio.cms.reviews';
+const REVIEW_AUDIT_LOGS_STORAGE_KEY = 'portfolio.cms.reviewAuditLogs';
+
+function readLocalJson(key, fallback) {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeLocalJson(key, value) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // ignore storage failures
+  }
+}
 
 const DEFAULT_CASE_STUDIES = {
   toy: {
@@ -423,8 +452,21 @@ function normalizeCaseStudies(caseStudies) {
   };
 }
 
+function normalizeConfig(input) {
+  const stored = input && typeof input === 'object' ? input : {};
+  return {
+    ...DEFAULT_CONFIG,
+    ...stored,
+    vignetteIntensity: Number(stored.vignetteIntensity ?? DEFAULT_CONFIG.vignetteIntensity),
+    filmGrainOpacity: Number(stored.filmGrainOpacity ?? DEFAULT_CONFIG.filmGrainOpacity),
+    spotlightRadius: Number(stored.spotlightRadius ?? DEFAULT_CONFIG.spotlightRadius),
+    showHUD: stored.showHUD !== undefined ? Boolean(stored.showHUD) : DEFAULT_CONFIG.showHUD,
+    caseStudies: normalizeCaseStudies(stored.caseStudies || DEFAULT_CONFIG.caseStudies),
+  };
+}
+
 function readStoredConfig() {
-  return DEFAULT_CONFIG;
+  return normalizeConfig(readLocalJson(CONFIG_STORAGE_KEY, DEFAULT_CONFIG));
 }
 
 function getStoredToken() {
@@ -433,15 +475,15 @@ function getStoredToken() {
 }
 
 function readStoredProjects() {
-  return DEFAULT_PROJECTS;
+  return readLocalJson(PROJECTS_STORAGE_KEY, DEFAULT_PROJECTS);
 }
 
 function readStoredAssets() {
-  return DEFAULT_ASSETS;
+  return readLocalJson(ASSETS_STORAGE_KEY, DEFAULT_ASSETS);
 }
 
 function readStoredProjectData() {
-  return DEFAULT_PROJECT_DATA;
+  return readLocalJson(PROJECT_DATA_STORAGE_KEY, DEFAULT_PROJECT_DATA);
 }
 
 function isTokenPresent() {
@@ -449,7 +491,7 @@ function isTokenPresent() {
 }
 
 function readStoredDeliveryUnlocks() {
-  return {};
+  return readLocalJson(DELIVERY_UNLOCKS_STORAGE_KEY, {});
 }
 
 function createProjectId() {
@@ -484,15 +526,17 @@ function normalizeReview(item, index = 0) {
 }
 
 function readStoredReviews() {
+  const stored = readLocalJson(REVIEWS_STORAGE_KEY, null);
+  if (Array.isArray(stored)) return stored.map(normalizeReview);
   return (Array.isArray(seedReviews) ? seedReviews : []).map(normalizeReview);
 }
 
 function readStoredReviewAuditLogs() {
-  return [];
+  return readLocalJson(REVIEW_AUDIT_LOGS_STORAGE_KEY, []);
 }
 
 function readStoredProjectUnlocks() {
-  return {};
+  return readLocalJson(PROJECT_UNLOCKS_STORAGE_KEY, {});
 }
 
 async function fetchJson(path, options = {}) {
@@ -512,6 +556,8 @@ async function fetchJson(path, options = {}) {
   return payload?.data;
 }
 
+const DATA_SYNC_INTERVAL_MS = 15000;
+
 export function ConfigProvider({ children }) {
   const [config, setConfig] = useState(() => readStoredConfig());
   const [projects, setProjects] = useState(() => readStoredProjects());
@@ -524,39 +570,71 @@ export function ConfigProvider({ children }) {
   const [reviews, setReviews] = useState(() => readStoredReviews());
   const [reviewAuditLogs, setReviewAuditLogs] = useState(() => readStoredReviewAuditLogs());
 
+  const broadcastConfigUpdate = () => {
+    const payload = { type: SYNC_EVENT_NAME, at: Date.now() };
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(SYNC_EVENT_NAME, { detail: payload }));
+      writeLocalJson(SYNC_EVENT_NAME, payload);
+
+      try {
+        if ('BroadcastChannel' in window) {
+          const channel = new BroadcastChannel(SYNC_CHANNEL_NAME);
+          channel.postMessage(payload);
+          channel.close();
+        }
+      } catch {
+        // ignore broadcast failures
+      }
+    }
+  };
+
+  const fetchAndSyncRemoteData = async () => {
+    const [remoteConfig, remoteProjects, remoteReviews, remoteReviewAuditLogs, remoteProjectUnlocks, remoteDeliveryUnlocks] = await Promise.all([
+      fetchJson('/config'),
+      fetchJson('/projects'),
+      fetchJson('/reviews').catch(() => []),
+      fetchJson('/review-audit-logs').catch(() => []),
+      fetchJson('/project-unlocks').catch(() => ({})),
+      fetchJson('/delivery-unlocks').catch(() => ({})),
+    ]);
+
+    return { remoteConfig, remoteProjects, remoteReviews, remoteReviewAuditLogs, remoteProjectUnlocks, remoteDeliveryUnlocks };
+  };
+
   useEffect(() => {
     setIsAdmin(isTokenPresent());
   }, []);
 
   useEffect(() => {
     let cancelled = false;
+    let eventSource = null;
 
-    const loadInitialData = async () => {
+    const applyRemoteData = async () => {
       try {
-        const [remoteConfig, remoteProjects, remoteReviews, remoteReviewAuditLogs, remoteProjectUnlocks, remoteDeliveryUnlocks] = await Promise.all([
-          fetchJson('/config'),
-          fetchJson('/projects'),
-          fetchJson('/reviews').catch(() => []),
-          fetchJson('/review-audit-logs').catch(() => []),
-          fetchJson('/project-unlocks').catch(() => ({})),
-          fetchJson('/delivery-unlocks').catch(() => ({})),
-        ]);
+        const { remoteConfig, remoteProjects, remoteReviews, remoteReviewAuditLogs, remoteProjectUnlocks, remoteDeliveryUnlocks } =
+          await fetchAndSyncRemoteData();
 
         if (cancelled) return;
 
         if (remoteConfig && typeof remoteConfig === 'object') {
-          setConfig((prev) => ({
-            ...prev,
+          const nextConfig = normalizeConfig({
+            ...config,
             ...remoteConfig,
-            caseStudies: normalizeCaseStudies(remoteConfig.caseStudies || prev.caseStudies),
-          }));
+          });
+          setConfig(nextConfig);
+          writeLocalJson(CONFIG_STORAGE_KEY, nextConfig);
 
           if (Array.isArray(remoteConfig.assets)) {
-            setAssets(remoteConfig.assets.map(normalizeAsset));
+            const nextAssets = remoteConfig.assets.map(normalizeAsset);
+            setAssets(nextAssets);
+            writeLocalJson(ASSETS_STORAGE_KEY, nextAssets);
           }
 
           if (remoteConfig.projectData && typeof remoteConfig.projectData === 'object') {
-            setProjectData(normalizeProjectData(remoteConfig.projectData));
+            const nextProjectData = normalizeProjectData(remoteConfig.projectData);
+            setProjectData(nextProjectData);
+            writeLocalJson(PROJECT_DATA_STORAGE_KEY, nextProjectData);
           }
         }
 
@@ -584,10 +662,35 @@ export function ConfigProvider({ children }) {
       }
     };
 
-    loadInitialData();
+    const onRemoteChange = () => {
+      applyRemoteData();
+    };
+
+    const onStorage = (event) => {
+      if (event.key === SYNC_EVENT_NAME && event.newValue) {
+        onRemoteChange();
+      }
+    };
+
+    applyRemoteData();
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener(SYNC_EVENT_NAME, onRemoteChange);
+      window.addEventListener('storage', onStorage);
+
+      if ('BroadcastChannel' in window) {
+        eventSource = new BroadcastChannel(SYNC_CHANNEL_NAME);
+        eventSource.onmessage = onRemoteChange;
+      }
+    }
 
     return () => {
       cancelled = true;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener(SYNC_EVENT_NAME, onRemoteChange);
+        window.removeEventListener('storage', onStorage);
+      }
+      if (eventSource) eventSource.close();
     };
   }, []);
 
@@ -602,6 +705,10 @@ export function ConfigProvider({ children }) {
       projectData: nextProjectData,
     };
 
+    writeLocalJson(CONFIG_STORAGE_KEY, nextConfig);
+    writeLocalJson(ASSETS_STORAGE_KEY, nextAssets);
+    writeLocalJson(PROJECT_DATA_STORAGE_KEY, nextProjectData);
+
     const token = getStoredToken();
     const data = await fetchJson('/config', {
       method: 'POST',
@@ -609,12 +716,14 @@ export function ConfigProvider({ children }) {
       body: JSON.stringify(payload),
     });
 
+    broadcastConfigUpdate();
     return data;
   };
 
   const updateConfig = (key, value) =>
     setConfig((prev) => {
       const next = { ...prev, [key]: value };
+      writeLocalJson(CONFIG_STORAGE_KEY, next);
       persistConfigSnapshot({ nextConfig: next }).catch((error) => {
         console.error('Failed to persist config update:', error);
       });
@@ -622,18 +731,19 @@ export function ConfigProvider({ children }) {
     });
 
   const saveConfigToServer = async (nextConfig) => {
-    const mergedConfig = {
+    const mergedConfig = normalizeConfig({
       ...config,
       ...(nextConfig || {}),
-    };
+    });
 
     const data = await persistConfigSnapshot({ nextConfig: mergedConfig });
 
-    setConfig((prev) => ({
-      ...prev,
-      ...data,
-      caseStudies: normalizeCaseStudies(data?.caseStudies || prev.caseStudies),
-    }));
+    const next = normalizeConfig({
+      ...mergedConfig,
+      ...(data || {}),
+    });
+    setConfig(next);
+    writeLocalJson(CONFIG_STORAGE_KEY, next);
 
     return data;
   };
@@ -677,7 +787,11 @@ export function ConfigProvider({ children }) {
   const syncProjectUnlock = async (projectId, unlocked) => {
     const key = String(projectId || '').trim();
     if (!key) return;
-    setProjectUnlocks((prev) => ({ ...prev, [key]: Boolean(unlocked) }));
+    setProjectUnlocks((prev) => {
+      const next = { ...prev, [key]: Boolean(unlocked) };
+      writeLocalJson(PROJECT_UNLOCKS_STORAGE_KEY, next);
+      return next;
+    });
     await fetchJson('/project-unlocks', {
       method: 'POST',
       body: JSON.stringify({ projectId: key, unlocked: Boolean(unlocked) }),
@@ -701,7 +815,11 @@ export function ConfigProvider({ children }) {
   const syncDeliveryUnlock = async (projectId, unlocked) => {
     const key = String(projectId || '').trim();
     if (!key) return;
-    setDeliveryUnlocks((prev) => ({ ...prev, [key]: Boolean(unlocked) }));
+    setDeliveryUnlocks((prev) => {
+      const next = { ...prev, [key]: Boolean(unlocked) };
+      writeLocalJson(DELIVERY_UNLOCKS_STORAGE_KEY, next);
+      return next;
+    });
     await fetchJson('/delivery-unlocks', {
       method: 'POST',
       body: JSON.stringify({ projectId: key, unlocked: Boolean(unlocked) }),
@@ -729,7 +847,11 @@ export function ConfigProvider({ children }) {
       },
       0,
     );
-    setReviews((prev) => [next, ...prev]);
+    setReviews((prev) => {
+      const nextReviews = [next, ...prev];
+      writeLocalJson(REVIEWS_STORAGE_KEY, nextReviews);
+      return nextReviews;
+    });
     fetchJson('/reviews', {
       method: 'POST',
       body: JSON.stringify(next),
@@ -740,7 +862,11 @@ export function ConfigProvider({ children }) {
   };
 
   const updateReview = (reviewId, updates) => {
-    setReviews((prev) => prev.map((item) => (item.id === reviewId ? normalizeReview({ ...item, ...updates }) : item)));
+    setReviews((prev) => {
+      const next = prev.map((item) => (item.id === reviewId ? normalizeReview({ ...item, ...updates }) : item));
+      writeLocalJson(REVIEWS_STORAGE_KEY, next);
+      return next;
+    });
   };
 
   const appendReviewAuditLog = (entry) => {
@@ -749,7 +875,11 @@ export function ConfigProvider({ children }) {
       at: new Date().toISOString(),
       ...entry,
     };
-    setReviewAuditLogs((prev) => [next, ...prev]);
+    setReviewAuditLogs((prev) => {
+      const nextLogs = [next, ...prev];
+      writeLocalJson(REVIEW_AUDIT_LOGS_STORAGE_KEY, nextLogs);
+      return nextLogs;
+    });
     fetchJson('/config', {
       method: 'POST',
       body: JSON.stringify({
@@ -802,6 +932,7 @@ export function ConfigProvider({ children }) {
         },
       };
 
+      writeLocalJson(CONFIG_STORAGE_KEY, next);
       persistConfigSnapshot({ nextConfig: next }).catch((error) => {
         console.error('Failed to persist case study update:', error);
       });
@@ -893,6 +1024,7 @@ export function ConfigProvider({ children }) {
   };
 
   const saveAssetsToServer = (nextAssets) => {
+    writeLocalJson(ASSETS_STORAGE_KEY, nextAssets);
     persistConfigSnapshot({ nextAssets }).catch((error) => {
       console.error('Failed to persist assets:', error);
     });
@@ -953,6 +1085,7 @@ export function ConfigProvider({ children }) {
         },
       };
 
+      writeLocalJson(PROJECT_DATA_STORAGE_KEY, nextProjectData);
       persistConfigSnapshot({ nextProjectData }).catch((error) => {
         console.error('Failed to persist project modules:', error);
       });
@@ -965,6 +1098,8 @@ export function ConfigProvider({ children }) {
     setProjectData(DEFAULT_PROJECT_DATA);
     setConfig((prev) => {
       const nextConfig = { ...prev, caseStudies: DEFAULT_CASE_STUDIES };
+      writeLocalJson(CONFIG_STORAGE_KEY, nextConfig);
+      writeLocalJson(PROJECT_DATA_STORAGE_KEY, DEFAULT_PROJECT_DATA);
       persistConfigSnapshot({ nextConfig, nextProjectData: DEFAULT_PROJECT_DATA }).catch((error) => {
         console.error('Failed to persist reset case studies:', error);
       });
@@ -1092,6 +1227,9 @@ export function ConfigProvider({ children }) {
     setConfig(nextConfig);
     setAssets(nextAssets);
     setProjectData(nextProjectData);
+    writeLocalJson(CONFIG_STORAGE_KEY, nextConfig);
+    writeLocalJson(ASSETS_STORAGE_KEY, nextAssets);
+    writeLocalJson(PROJECT_DATA_STORAGE_KEY, nextProjectData);
 
     persistConfigSnapshot({ nextConfig, nextAssets, nextProjectData }).catch((error) => {
       console.error('Failed to persist imported CMS bundle:', error);
