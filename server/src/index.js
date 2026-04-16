@@ -8,8 +8,27 @@ import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { Client } from 'minio';
-import { pool, testConnection } from './db.js';
-import '../initAdmin.js';
+import {
+  pool,
+  testConnection,
+  readConfigObject,
+  upsertConfigObject,
+  readProjects,
+  findProjectById,
+  insertProject,
+  updateProject,
+  deleteProjectById,
+  readReviews,
+  upsertReview,
+  readReviewAuditLogs,
+  readProjectUnlocks,
+  upsertProjectUnlock,
+  readDeliveryUnlocks,
+  upsertDeliveryUnlock,
+  readMediaAssets,
+  upsertMediaAsset,
+} from './db.js';
+import { seedAdminUser } from '../initAdmin.js';
 
 dotenv.config();
 
@@ -18,8 +37,18 @@ app.use(cors({ origin: true, credentials: false }));
 app.use(express.json({ limit: '25mb' }));
 
 const JWT_SECRET = process.env.JWT_SECRET || 'portfolio-dev-secret';
-const PORT = process.env.PORT || '8787';
+const DEFAULT_PORT = 8787;
 const LOCAL_UPLOAD_DIR = process.env.LOCAL_UPLOAD_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'uploads');
+
+function resolvePort(value, fallback = DEFAULT_PORT) {
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  if (Number.isInteger(parsed) && parsed > 0 && parsed < 65536) {
+    return parsed;
+  }
+  return fallback;
+}
+
+const PORT = resolvePort(process.env.PORT, DEFAULT_PORT);
 const MINIO_ENABLED = String(process.env.MINIO_ENABLED || '').toLowerCase() === 'true';
 const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT || '';
 const MINIO_PORT = Number(process.env.MINIO_PORT || '9000');
@@ -107,17 +136,7 @@ app.get('/api/health', async (_req, res) => {
 });
 
 app.get('/api/config', async (_req, res) => {
-  const [rows] = await pool.query('SELECT key_name, json_value FROM global_config');
-  const config = rows.reduce((acc, row) => {
-    try {
-      acc[row.key_name] = JSON.parse(row.json_value);
-    } catch {
-      acc[row.key_name] = row.json_value;
-    }
-    return acc;
-  }, {});
-
-  res.json({ ok: true, data: config });
+  res.json({ ok: true, data: await readConfigObject() });
 });
 
 app.get('/api/events', (req, res) => {
@@ -230,40 +249,16 @@ app.post('/api/reviews', async (req, res) => {
     return res.status(400).json({ ok: false, message: 'projectId, projectName and content are required.' });
   }
 
-  const id = payload.id || `review-${Date.now()}`;
-  await pool.execute(
-    `INSERT INTO reviews (id, payload_json, created_at)
-     VALUES (?, ?, ?)
-     ON DUPLICATE KEY UPDATE payload_json = VALUES(payload_json), created_at = VALUES(created_at)`,
-    [id, JSON.stringify({ ...payload, status: payload.status || 'pending' }), new Date(payload.createdAt || new Date())],
-  );
-
-  return res.status(201).json({ ok: true, data: { ...payload, id } });
+  const created = await upsertReview({ ...payload, status: payload.status || 'pending' });
+  return res.status(201).json({ ok: true, data: created });
 });
 
 app.get('/api/review-audit-logs', async (_req, res) => {
-  const [rows] = await pool.query('SELECT id, payload_json, created_at FROM review_audit_logs ORDER BY created_at DESC');
-  const data = rows.map((row) => ({
-    ...(() => {
-      try {
-        return row.payload_json ? JSON.parse(row.payload_json) : {};
-      } catch {
-        return {};
-      }
-    })(),
-    id: row.id,
-    createdAt: row.created_at,
-  }));
-  res.json({ ok: true, data });
+  res.json({ ok: true, data: await readReviewAuditLogs() });
 });
 
 app.get('/api/project-unlocks', async (_req, res) => {
-  const [rows] = await pool.query('SELECT project_id, unlocked FROM project_unlocks');
-  const data = rows.reduce((acc, row) => {
-    acc[row.project_id] = Boolean(row.unlocked);
-    return acc;
-  }, {});
-  res.json({ ok: true, data });
+  res.json({ ok: true, data: await readProjectUnlocks() });
 });
 
 app.post('/api/project-unlocks', async (req, res) => {
@@ -272,28 +267,12 @@ app.post('/api/project-unlocks', async (req, res) => {
     return res.status(400).json({ ok: false, message: 'projectId is required.' });
   }
 
-  await pool.execute(
-    `INSERT INTO project_unlocks (project_id, unlocked, created_at)
-     VALUES (?, ?, CURRENT_TIMESTAMP)
-     ON DUPLICATE KEY UPDATE unlocked = VALUES(unlocked)`,
-    [projectId, Boolean(unlocked) ? 1 : 0],
-  );
-
-  const [rows] = await pool.query('SELECT project_id, unlocked FROM project_unlocks');
-  const data = rows.reduce((acc, row) => {
-    acc[row.project_id] = Boolean(row.unlocked);
-    return acc;
-  }, {});
-  return res.json({ ok: true, data });
+  await upsertProjectUnlock(projectId, Boolean(unlocked));
+  return res.json({ ok: true, data: await readProjectUnlocks() });
 });
 
 app.get('/api/delivery-unlocks', async (_req, res) => {
-  const [rows] = await pool.query('SELECT project_id, unlocked FROM delivery_unlocks');
-  const data = rows.reduce((acc, row) => {
-    acc[row.project_id] = Boolean(row.unlocked);
-    return acc;
-  }, {});
-  res.json({ ok: true, data });
+  res.json({ ok: true, data: await readDeliveryUnlocks() });
 });
 
 app.post('/api/delivery-unlocks', async (req, res) => {
@@ -302,19 +281,8 @@ app.post('/api/delivery-unlocks', async (req, res) => {
     return res.status(400).json({ ok: false, message: 'projectId is required.' });
   }
 
-  await pool.execute(
-    `INSERT INTO delivery_unlocks (project_id, unlocked, created_at)
-     VALUES (?, ?, CURRENT_TIMESTAMP)
-     ON DUPLICATE KEY UPDATE unlocked = VALUES(unlocked)`,
-    [projectId, Boolean(unlocked) ? 1 : 0],
-  );
-
-  const [rows] = await pool.query('SELECT project_id, unlocked FROM delivery_unlocks');
-  const data = rows.reduce((acc, row) => {
-    acc[row.project_id] = Boolean(row.unlocked);
-    return acc;
-  }, {});
-  return res.json({ ok: true, data });
+  await upsertDeliveryUnlock(projectId, Boolean(unlocked));
+  return res.json({ ok: true, data: await readDeliveryUnlocks() });
 });
 
 app.post('/api/config', authMiddleware, async (req, res) => {
@@ -323,45 +291,13 @@ app.post('/api/config', authMiddleware, async (req, res) => {
     return res.status(400).json({ ok: false, message: 'Config payload must be a JSON object.' });
   }
 
-  for (const [key, value] of Object.entries(payload)) {
-    await pool.execute(
-      `INSERT INTO global_config (key_name, json_value)
-       VALUES (?, ?)
-       ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
-      [key, JSON.stringify(value ?? null)],
-    );
-  }
-
-  const [rows] = await pool.query('SELECT key_name, json_value FROM global_config');
-  const data = rows.reduce((acc, row) => {
-    try {
-      acc[row.key_name] = JSON.parse(row.json_value);
-    } catch {
-      acc[row.key_name] = row.json_value;
-    }
-    return acc;
-  }, {});
-
+  const data = await upsertConfigObject(payload);
   notifyConfigChanged('config');
   return res.json({ ok: true, data });
 });
 
 app.get('/api/media-assets', async (_req, res) => {
-  const [rows] = await pool.query('SELECT id, kind, url, meta_json, created_at FROM media_assets ORDER BY created_at DESC');
-  const data = rows.map((row) => ({
-    id: row.id,
-    kind: row.kind,
-    url: row.url,
-    createdAt: row.created_at,
-    meta: (() => {
-      try {
-        return row.meta_json ? JSON.parse(row.meta_json) : {};
-      } catch {
-        return {};
-      }
-    })(),
-  }));
-  res.json({ ok: true, data });
+  res.json({ ok: true, data: await readMediaAssets() });
 });
 
 app.post('/api/media-assets', async (req, res) => {
@@ -370,32 +306,12 @@ app.post('/api/media-assets', async (req, res) => {
     return res.status(400).json({ ok: false, message: 'kind and url are required.' });
   }
 
-  const id = payload.id || `asset-${Date.now()}`;
-  await pool.execute(
-    `INSERT INTO media_assets (id, kind, url, meta_json, created_at)
-     VALUES (?, ?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE kind = VALUES(kind), url = VALUES(url), meta_json = VALUES(meta_json), created_at = VALUES(created_at)`,
-    [id, payload.kind, payload.url, JSON.stringify(payload.meta || {}), new Date(payload.createdAt || new Date())],
-  );
-
-  return res.status(201).json({ ok: true, data: { id, kind: payload.kind, url: payload.url, meta: payload.meta || {} } });
+  const data = await upsertMediaAsset(payload);
+  return res.status(201).json({ ok: true, data });
 });
 
 app.get('/api/projects', async (_req, res) => {
-  const [rows] = await pool.query(
-    `SELECT id, title, link, created_at
-     FROM projects
-     ORDER BY created_at DESC`,
-  );
-
-  const data = rows.map((row) => ({
-    id: row.id,
-    title: row.title,
-    link: row.link,
-    createdAt: row.created_at,
-  }));
-
-  res.json({ ok: true, data });
+  res.json({ ok: true, data: await readProjects() });
 });
 
 app.post('/api/projects', async (req, res) => {
@@ -405,23 +321,7 @@ app.post('/api/projects', async (req, res) => {
     return res.status(400).json({ ok: false, message: 'Project id and title are required.' });
   }
 
-  await pool.execute(
-    `INSERT INTO projects (id, title, link, created_at)
-     VALUES (?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE title = VALUES(title), link = VALUES(link)`,
-    [project.id, project.title, project.link || '', new Date(project.createdAt || new Date())],
-  );
-
-  const [rows] = await pool.execute('SELECT id, title, link, created_at FROM projects WHERE id = ? LIMIT 1', [project.id]);
-  const created = rows[0]
-    ? {
-        id: rows[0].id,
-        title: rows[0].title,
-        link: rows[0].link,
-        createdAt: rows[0].created_at,
-      }
-    : null;
-
+  const created = await insertProject(project);
   notifyConfigChanged('projects');
   return res.status(201).json({ ok: true, data: created });
 });
@@ -434,35 +334,21 @@ app.put('/api/projects/:id', async (req, res) => {
     return res.status(404).json({ ok: false, message: 'Project not found.' });
   }
 
-  const { title, link = '' } = req.body || {};
+  const { title, ...rest } = req.body || {};
   if (!title) {
     return res.status(400).json({ ok: false, message: 'Project title is required.' });
   }
 
-  await pool.execute(
-    `UPDATE projects SET title = ?, link = ? WHERE id = ?`,
-    [title, link, id],
-  );
-
-  const [rows] = await pool.execute('SELECT id, title, link, created_at FROM projects WHERE id = ? LIMIT 1', [id]);
-  const updated = rows[0]
-    ? {
-        id: rows[0].id,
-        title: rows[0].title,
-        link: rows[0].link,
-        createdAt: rows[0].created_at,
-      }
-    : null;
-
+  const updated = await updateProject(id, { ...rest, title });
   notifyConfigChanged('projects');
   return res.json({ ok: true, data: updated });
 });
 
 app.delete('/api/projects/:id', async (req, res) => {
   const { id } = req.params;
-  const [result] = await pool.execute('DELETE FROM projects WHERE id = ?', [id]);
+  const deleted = await deleteProjectById(id);
 
-  if (!result.affectedRows) {
+  if (!deleted) {
     return res.status(404).json({ ok: false, message: 'Project not found.' });
   }
 
@@ -572,6 +458,36 @@ app.use((error, _req, res, _next) => {
   });
 });
 
-app.listen(Number(PORT), () => {
-  console.log(`OSS STS policy API running at http://localhost:${PORT}`);
+async function bootstrap() {
+  const databaseReady = await testConnection();
+  if (!databaseReady) {
+    throw new Error('Database initialization failed.');
+  }
+
+  await seedAdminUser();
+
+  startServer(PORT);
+}
+
+bootstrap().catch((error) => {
+  console.error('Failed to start server:', error);
+  process.exitCode = 1;
 });
+
+function startServer(port, attemptsLeft = 20) {
+  const server = app.listen(port, () => {
+    console.log(`OSS STS policy API running at http://localhost:${port}`);
+  });
+
+  server.on('error', (error) => {
+    if (error?.code === 'EADDRINUSE' && attemptsLeft > 0) {
+      const nextPort = port + 1;
+      console.warn(`Port ${port} is in use, retrying on ${nextPort}...`);
+      startServer(nextPort, attemptsLeft - 1);
+      return;
+    }
+
+    console.error('Server failed to start:', error);
+    process.exitCode = 1;
+  });
+}

@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "dev:port": "node --watch src/index.js",
+    "start:port": "node src/index.js"
   },
   "dependencies": {
     "@alicloud/credentials": "^2.4.1",

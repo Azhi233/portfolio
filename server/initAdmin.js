@@ -6,7 +6,7 @@ const DEFAULT_USERNAME = 'zhizhi';
 const DEFAULT_PASSWORD = 'zhizhi233';
 const DEFAULT_ROLE = 'admin';
 
-async function seedAdminUser() {
+export async function seedAdminUser() {
   const [rows] = await pool.execute('SELECT id, username FROM users WHERE username = ? LIMIT 1', [DEFAULT_USERNAME]);
   const existing = rows[0] || null;
 
@@ -33,8 +33,3 @@ async function seedAdminUser() {
   console.log(`Seeded default admin user: ${DEFAULT_USERNAME}`);
   return user;
 }
-
-seedAdminUser().catch((error) => {
-  console.error('Failed to initialize admin user:', error);
-  process.exitCode = 1;
-});
