@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
+import { useIntrinsicMediaSize } from '../hooks/useIntrinsicMediaSize.jsx';
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -14,6 +15,13 @@ function HeroReveal({
   const leftImage = images?.left;
   const rightImage = images?.right;
   const mergedImage = images?.merged;
+  const leftMedia = useIntrinsicMediaSize();
+  const rightMedia = useIntrinsicMediaSize();
+  const mergedMedia = useIntrinsicMediaSize();
+
+  const leftStyle = leftMedia.aspectRatio ? { aspectRatio: leftMedia.aspectRatio } : undefined;
+  const rightStyle = rightMedia.aspectRatio ? { aspectRatio: rightMedia.aspectRatio } : undefined;
+  const mergedStyle = mergedMedia.aspectRatio ? { aspectRatio: mergedMedia.aspectRatio } : undefined;
 
   useGSAP(
     () => {
@@ -67,17 +75,28 @@ function HeroReveal({
         src={leftImage}
         alt="Left detail"
         loading="lazy"
+        onLoad={leftMedia.onImageLoad}
+        style={leftStyle}
         className="hero-left absolute left-[-20vw] top-0 h-full w-[62vw] object-cover opacity-90"
       />
       <img
         src={rightImage}
         alt="Right detail"
         loading="lazy"
+        onLoad={rightMedia.onImageLoad}
+        style={rightStyle}
         className="hero-right absolute right-[-20vw] top-0 h-full w-[62vw] object-cover opacity-90"
       />
 
       <div className="hero-object pointer-events-none absolute inset-0 opacity-0">
-        <img src={mergedImage} alt="Merged object" loading="lazy" className="h-full w-full object-cover" />
+        <img
+          src={mergedImage}
+          alt="Merged object"
+          loading="lazy"
+          onLoad={mergedMedia.onImageLoad}
+          style={mergedStyle}
+          className="h-full w-full object-cover"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/65" />
       </div>
 

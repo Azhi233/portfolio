@@ -3,8 +3,40 @@ import { useConfig } from '../context/ConfigContext.jsx';
 import EditDialog from './EditDialog.jsx';
 
 const REFRESH_BUFFER_MS = 60 * 1000;
+const RECENT_MEDIA_URLS_KEY = 'portfolio.edit.recentMediaUrls';
+const MAX_RECENT_MEDIA_URLS = 20;
 
-export default function EditableMedia({ src, type = 'image', onChange, className = '' }) {
+function readRecentMediaUrls() {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(RECENT_MEDIA_URLS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentMediaUrl(url) {
+  if (typeof window === 'undefined') return;
+  const next = [String(url || '').trim(), ...readRecentMediaUrls()].filter(Boolean);
+  const deduped = [...new Set(next)].slice(0, MAX_RECENT_MEDIA_URLS);
+  window.localStorage.setItem(RECENT_MEDIA_URLS_KEY, JSON.stringify(deduped));
+}
+
+export default function EditableMedia({
+  src,
+  type = 'image',
+  onChange,
+  className = '',
+  style,
+  onLoad,
+  onLoadedMetadata,
+  onClick,
+  onDoubleClick,
+  alt = 'editable media',
+  urlOptions = [],
+}) {
   const { isEditMode } = useConfig();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(src || '');
@@ -18,27 +50,6 @@ export default function EditableMedia({ src, type = 'image', onChange, className
   useEffect(() => {
     setResolvedSrc(src || '');
   }, [src]);
-
-  useEffect(() => {
-    if (!resolvedSrc) return undefined;
-    const expiresAt = Number(resolvedSrc?.expiresAt || 0);
-    if (!expiresAt) return undefined;
-
-    const refreshAt = Math.max(0, expiresAt - Date.now() - REFRESH_BUFFER_MS);
-    const timer = window.setTimeout(async () => {
-      try {
-        const nextUrl = await resolvedSrc.refreshUrl?.();
-        if (nextUrl) {
-          setResolvedSrc((prev) => ({ ...(prev || {}), url: nextUrl }));
-          if (typeof onChange === 'function') onChange(nextUrl);
-        }
-      } catch {
-        // ignore refresh failures and let the next render/interaction retry
-      }
-    }, refreshAt);
-
-    return () => window.clearTimeout(timer);
-  }, [resolvedSrc, onChange]);
 
   const mediaSrc = useMemo(() => {
     if (!resolvedSrc) return '';
@@ -54,53 +65,80 @@ export default function EditableMedia({ src, type = 'image', onChange, className
     setOpen(true);
   };
 
-  const handleSave = () => {
+  const handleConfirm = () => {
     const next = String(draft || '').trim();
     if (!next) {
       setError('请输入有效的 URL。');
       return;
     }
+    saveRecentMediaUrl(next);
     onChange?.(next);
     setOpen(false);
   };
 
   const mediaClass = `${className} ${isEditMode ? 'cursor-pointer border border-dashed border-cyan-400/60 bg-cyan-400/5' : ''}`;
 
+  const options = Array.from(
+    new Set([
+      String(src || '').trim(),
+      String(mediaSrc || '').trim(),
+      ...urlOptions.map((item) => String(item || '').trim()),
+      ...readRecentMediaUrls(),
+    ].filter(Boolean)),
+  );
+
+  const mediaProps = {
+    className: mediaClass,
+    style,
+    onClick: isEditMode ? handleOpen : onClick,
+    onDoubleClick: isEditMode ? onDoubleClick : onDoubleClick,
+  };
+
   return (
     <>
-      {resolvedSrc && typeof resolvedSrc === 'object' && resolvedSrc.isExpiringSoon ? (
-        <span className="sr-only">链接即将刷新</span>
-      ) : null}
       {type === 'video' ? (
-        <video src={mediaSrc} controls={!isEditMode} onClick={handleOpen} className={mediaClass} />
+        <video src={mediaSrc} controls={!isEditMode} onLoadedMetadata={onLoadedMetadata} {...mediaProps} />
       ) : (
-        <img src={mediaSrc} alt="editable media" onClick={handleOpen} className={mediaClass} />
+        <img src={mediaSrc} alt={alt} onLoad={onLoad} {...mediaProps} />
       )}
 
       <EditDialog open={open} label="EDIT MEDIA URL" title="更改媒体链接" onClose={() => setOpen(false)}>
-        <input
-          value={draft}
-          onChange={(event) => {
-            setDraft(event.target.value);
-            if (error) setError('');
-          }}
-          placeholder="https://..."
-          className="mt-4 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none"
-        />
+        <label className="mt-4 block">
+          <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">已上传 / 历史链接</p>
+          <select
+            value={draft}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              if (error) setError('');
+            }}
+            className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none"
+          >
+            <option value="">-- 直接输入或选择已有链接 --</option>
+            {options.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="mt-3 block">
+          <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">直接输入</p>
+          <input
+            value={draft}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              if (error) setError('');
+            }}
+            placeholder="https://..."
+            className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none"
+          />
+        </label>
+
         {error ? <p className="mt-2 text-xs text-rose-300">{error}</p> : null}
         <div className="mt-5 flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="rounded-lg border border-white/10 px-4 py-2 text-xs tracking-[0.18em] text-zinc-300"
-          >
+          <button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-white/10 px-4 py-2 text-xs tracking-[0.18em] text-zinc-300">
             取消
           </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            className="rounded-lg border border-cyan-300/70 bg-cyan-300/10 px-4 py-2 text-xs tracking-[0.18em] text-cyan-200"
-          >
+          <button type="button" onClick={handleConfirm} className="rounded-lg border border-cyan-300/70 bg-cyan-300/10 px-4 py-2 text-xs tracking-[0.18em] text-cyan-200">
             保存
           </button>
         </div>

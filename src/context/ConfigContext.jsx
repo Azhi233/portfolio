@@ -3,6 +3,7 @@ import seedReviews from '../data/reviews.json';
 
 const API_BASE = '/api';
 const TOKEN_STORAGE_KEY = 'portfolio.auth.token';
+const EDIT_MODE_STORAGE_KEY = 'portfolio.edit.mode';
 const SYNC_CHANNEL_NAME = 'portfolio-config-sync';
 const SYNC_EVENT_NAME = 'portfolio-config-updated';
 const CONFIG_STORAGE_KEY = 'portfolio.cms.config';
@@ -353,6 +354,21 @@ function normalizeAsset(asset) {
   const resolvedType = type === 'image-comparison' || variantCount > 1 ? 'image-comparison' : type;
   const baseUrl = String(asset?.url || asset?.coverUrl || variants.graded || variants.raw || variants.styled || '');
   const normalizedProjectId = String(asset?.views?.project?.projectId || '').trim() || 'toy_project';
+  const normalizedModuleSlot = String(asset?.views?.project?.moduleSlot || asset?.moduleSlot || '').trim();
+  const normalizedPublishTarget = ['expertise', 'project', 'both'].includes(asset?.publishTarget)
+    ? asset.publishTarget
+    : asset?.views?.video?.isActive
+      ? 'both'
+      : asset?.views?.expertise?.isActive && asset?.views?.project?.isActive
+        ? 'both'
+        : asset?.views?.project?.isActive
+          ? 'project'
+          : 'expertise';
+
+  const isExpertiseActive = normalizedPublishTarget === 'expertise' || normalizedPublishTarget === 'both';
+  const isProjectActive = normalizedPublishTarget === 'project' || normalizedPublishTarget === 'both';
+  const isVideoActive =
+    Boolean(asset?.views?.video?.isActive) || (resolvedType === 'video' && (normalizedPublishTarget === 'both' || normalizedPublishTarget === 'video'));
 
   return {
     id: String(asset?.id || `asset-${Date.now()}-${Math.round(Math.random() * 9999)}`),
@@ -360,18 +376,40 @@ function normalizeAsset(asset) {
     url: baseUrl,
     variants,
     title: String(asset?.title || 'Untitled Asset'),
+    publishTarget: isVideoActive && !isExpertiseActive && !isProjectActive ? 'video' : normalizedPublishTarget,
+    moduleSlot: normalizedModuleSlot,
+    autoTags: Array.isArray(asset?.autoTags)
+      ? asset.autoTags.map((tag) => String(tag || '').trim()).filter(Boolean)
+      : String(asset?.autoTags || '')
+          .split(/[\r\n,，;]/)
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+    tags: Array.isArray(asset?.tags)
+      ? asset.tags.map((tag) => String(tag || '').trim()).filter(Boolean)
+      : String(asset?.tags || '')
+          .split(/[\r\n,，;]/)
+          .map((tag) => tag.trim())
+          .filter(Boolean),
     views: {
       expertise: {
-        isActive: Boolean(asset?.views?.expertise?.isActive),
+        isActive: isExpertiseActive,
         category: ['commercial', 'industrial', 'events'].includes(asset?.views?.expertise?.category)
           ? asset.views.expertise.category
           : 'commercial',
         description: String(asset?.views?.expertise?.description || ''),
       },
       project: {
-        isActive: Boolean(asset?.views?.project?.isActive),
+        isActive: isProjectActive,
         projectId: normalizedProjectId,
+        moduleSlot: normalizedModuleSlot,
         description: String(asset?.views?.project?.description || ''),
+      },
+      video: {
+        isActive: isVideoActive,
+        category: ['COMMERCIAL', 'ENGINEERING', 'CULTURE'].includes(asset?.views?.video?.category)
+          ? asset.views.video.category
+          : 'COMMERCIAL',
+        description: String(asset?.views?.video?.description || ''),
       },
     },
   };
@@ -562,7 +600,10 @@ export function ConfigProvider({ children }) {
   const [config, setConfig] = useState(() => readStoredConfig());
   const [projects, setProjects] = useState(() => readStoredProjects());
   const [isAdmin, setIsAdmin] = useState(() => isTokenPresent());
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(EDIT_MODE_STORAGE_KEY) === 'true';
+  });
   const [assets, setAssets] = useState(() => readStoredAssets());
   const [projectData, setProjectData] = useState(() => readStoredProjectData());
   const [projectUnlocks, setProjectUnlocks] = useState(() => readStoredProjectUnlocks());
@@ -758,8 +799,9 @@ export function ConfigProvider({ children }) {
     if (!token) throw new Error('Login failed.');
 
     window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    window.localStorage.setItem(EDIT_MODE_STORAGE_KEY, 'true');
     setIsAdmin(true);
-    setIsEditMode(false);
+    setIsEditMode(true);
     return data;
   };
 
@@ -775,6 +817,7 @@ export function ConfigProvider({ children }) {
   const logout = () => {
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+      window.localStorage.removeItem(EDIT_MODE_STORAGE_KEY);
     }
     setIsAdmin(false);
     setIsEditMode(false);
@@ -1237,6 +1280,11 @@ export function ConfigProvider({ children }) {
 
     return { ok: true, message: 'CMS bundle imported.' };
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(EDIT_MODE_STORAGE_KEY, String(isEditMode));
+  }, [isEditMode]);
 
   const value = useMemo(
     () => ({

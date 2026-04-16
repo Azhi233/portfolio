@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
+import { useIntrinsicMediaSize } from '../hooks/useIntrinsicMediaSize.jsx';
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -9,12 +10,14 @@ function SocialGrid({
   items = [],
   heading = 'SOCIAL MATRIX DISTRIBUTION',
   subheading = 'Short-form assets, engineered for feed dominance.',
+  statusLabel = '',
 }) {
   const rootRef = useRef(null);
   const videoRefs = useRef({});
   const [activeId, setActiveId] = useState(null);
 
   const cards = useMemo(() => items.slice(0, 4), [items]);
+  const intrinsic = useIntrinsicMediaSize();
 
   useGSAP(
     () => {
@@ -123,10 +126,17 @@ function SocialGrid({
   return (
     <section ref={rootRef} className="bg-[#07090f] px-6 py-28 md:px-12">
       <div className="mx-auto max-w-6xl">
-        <p className="text-center text-xs tracking-[0.26em] text-zinc-500">{heading}</p>
+        <div className="flex flex-wrap items-center justify-center gap-2 text-center">
+          <p className="text-center text-xs tracking-[0.26em] text-zinc-500">{heading}</p>
+          {statusLabel ? (
+            <span className="rounded-full border border-sky-300/30 bg-sky-300/10 px-2 py-1 text-[10px] tracking-[0.12em] text-sky-200">
+              {statusLabel}
+            </span>
+          ) : null}
+        </div>
         <h2 className="mt-4 text-center text-3xl tracking-[0.12em] text-zinc-100 md:text-5xl">{subheading}</h2>
 
-        <div className="relative mt-14 grid grid-cols-2 gap-4 md:flex md:min-h-[62vh] md:items-center md:justify-center">
+        <div className="relative mt-14 grid grid-cols-2 gap-4 md:flex md:min-h-[62vh] md:items-center md:justify-center" style={intrinsic.aspectRatio ? { transform: `scale(${intrinsic.aspectRatio > 1 ? 1 : 1})` } : undefined}>
           {cards.map((item) => (
             <article
               key={item.id}

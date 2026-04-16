@@ -116,8 +116,16 @@ function IndustryProjectPage() {
     return map;
   }, [projectAssets]);
 
+  const slotUsedIds = useMemo(() => new Set(Array.from(moduleSlots.values()).map((item) => item.id)), [moduleSlots]);
   const hero = moduleSlots.get('brand-video') || projectAssets[0];
-  const rest = projectAssets.filter((item) => item?.id !== hero?.id);
+  const rest = projectAssets.filter((item) => item?.id !== hero?.id && !slotUsedIds.has(item.id));
+  const distributionLabel = hero?.views?.video?.isActive
+    ? '视频页'
+    : hero?.views?.project?.isActive && hero?.views?.expertise?.isActive
+      ? '双端同步'
+      : hero?.views?.project?.isActive
+        ? '项目页'
+        : '未分配';
 
   const tags = (target.tags || []).length > 0 ? target.tags : ['#工艺理解门槛高', '#素材分散', '#协作成本高'];
   const bullets = (action.bullets || []).length > 0 ? action.bullets : ['展会传播主线', '工艺亮点脚本化', '客户案例可视化'];
@@ -191,7 +199,12 @@ function IndustryProjectPage() {
           </section>
 
           <section className="rounded-3xl border border-white/10 bg-zinc-950/35 p-6 md:p-8">
-            <p className="text-xs tracking-[0.18em] text-zinc-500">模块 03 · ASSETS 核心素材展示</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs tracking-[0.18em] text-zinc-500">模块 03 · ASSETS 核心素材展示</p>
+              <span className="rounded-full border border-sky-300/30 bg-sky-300/10 px-2 py-1 text-[10px] tracking-[0.12em] text-sky-200">
+                {distributionLabel}
+              </span>
+            </div>
             <div className="mt-2 text-xs text-zinc-500">{assetsModule.intro}</div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-4 md:grid-rows-2">

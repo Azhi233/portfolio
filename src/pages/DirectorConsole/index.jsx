@@ -50,7 +50,7 @@ const EMPTY_MEDIA_FORM = {
 };
 
 const MODULE_SLOT_OPTIONS = [
-  { value: '', label: 'Auto' },
+  { value: '', label: 'Auto · 自动分配' },
   { value: 'brand-video', label: 'Brand Video 主视频位' },
   { value: 'hero-left', label: 'Hero Left 左图' },
   { value: 'hero-right', label: 'Hero Right 右图' },
@@ -84,6 +84,7 @@ const EMPTY_ASSET_FORM = {
   expertiseDescription: '',
   projectDescription: '',
   moduleSlot: '',
+  videoCategory: 'COMMERCIAL',
 };
 
 const EMPTY_BULK_ASSET_FORM = {
@@ -93,6 +94,7 @@ const EMPTY_BULK_ASSET_FORM = {
   projectId: 'toy_project',
   expertiseDescription: '',
   projectDescription: '',
+  manualTagsText: '',
 };
 
 const EMPTY_BULK_VIDEO_FORM = {
@@ -149,6 +151,25 @@ const getActionButtonClass = (isEnabled) =>
     isEnabled ? ACTIVE_ACTION_CLASS : DISABLED_ACTION_CLASS
   }`;
 
+function normalizeAssetPublishTarget(asset) {
+  if (asset?.views?.video?.isActive) return 'both';
+  if (asset?.views?.expertise?.isActive && asset?.views?.project?.isActive) return 'both';
+  if (asset?.views?.project?.isActive) return 'project';
+  return 'expertise';
+}
+
+function getAssetDistributionSummary(asset) {
+  const parts = [];
+  if (asset?.views?.expertise?.isActive) parts.push('后台');
+  if (asset?.views?.project?.isActive) parts.push('项目页');
+  if (asset?.views?.video?.isActive) parts.push('视频页');
+  return parts.length > 0 ? parts.join(' · ') : '未分配';
+}
+
+function getProjectIdByModuleSlot(projectId, moduleSlot) {
+  return String(projectId || '').trim() || 'toy_project';
+}
+
 function parseAssetNameToken(fileName) {
   const base = String(fileName || '').trim();
   if (!base) return null;
@@ -203,6 +224,11 @@ function buildProjectDescriptionWithSlot(description = '', moduleSlot = '') {
   return clean ? `${clean} #module:${slot}` : `#module:${slot}`;
 }
 
+function getPublishTargetHint(publishTarget) {
+  if (publishTarget === 'both') return '同步进入项目页与视频页';
+  if (publishTarget === 'project') return '仅进入项目页';
+  return '仅进入后台可见区';
+}
 
 function getAssetUrlWarning(url, type) {
   const value = String(url || '').trim();
@@ -212,6 +238,13 @@ function getAssetUrlWarning(url, type) {
   if (type === 'image' && /\.(mp4|webm|mov)(\?.*)?$/i.test(value)) return '当前类型是 Image，但 URL 更像视频资源。';
   if (type === 'video' && /\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(value)) return '当前类型是 Video，但 URL 更像图片资源。';
   return '';
+}
+
+function normalizeTagsInput(value) {
+  return String(value || '')
+    .split(/[\r\n,，;]/)
+    .map((tag) => tag.trim())
+    .filter(Boolean);
 }
 
 function buildLegacyMigrationPreview(caseStudies = {}) {
@@ -799,6 +832,7 @@ function DirectorConsole() {
   const [bulkAssetSelectedKeys, setBulkAssetSelectedKeys] = useState([]);
   const [bulkAssetCollapsedGroups, setBulkAssetCollapsedGroups] = useState([]);
   const [bulkAssetGroupBy, setBulkAssetGroupBy] = useState('ym');
+  const [bulkAssetForm, setBulkAssetForm] = useState(EMPTY_BULK_ASSET_FORM);
   const [projectModuleDraft, setProjectModuleDraft] = useState(() => ({
     projectId: 'toy_project',
     targetHeadline: projectData?.toy_project?.modules?.target?.headline || '',
@@ -2173,6 +2207,11 @@ function DirectorConsole() {
       title: String(assetForm.title || '').trim(),
       url: String(assetForm.url || '').trim(),
       type: assetForm.type,
+      publishTarget: assetForm.publishTarget,
+      tags: String(assetForm.tagsText || '')
+        .split(/[\r\n,]/)
+        .map((tag) => tag.trim())
+        .filter(Boolean),
       views: {
         expertise: {
           isActive: assetForm.publishTarget === 'expertise' || assetForm.publishTarget === 'both',
@@ -2182,10 +2221,16 @@ function DirectorConsole() {
         project: {
           isActive: assetForm.publishTarget === 'project' || assetForm.publishTarget === 'both',
           projectId: assetForm.projectId,
+          moduleSlot: assetForm.moduleSlot,
           description: buildProjectDescriptionWithSlot(
             String(assetForm.projectDescription || '').trim(),
             assetForm.moduleSlot,
           ),
+        },
+        video: {
+          isActive: assetForm.publishTarget === 'both' && assetForm.type === 'video',
+          category: assetForm.videoCategory,
+          description: String(assetForm.projectDescription || '').trim(),
         },
       },
     };
@@ -2843,7 +2888,7 @@ function DirectorConsole() {
             <div className="mt-4 rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-4">
               <p className="text-xs tracking-[0.16em] text-zinc-300">BULK URL PARSER</p>
               <p className="mt-1 text-[11px] tracking-[0.1em] text-zinc-500">
-                一行一个 URL，文件名需符合 [年月]-[产品名]-[主题]-[横竖屏]-[分辨率]-[正样片]-[序号]-[编码].ext。
+                一行一个 URL。符合目标格式时会自动根据关键词识别并预填；不符合时也会保留并允许手动补标签。
               </p>
 
               <textarea
@@ -2878,23 +2923,39 @@ function DirectorConsole() {
                         return;
                       }
 
-                      const parsed = [];
-                      for (const url of lines) {
-                        if (!/^https?:\/\//i.test(url)) continue;
-                        const fileName = String(url.split('?')[0] || '').split('/').pop() || '';
+                      const parsed = lines.map((url) => {
+                        const normalizedUrl = url.replace(/\s+/g, '');
+                        const fileName = String(normalizedUrl.split('?')[0] || '').split('/').pop() || '';
                         const token = parseAssetNameToken(fileName);
-                        if (!token) continue;
-
-                        parsed.push({
-                          url,
+                        const inferredType = inferAssetTypeFromUrl(normalizedUrl);
+                        const autoTags = token
+                          ? [
+                              token.product,
+                              token.theme,
+                              token.orientation,
+                              token.resolution,
+                              token.stage,
+                              token.codec,
+                              token.year ? String(token.year) : '',
+                              token.month ? String(token.month).padStart(2, '0') : '',
+                            ].filter(Boolean)
+                          : [];
+                        return {
+                          url: normalizedUrl,
                           fileName,
                           token,
-                          type: inferAssetTypeFromUrl(url),
-                        });
-                      }
+                          inferredType,
+                          type: inferredType,
+                          autoDetected: Boolean(token),
+                          title: token?.title || fileName || normalizedUrl,
+                          autoTags,
+                          tagsText: autoTags.join(', '),
+                          tagSummary: autoTags.join(' · '),
+                        };
+                      });
 
                       if (parsed.length === 0) {
-                        setBulkAssetError('未识别到符合命名规则的 URL。');
+                        setBulkAssetError('未识别到任何 URL。');
                         setBulkAssetPreview([]);
                         return;
                       }
@@ -2903,6 +2964,10 @@ function DirectorConsole() {
                       setBulkAssetPreview(parsed);
                       setBulkAssetSelectedKeys(parsed.map((item, index) => `${item.fileName}-${index}`));
                       setBulkAssetCollapsedGroups([]);
+                      setBulkAssetForm((prev) => ({
+                        ...prev,
+                        manualTagsText: parsed.flatMap((item) => item.autoTags).slice(0, 8).join(', '),
+                      }));
                     }}
                     className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs tracking-[0.12em] text-zinc-200"
                   >
@@ -2926,23 +2991,34 @@ function DirectorConsole() {
                         return;
                       }
 
-                      const payloads = selected.map((item) => ({
-                        title: item.token.title,
-                        url: item.url,
-                        type: item.type,
-                        views: {
-                          expertise: {
-                            isActive: assetForm.publishTarget === 'expertise' || assetForm.publishTarget === 'both',
-                            category: assetForm.expertiseCategory,
-                            description: String(assetForm.expertiseDescription || '').trim(),
+                      const manualTags = normalizeTagsInput(bulkAssetForm.manualTagsText);
+
+                      const payloads = selected.map((item) => {
+                        const tags = manualTags.length > 0 ? manualTags : normalizeTagsInput(item.tagsText);
+
+                        return {
+                          title: item.title,
+                          url: item.url,
+                          type: item.type,
+                          tags,
+                          publishTarget: item.type === 'video' ? 'video' : assetForm.publishTarget,
+                          views: {
+                            expertise: {
+                              isActive: assetForm.publishTarget === 'expertise' || assetForm.publishTarget === 'both',
+                              category: assetForm.expertiseCategory,
+                              description: String(assetForm.expertiseDescription || '').trim(),
+                            },
+                            project: {
+                              isActive: assetForm.publishTarget === 'project' || assetForm.publishTarget === 'both',
+                              projectId: assetForm.projectId,
+                              description: buildProjectDescriptionWithSlot(
+                                String(assetForm.projectDescription || '').trim(),
+                                assetForm.moduleSlot,
+                              ),
+                            },
                           },
-                          project: {
-                            isActive: assetForm.publishTarget === 'project' || assetForm.publishTarget === 'both',
-                            projectId: assetForm.projectId,
-                            description: String(assetForm.projectDescription || '').trim(),
-                          },
-                        },
-                      }));
+                        };
+                      });
                       addAssets(payloads);
 
                       setBulkAssetInput('');
@@ -2989,6 +3065,12 @@ function DirectorConsole() {
                       >
                         清空
                       </button>
+                      <input
+                        value={bulkAssetForm.manualTagsText}
+                        onChange={(event) => setBulkAssetForm((prev) => ({ ...prev, manualTagsText: event.target.value }))}
+                        className="min-w-56 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-[10px] text-zinc-200 outline-none"
+                        placeholder="手动标签，逗号/换行分隔"
+                      />
                     </div>
                   </div>
 
@@ -3080,6 +3162,14 @@ function DirectorConsole() {
                                     <p className="mt-1 text-[11px] text-zinc-400">
                                       {item.token.year || '----'}-{String(item.token.month || '').padStart(2, '0')} · 产品 {item.token.product} · 主题 {item.token.theme} · {item.token.orientation} · {item.token.resolution} · {item.token.stage} · #{item.token.seq} · {item.token.codec}
                                     </p>
+                                    {item.autoTags?.length ? (
+                                      <p className="mt-1 text-[11px] text-emerald-200">
+                                        AUTO TAGS · {item.autoTags.join(' · ')}
+                                      </p>
+                                    ) : null}
+                                    {item.tagSummary ? (
+                                      <p className="mt-1 text-[11px] text-zinc-500">SUMMARY · {item.tagSummary}</p>
+                                    ) : null}
                                   </div>
                                 </label>
                               );
@@ -3181,10 +3271,16 @@ function DirectorConsole() {
                   onChange={(event) => setAssetForm((prev) => ({ ...prev, publishTarget: event.target.value }))}
                   className={FORM_INPUT_CLASS}
                 >
-                  <option value="expertise">Expertise Only</option>
-                  <option value="project">Project Only</option>
-                  <option value="both">Both</option>
+                  <option value="expertise">Expertise Only · 仅后台展示</option>
+                  <option value="project">Project Only · 仅项目页展示</option>
+                  <option value="both">Both · 同步到项目页 + 视频页</option>
                 </select>
+                <p className="mt-2 text-[11px] leading-5 tracking-[0.08em] text-zinc-500">
+                  选择 <span className="text-zinc-300">Both</span> 时，视频会同步进入商业项目页与视频页；未勾选的模块不会重复渲染。
+                </p>
+                <p className="mt-1 text-[11px] leading-5 tracking-[0.08em] text-zinc-600">
+                  当前选择：{getPublishTargetHint(assetForm.publishTarget)}
+                </p>
               </label>
 
               {(assetForm.publishTarget === 'expertise' || assetForm.publishTarget === 'both') ? (
@@ -3238,6 +3334,9 @@ function DirectorConsole() {
                         </option>
                       ))}
                     </select>
+                    <p className="mt-2 text-[11px] leading-5 tracking-[0.08em] text-zinc-500">
+                      仅当需要固定到某个模块位时再选择；留空则按页面规则自动分配，避免素材在未选择区域重复出现。
+                    </p>
                   </label>
                   <label className="block md:col-span-2">
                     <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">商业向说明</p>
@@ -3288,6 +3387,7 @@ function DirectorConsole() {
                         title: String(assetForm.title || '').trim(),
                         url: String(assetForm.url || '').trim(),
                         type: assetForm.type,
+                        tags: normalizeTagsInput(assetForm.tagsText),
                         variants: assetForm.type === 'image-comparison' ? variants : undefined,
                         views: {
                           expertise: {
@@ -3345,6 +3445,7 @@ function DirectorConsole() {
                       }
                       setAssetForm(EMPTY_ASSET_FORM);
                       setEditingAssetId(null);
+                      setShowAssetEditorModal(false);
                     }}
                     className="rounded-md border border-emerald-300/70 bg-emerald-300/10 px-4 py-2 text-xs tracking-[0.12em] text-emerald-200"
                   >
@@ -3362,11 +3463,15 @@ function DirectorConsole() {
                         <p className="text-sm text-zinc-100">{asset.title}</p>
                         <p className="text-[11px] text-zinc-500">{asset.url}</p>
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingAssetId(asset.id);
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-1 text-[10px] tracking-[0.12em] text-zinc-400">
+                          {getAssetDistributionSummary(asset)}
+                        </span>
+                          <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingAssetId(asset.id);
                             setAssetForm({
                               title: asset.title,
                               url: asset.url,
@@ -5339,10 +5444,16 @@ function DirectorConsole() {
                     onChange={(event) => setAssetForm((prev) => ({ ...prev, publishTarget: event.target.value }))}
                     className={FORM_INPUT_CLASS}
                   >
-                    <option value="expertise">Expertise Only</option>
-                    <option value="project">Project Only</option>
-                    <option value="both">Both</option>
+                    <option value="expertise">Expertise Only · 仅后台展示</option>
+                    <option value="project">Project Only · 仅项目页展示</option>
+                    <option value="both">Both · 同步到项目页 + 视频页</option>
                   </select>
+                  <p className="mt-2 text-[11px] leading-5 tracking-[0.08em] text-zinc-500">
+                    选择 <span className="text-zinc-300">Both</span> 时，视频会同步进入商业项目页与视频页；未勾选的模块不会重复渲染。
+                  </p>
+                  <p className="mt-1 text-[11px] leading-5 tracking-[0.08em] text-zinc-600">
+                    当前选择：{getPublishTargetHint(assetForm.publishTarget)}
+                  </p>
                 </label>
 
                 {(assetForm.publishTarget === 'project' || assetForm.publishTarget === 'both') ? (
@@ -5372,6 +5483,9 @@ function DirectorConsole() {
                           </option>
                         ))}
                       </select>
+                      <p className="mt-2 text-[11px] leading-5 tracking-[0.08em] text-zinc-500">
+                        仅当需要固定到某个模块位时再选择；留空则按页面规则自动分配，避免素材在未选择区域重复出现。
+                      </p>
                     </label>
                   </>
                 ) : null}

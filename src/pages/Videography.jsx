@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import OgilvyGalleryGrid from '../components/OgilvyGalleryGrid.jsx';
 import EditableText from '../components/EditableText.jsx';
 import AutoRefreshMedia from '../components/AutoRefreshMedia.jsx';
+import { useIntrinsicMediaSize } from '../hooks/useIntrinsicMediaSize.jsx';
 import { videoCategories, videos } from '../data/videoData.js';
 
 const FALLBACK_COVER =
@@ -10,6 +11,7 @@ const FALLBACK_COVER =
 
 function Videography() {
   const [activeFilter, setActiveFilter] = useState('ALL');
+  const heroMedia = useIntrinsicMediaSize();
 
   const filteredVideos = useMemo(() => {
     if (activeFilter === 'ALL') return videos;
@@ -51,17 +53,18 @@ function Videography() {
             </h2>
           </div>
 
-          <div className="mb-6 overflow-hidden rounded-2xl border border-white/10 bg-black/25">
+          <div className="mb-6 overflow-hidden rounded-2xl border border-white/10 bg-black/25" style={{ aspectRatio: heroMedia.aspectRatio || '16 / 9' }}>
             <AutoRefreshMedia
               as="video"
               src={filteredVideos[0]?.videoUrl || ''}
-              className="h-[42vh] w-full object-cover"
+              className="h-full w-full object-cover"
               muted
               loop
               autoPlay
               playsInline
               preload="metadata"
               controls={false}
+              onLoadedMetadata={heroMedia.onVideoLoadedMetadata}
             />
           </div>
 
@@ -85,6 +88,8 @@ function Videography() {
                   width: video.coverWidth,
                   height: video.coverHeight,
                   aspectRatio: video.coverAspectRatio,
+                  statusLabel: '视频页',
+                  statusTone: 'video',
                 }))}
               />
             </motion.div>

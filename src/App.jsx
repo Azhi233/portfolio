@@ -26,12 +26,12 @@ function AdminPanel() {
 
   return (
     <div
-      className={`group fixed bottom-6 right-0 z-50 flex items-stretch pr-2 transition-transform duration-300 ease-out ${
-        isEditMode ? 'admin-breathing-ring translate-x-0' : 'translate-x-[calc(100%-16px)]'
+      className={`fixed bottom-6 right-4 z-[140] flex items-stretch transition-all duration-300 ease-out ${
+        isEditMode ? 'translate-x-0' : 'translate-x-[calc(100%-260px)]'
       }`}
       aria-label="Admin edit mode panel"
     >
-      <div className="flex min-h-[180px] w-[320px] flex-col gap-3 rounded-l-2xl border border-white/10 border-r-0 bg-black/80 p-4 shadow-2xl backdrop-blur-xl transition-all duration-300 ease-out group-hover:w-[360px] group-hover:translate-x-0">
+      <div className="group flex min-h-[180px] w-[260px] flex-col gap-3 rounded-2xl border border-white/15 bg-black/85 p-4 shadow-2xl backdrop-blur-xl transition-all duration-300 ease-out hover:w-[360px]">
         <div className="flex items-center justify-between gap-3">
           <span className={`text-[10px] tracking-[0.22em] ${isEditMode ? 'text-cyan-200' : 'text-zinc-400'}`}>
             {isEditMode ? 'EDIT MODE ON' : 'EDIT MODE OFF'}
@@ -44,7 +44,7 @@ function AdminPanel() {
               event.stopPropagation();
               setIsEditMode((prev) => !prev);
             }}
-            className="pointer-events-auto rounded-lg border border-white/10 px-4 py-2 text-xs tracking-[0.2em] text-white transition hover:border-white/30"
+            className="pointer-events-auto rounded-lg border border-cyan-300/40 bg-cyan-300/10 px-4 py-2 text-xs tracking-[0.2em] text-cyan-100 transition hover:border-cyan-200 hover:bg-cyan-300/15"
           >
             {isEditMode ? '退出编辑模式' : '切换编辑模式'}
           </button>
@@ -186,7 +186,7 @@ function LoginModal({ open, onClose }) {
 
 function App() {
   const { scrollY } = useScroll();
-  const { config, isAdmin, isEditMode } = useConfig();
+  const { config, isAdmin, isEditMode, setIsEditMode } = useConfig();
   const location = useLocation();
   const [viewMode, setViewMode] = useState(() => {
     if (typeof window === 'undefined') return 'expertise';

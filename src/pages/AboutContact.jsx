@@ -6,6 +6,7 @@ import { useMemo, useRef, useState } from 'react';
 import EditableText from '../components/EditableText.jsx';
 import EditableMedia from '../components/EditableMedia.jsx';
 import { useConfig } from '../context/ConfigContext.jsx';
+import { useIntrinsicMediaSize } from '../hooks/useIntrinsicMediaSize.jsx';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -13,7 +14,7 @@ const CAPABILITIES = ['视觉资产统筹', '无菌美学摄影', '商业全栈�
 const DEFAULT_QR_IMAGE = 'https://via.placeholder.com/400x400?text=WeChat+QR';
 
 function AboutContact() {
-  const { config } = useConfig();
+  const { config, updateConfig } = useConfig();
   const sectionRef = useRef(null);
   const wechatRef = useRef(null);
   const [wechatOpen, setWechatOpen] = useState(false);
@@ -21,6 +22,8 @@ function AboutContact() {
   const email = config.contactEmail?.trim() || 'hello@director.vision';
   const emailHref = `mailto:${email}`;
   const qrCodeImageUrl = config.qrCodeImageUrl?.trim() || DEFAULT_QR_IMAGE;
+  const portraitMedia = useIntrinsicMediaSize();
+  const qrMedia = useIntrinsicMediaSize();
 
   const introText = useMemo(
     () =>
@@ -80,8 +83,15 @@ function AboutContact() {
             <div className="aspect-[4/5] w-full overflow-hidden bg-[linear-gradient(135deg,#f8fafc_0%,#e2e8f0_100%)] grayscale shadow-[0_20px_60px_rgba(15,23,42,0.04)]">
               <div className="flex h-full items-center justify-center border border-slate-200/70">
                 <div className="text-center">
-                  <EditableMedia type="image" src="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80" className="mx-auto h-28 w-28 rounded-full object-cover" onChange={() => {}} />
-                  <EditableText as="p" className="mt-4 text-[10px] tracking-[0.32em] text-slate-400" value="主理人肖像占位符" />
+                  <EditableMedia
+                    type="image"
+                    src={config.aboutPortraitImageUrl || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80'}
+                    className="mx-auto rounded-full object-cover"
+                    style={portraitMedia.aspectRatio ? { width: portraitMedia.aspectRatio > 1 ? '11rem' : '8.5rem', aspectRatio: portraitMedia.aspectRatio } : { width: '11rem', height: '11rem' }}
+                    onLoad={portraitMedia.onImageLoad}
+                    onChange={(value) => updateConfig('aboutPortraitImageUrl', value)}
+                  />
+                  <EditableText as="p" className="mt-4 text-[10px] tracking-[0.32em] text-slate-400" value={config.aboutPortraitCaption || '主理人肖像占位符'} onChange={(value) => updateConfig('aboutPortraitCaption', value)} />
                 </div>
               </div>
             </div>
@@ -89,9 +99,9 @@ function AboutContact() {
 
           <div className="reveal-block space-y-8">
             <div className="space-y-4">
-              <EditableText as="p" className="text-xs tracking-[0.28em] text-slate-400" value="MANIFESTO / BIO" />
-              <EditableText as="h1" className="max-w-4xl font-serif text-4xl leading-[1.02] tracking-[-0.05em] text-[#1E293B] md:text-7xl" value="将公差参数，翻译为全球商业信任。" />
-              <EditableText as="p" className="max-w-2xl text-base leading-relaxed text-slate-600 md:text-lg" value={introText} />
+              <EditableText as="p" className="text-xs tracking-[0.28em] text-slate-400" value={config.aboutKicker || 'MANIFESTO / BIO'} onChange={(value) => updateConfig('aboutKicker', value)} />
+              <EditableText as="h1" className="max-w-4xl font-serif text-4xl leading-[1.02] tracking-[-0.05em] text-[#1E293B] md:text-7xl" value={config.aboutHeadline || '将公差参数，翻译为全球商业信任。'} onChange={(value) => updateConfig('aboutHeadline', value)} />
+              <EditableText as="p" className="max-w-2xl text-base leading-relaxed text-slate-600 md:text-lg" value={introText} onChange={(value) => updateConfig('resumeExperienceText', value)} multiline />
             </div>
 
             <div className="flex flex-wrap gap-3">
@@ -110,8 +120,8 @@ function AboutContact() {
 
       <section className="mx-auto w-full max-w-6xl px-6 pb-28 md:px-12">
         <div className="reveal-block text-center">
-          <EditableText as="p" className="text-xs tracking-[0.3em] text-slate-400" value="ENGAGEMENT" />
-          <EditableText as="h2" className="mt-4 font-serif text-4xl leading-[1.02] tracking-[-0.05em] text-[#1E293B] md:text-7xl" value="准备好重塑您的企业视觉引擎了吗？" />
+          <EditableText as="p" className="text-xs tracking-[0.3em] text-slate-400" value={config.aboutEngagementKicker || 'ENGAGEMENT'} onChange={(value) => updateConfig('aboutEngagementKicker', value)} />
+          <EditableText as="h2" className="mt-4 font-serif text-4xl leading-[1.02] tracking-[-0.05em] text-[#1E293B] md:text-7xl" value={config.aboutEngagementHeadline || '准备好重塑您的企业视觉引擎了吗？'} onChange={(value) => updateConfig('aboutEngagementHeadline', value)} />
         </div>
 
         <div className="mt-14 grid gap-4 md:grid-cols-2">
@@ -120,9 +130,9 @@ function AboutContact() {
             className="reveal-block group flex min-h-44 items-center justify-between border border-slate-200 bg-white px-6 py-8 transition hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_18px_50px_rgba(30,41,59,0.08)] md:px-8"
           >
             <div>
-              <EditableText as="p" className="text-xs tracking-[0.28em] text-slate-400" value="EMAIL BLOCK" />
-              <EditableText as="p" className="mt-4 text-2xl font-medium tracking-[-0.03em] text-[#1E293B] md:text-3xl" value={email} />
-              <EditableText as="p" className="mt-2 text-sm text-slate-500" value="点击直接发起商业联络" />
+              <EditableText as="p" className="text-xs tracking-[0.28em] text-slate-400" value={config.aboutEmailLabel || 'EMAIL BLOCK'} onChange={(value) => updateConfig('aboutEmailLabel', value)} />
+              <EditableText as="p" className="mt-4 text-2xl font-medium tracking-[-0.03em] text-[#1E293B] md:text-3xl" value={email} onChange={(value) => updateConfig('contactEmail', value)} />
+              <EditableText as="p" className="mt-2 text-sm text-slate-500" value={config.aboutEmailHint || '点击直接发起商业联络'} onChange={(value) => updateConfig('aboutEmailHint', value)} />
             </div>
             <Mail className="h-7 w-7 text-slate-300 transition group-hover:text-slate-500" />
           </a>
@@ -135,9 +145,9 @@ function AboutContact() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <EditableText as="p" className="text-xs tracking-[0.28em] text-slate-400" value="WECHAT BLOCK" />
-                <EditableText as="p" className="mt-4 text-2xl font-medium tracking-[-0.03em] text-[#1E293B] md:text-3xl" value="WeChat" />
-                <EditableText as="p" className="mt-2 text-sm text-slate-500" value="Hover 展开二维码" />
+                <EditableText as="p" className="text-xs tracking-[0.28em] text-slate-400" value={config.aboutWechatLabel || 'WECHAT BLOCK'} onChange={(value) => updateConfig('aboutWechatLabel', value)} />
+                <EditableText as="p" className="mt-4 text-2xl font-medium tracking-[-0.03em] text-[#1E293B] md:text-3xl" value={config.aboutWechatTitle || 'WeChat'} onChange={(value) => updateConfig('aboutWechatTitle', value)} />
+                <EditableText as="p" className="mt-2 text-sm text-slate-500" value={config.aboutWechatHint || 'Hover 展开二维码'} onChange={(value) => updateConfig('aboutWechatHint', value)} />
               </div>
               <QrCode className="h-7 w-7 text-slate-300 transition group-hover:text-slate-500" />
             </div>
@@ -146,7 +156,7 @@ function AboutContact() {
               className={`mt-6 grid overflow-hidden transition-all duration-500 ease-out ${wechatOpen ? 'max-h-72 opacity-100' : 'max-h-0 opacity-0'}`}
             >
               <div className="w-fit rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                <img src={qrCodeImageUrl} alt="WeChat QR code" className="h-44 w-44 object-cover" />
+                <EditableMedia type="image" src={qrCodeImageUrl} className="object-cover" onLoad={qrMedia.onImageLoad} style={qrMedia.aspectRatio ? { width: '11rem', aspectRatio: qrMedia.aspectRatio } : { width: '11rem', height: '11rem' }} onChange={(value) => updateConfig('qrCodeImageUrl', value)} />
               </div>
             </div>
           </div>

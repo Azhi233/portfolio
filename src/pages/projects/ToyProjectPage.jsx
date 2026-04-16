@@ -55,6 +55,9 @@ function ToyProjectPage() {
     return slotMap;
   }, [orderedAssets]);
 
+  const slotUsedIds = useMemo(() => new Set(Array.from(moduleSlots.values()).map((item) => item.id)), [moduleSlots]);
+  const nonSlotAssets = useMemo(() => orderedAssets.filter((item) => !slotUsedIds.has(item.id)), [orderedAssets, slotUsedIds]);
+
   const heroImages = {
     left:
       moduleSlots.get('hero-left')?.url ||
@@ -74,11 +77,17 @@ function ToyProjectPage() {
   const videoAsset =
     moduleSlots.get('brand-video') ||
     orderedAssets.find((item) => item?.type === 'video' || inferType(item?.url) === 'video');
+  const distributionLabel = videoAsset?.views?.video?.isActive
+    ? '视频页'
+    : videoAsset?.views?.project?.isActive && videoAsset?.views?.expertise?.isActive
+      ? '双端同步'
+      : videoAsset?.views?.project?.isActive
+        ? '项目页'
+        : '未分配';
 
-  const socialSource =
-    orderedAssets.filter((item) => parseModuleTag(item?.views?.project?.description) === 'social').slice(0, 4);
+  const socialSource = nonSlotAssets.filter((item) => parseModuleTag(item?.views?.project?.description) === 'social').slice(0, 4);
 
-  const socialItems = (socialSource.length > 0 ? socialSource : orderedAssets.slice(0, 4)).map((item, idx) => ({
+  const socialItems = (socialSource.length > 0 ? socialSource : nonSlotAssets.slice(0, 4)).map((item, idx) => ({
     id: item.id || `social-${idx}`,
     title: item.title || `Social Asset ${idx + 1}`,
     type: item.type || inferType(item.url),
@@ -86,7 +95,7 @@ function ToyProjectPage() {
     poster: data?.coverUrl,
   }));
 
-  const bentoItems = orderedAssets.slice(0, 6).map((item, idx) => ({
+  const bentoItems = nonSlotAssets.slice(0, 6).map((item, idx) => ({
     id: item.id || `bento-${idx}`,
     title: item.title || `Portfolio ${idx + 1}`,
     image: item.url,
@@ -108,8 +117,10 @@ function ToyProjectPage() {
         poster={data?.coverUrl}
         captionTitle={showcase.brandCaptionTitle || data?.modules?.target?.headline || 'BRAND SCREENING ROOM'}
         captionSubtitle={showcase.brandCaptionSubtitle || data?.modules?.assets?.intro || 'A cinematic narrative that scales to every channel.'}
+        statusLabel={distributionLabel}
       />
       <SocialGrid
+        statusLabel={distributionLabel}
         items={
           socialItems.length > 0
             ? socialItems

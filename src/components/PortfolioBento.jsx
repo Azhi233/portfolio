@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
+import { useIntrinsicMediaSize } from '../hooks/useIntrinsicMediaSize.jsx';
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -31,6 +32,8 @@ function PortfolioBento({
     }));
   }, [items]);
 
+  const mediaSize = useIntrinsicMediaSize();
+
   useGSAP(
     () => {
       gsap.fromTo(
@@ -59,7 +62,10 @@ function PortfolioBento({
         <p className="text-xs tracking-[0.24em] text-zinc-500">{heading}</p>
         <h2 className="mt-3 text-3xl tracking-[0.11em] text-zinc-100 md:text-5xl">{subheading}</h2>
 
-        <div className="mt-10 grid auto-rows-[180px] grid-cols-2 gap-4 md:auto-rows-[220px] md:grid-cols-4">
+        <div
+          className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4"
+          style={{ gridAutoRows: mediaSize.aspectRatio && mediaSize.aspectRatio < 1 ? '220px' : '180px' }}
+        >
           {bentoItems.map((item) => (
             <article
               key={item.id}
@@ -69,6 +75,7 @@ function PortfolioBento({
                 src={item.image}
                 alt={item.title}
                 loading="lazy"
+                onLoad={mediaSize.onImageLoad}
                 className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
