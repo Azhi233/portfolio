@@ -3457,21 +3457,21 @@ function DirectorConsole() {
 
             <div className="mt-4 grid gap-3">
               {filteredAssetsForPanel.map((asset) => (
-                  <article key={asset.id} className="rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <p className="text-sm text-zinc-100">{asset.title}</p>
-                        <p className="text-[11px] text-zinc-500">{asset.url}</p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-1 text-[10px] tracking-[0.12em] text-zinc-400">
-                          {getAssetDistributionSummary(asset)}
-                        </span>
-                          <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingAssetId(asset.id);
+                <article key={asset.id} className="rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm text-zinc-100">{asset.title}</p>
+                      <p className="text-[11px] text-zinc-500">{asset.url}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-1 text-[10px] tracking-[0.12em] text-zinc-400">
+                        {getAssetDistributionSummary(asset)}
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingAssetId(asset.id);
                             setAssetForm({
                               title: asset.title,
                               url: asset.url,
@@ -3507,8 +3507,9 @@ function DirectorConsole() {
                         </button>
                       </div>
                     </div>
-                  </article>
-                ))}
+                  </div>
+                </article>
+              ))}
 
               {filteredAssetsForPanel.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-950/50 p-6 text-center text-xs tracking-[0.14em] text-zinc-500">
