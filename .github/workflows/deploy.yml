@@ -56,12 +56,18 @@ jobs:
               echo "Repository not found. Please clone the repo to /www/wwwroot/portfolio-web first."
               exit 1
             fi
+            git config --global http.version HTTP/1.1
+            git config --global core.compression 0
             for i in 1 2 3; do
-              if git fetch origin main; then
+              if git -c http.version=HTTP/1.1 fetch --prune origin main; then
                 break
               fi
               if [ "$i" -eq 3 ]; then
-                echo "git fetch failed after 3 attempts"
+                echo "standard git fetch failed, trying shallow fetch fallback"
+                if git -c http.version=HTTP/1.1 fetch --depth=1 --prune origin main; then
+                  break
+                fi
+                echo "git fetch failed after fallback"
                 exit 1
               fi
               echo "git fetch failed, retrying in 5s..."
