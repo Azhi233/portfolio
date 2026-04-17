@@ -10,12 +10,19 @@ import { videoCategories, videos as fallbackVideos } from '../data/videoData.js'
 const FALLBACK_COVER =
   'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=1200&q=80';
 
+function inferMediaGroup(asset = {}) {
+  const type = String(asset?.type || '').toLowerCase();
+  const url = String(asset?.url || asset?.videoUrl || '').toLowerCase();
+  if (asset?.mediaGroup === 'video' || type === 'video' || /\.(mp4|webm|mov|m4v)(\?.*)?$/.test(url)) return 'video';
+  return 'photo';
+}
+
 function Videography() {
   const [activeFilter, setActiveFilter] = useState('ALL');
   const heroMedia = useIntrinsicMediaSize();
   const { config, updateConfig, assets } = useConfig();
 
-  const videoWorks = useMemo(() => (assets || []).filter((asset) => asset?.mediaGroup === 'video' || asset?.type === 'video'), [assets]);
+  const videoWorks = useMemo(() => (assets || []).filter((asset) => inferMediaGroup(asset) === 'video'), [assets]);
   const fallbackVideoWorks = useMemo(() => fallbackVideos, []);
 
   const filteredVideos = useMemo(() => {
@@ -29,7 +36,7 @@ function Videography() {
       priority: 0,
     }));
     if (activeFilter === 'ALL') return source;
-    return source.filter((video) => video.category === activeFilter || video.mediaGroup === 'video');
+    return source.filter((video) => video.category === activeFilter || inferMediaGroup(video) === 'video');
   }, [activeFilter, videoWorks, fallbackVideoWorks]);
 
   return (
@@ -70,7 +77,7 @@ function Videography() {
           <div className="mb-6 overflow-hidden rounded-2xl border border-white/10 bg-black/25" style={{ aspectRatio: heroMedia.aspectRatio || '16 / 9' }}>
             <EditableMedia
               type="video"
-              src={filteredVideos[0]?.url || filteredVideos[0]?.videoUrl || ''}
+              src={filteredVideos[0]?.url || filteredVideos[0]?.videoUrl || filteredVideos[0]?.coverUrl || ''}
               className="h-full w-full object-cover"
               onLoadedMetadata={heroMedia.onVideoLoadedMetadata}
               onChange={(value) => updateConfig('videoHeroUrl', value)}

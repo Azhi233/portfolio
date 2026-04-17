@@ -352,6 +352,14 @@ function normalizeProject(project) {
   };
 }
 
+function inferMediaGroupFromAsset(asset = {}, resolvedType = 'image') {
+  const type = String(asset?.type || '').toLowerCase();
+  const url = String(asset?.url || asset?.coverUrl || asset?.videoUrl || '').toLowerCase();
+  if (asset?.mediaGroup === 'video' || type === 'video' || /\.(mp4|webm|mov|m4v)(\?.*)?$/.test(url)) return 'video';
+  if (asset?.mediaGroup === 'photo') return 'photo';
+  return resolvedType === 'video' ? 'video' : 'photo';
+}
+
 function normalizeAsset(asset) {
   const type = VALID_ASSET_TYPES.includes(asset?.type) ? asset.type : asset?.type === 'video' ? 'video' : 'image';
   const rawVariants = asset?.variants && typeof asset.variants === 'object' ? asset.variants : {};
@@ -376,15 +384,17 @@ function normalizeAsset(asset) {
           ? 'project'
           : 'expertise';
 
+  const mediaGroup = inferMediaGroupFromAsset(asset, resolvedType);
   const isExpertiseActive = normalizedPublishTarget === 'expertise' || normalizedPublishTarget === 'both';
   const isProjectActive = normalizedPublishTarget === 'project' || normalizedPublishTarget === 'both';
   const isVideoActive =
-    Boolean(asset?.views?.video?.isActive) || (resolvedType === 'video' && (normalizedPublishTarget === 'both' || normalizedPublishTarget === 'video'));
+    mediaGroup === 'video' || Boolean(asset?.views?.video?.isActive) || (resolvedType === 'video' && (normalizedPublishTarget === 'both' || normalizedPublishTarget === 'video'));
 
   return {
     id: String(asset?.id || `asset-${Date.now()}-${Math.round(Math.random() * 9999)}`),
     type: resolvedType,
     url: baseUrl,
+    mediaGroup,
     variants,
     title: String(asset?.title || 'Untitled Asset'),
     publishTarget: isVideoActive && !isExpertiseActive && !isProjectActive ? 'video' : normalizedPublishTarget,
