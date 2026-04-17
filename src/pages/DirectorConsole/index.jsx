@@ -53,11 +53,18 @@ const EMPTY_MEDIA_FORM = {
 
 const MODULE_SLOT_OPTIONS = [
   { value: '', label: 'Auto · 自动分配' },
-  { value: 'brand-video', label: 'Brand Video 主视频位' },
-  { value: 'hero-left', label: 'Hero Left 左图' },
-  { value: 'hero-right', label: 'Hero Right 右图' },
-  { value: 'hero-merged', label: 'Hero Merged 中图' },
-  { value: 'social', label: 'Social Grid 社媒区' },
+  { value: 'brand-video', label: 'Brand Video · 品牌主视频位' },
+  { value: 'hero-left', label: 'Toy · Hero Left 左主视觉' },
+  { value: 'hero-right', label: 'Toy · Hero Right 右主视觉' },
+  { value: 'hero-merged', label: 'Toy · Hero Merged 合成主视觉' },
+  { value: 'social', label: 'Toy · Social Grid 社交流位' },
+  { value: 'industry-hero-video', label: 'Industry · Hero Video 主视频位' },
+  { value: 'industry-asset-grid', label: 'Industry · Asset Grid 素材位' },
+];
+
+const MEDIA_GROUP_OPTIONS = [
+  { value: 'photo', label: '摄影作品' },
+  { value: 'video', label: '视频作品' },
 ];
 
 const WORK_OUTLINE_OPTIONS = [
@@ -87,6 +94,7 @@ const EMPTY_ASSET_FORM = {
   projectDescription: '',
   moduleSlot: '',
   videoCategory: 'COMMERCIAL',
+  mediaGroup: 'photo',
 };
 
 const EMPTY_BULK_ASSET_FORM = {
@@ -165,6 +173,8 @@ function getAssetDistributionSummary(asset) {
   if (asset?.views?.expertise?.isActive) parts.push('后台');
   if (asset?.views?.project?.isActive) parts.push('项目页');
   if (asset?.views?.video?.isActive) parts.push('视频页');
+  const group = asset?.mediaGroup === 'video' ? '视频作品' : asset?.mediaGroup === 'photo' ? '摄影作品' : '';
+  if (group) parts.push(group);
   return parts.length > 0 ? parts.join(' · ') : '未分配';
 }
 
@@ -206,6 +216,11 @@ function inferAssetTypeFromUrl(url) {
   return 'image';
 }
 
+function inferMediaGroup(type, url) {
+  if (String(type || '').toLowerCase() === 'video') return 'video';
+  return inferAssetTypeFromUrl(url) === 'video' ? 'video' : 'photo';
+}
+
 function extractModuleSlot(description = '') {
   const text = String(description || '');
   const match = text.match(/#module:([a-z0-9_-]+)/i);
@@ -230,6 +245,22 @@ function getPublishTargetHint(publishTarget) {
   if (publishTarget === 'both') return '同步进入项目页与视频页';
   if (publishTarget === 'project') return '仅进入项目页';
   return '仅进入后台可见区';
+}
+
+function ProjectVideoPresence({ project }) {
+  const hasMainVideo = Boolean(String(project?.mainVideoUrl || project?.videoUrl || '').trim());
+  const btsCount = Array.isArray(project?.btsMedia) ? project.btsMedia.filter(Boolean).length : 0;
+
+  return (
+    <div className="mt-3 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs tracking-[0.1em] text-zinc-400">
+      <p>
+        主视频：{hasMainVideo ? '已设置' : '未设置'} · BTS：{btsCount} 条
+      </p>
+      {hasMainVideo ? (
+        <p className="mt-1 break-all text-cyan-200">{project?.mainVideoUrl || project?.videoUrl}</p>
+      ) : null}
+    </div>
+  );
 }
 
 function getAssetUrlWarning(url, type) {
@@ -545,6 +576,7 @@ function ProjectForm({
           uploadState={uploadState.video}
           onChange={(nextValue) => onChange('videoUrl', nextValue)}
           onUpload={onUploadVideo}
+          preview={uploadState.video?.url || formState.videoUrl}
         />
 
         <label className="block">
@@ -736,7 +768,7 @@ function DirectorConsole() {
   const [showForm, setShowForm] = useState(false);
   const [uploadState, setUploadState] = useState({
     cover: { status: 'idle', progress: 0 },
-    video: { status: 'idle', progress: 0 },
+    video: { status: 'idle', progress: 0, fileName: '', fileType: '', convertedFrom: '', url: '' },
     qrCode: { status: 'idle', progress: 0 },
   });
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -1721,13 +1753,20 @@ function DirectorConsole() {
 
       setUploadState((prev) => ({
         ...prev,
-        video: { status: 'success', progress: 100 },
+        video: {
+          status: 'success',
+          progress: 100,
+          fileName: result.fileName || '',
+          fileType: result.fileType || '',
+          convertedFrom: result.convertedFrom || '',
+          url: result.url || '',
+        },
       }));
     } catch (error) {
       console.error(error);
       setUploadState((prev) => ({
         ...prev,
-        video: { status: 'error', progress: 0 },
+        video: { status: 'error', progress: 0, fileName: '', fileType: '', convertedFrom: '', url: '' },
       }));
     }
   };
@@ -2198,6 +2237,7 @@ function DirectorConsole() {
         .split(/[\r\n,]/)
         .map((tag) => tag.trim())
         .filter(Boolean),
+      mediaGroup: inferMediaGroup(assetForm.type, assetForm.url),
       views: {
         expertise: {
           isActive: assetForm.publishTarget === 'expertise' || assetForm.publishTarget === 'both',
@@ -2986,6 +3026,7 @@ function DirectorConsole() {
                           title: item.title,
                           url: item.url,
                           type: item.type,
+                          mediaGroup: inferMediaGroup(item.type, item.url),
                           tags,
                           publishTarget: item.type === 'video' ? 'video' : assetForm.publishTarget,
                           views: {
@@ -3189,7 +3230,7 @@ function DirectorConsole() {
                   value={assetForm.type}
                   onChange={(event) => {
                     const nextType = event.target.value;
-                    setAssetForm((prev) => ({ ...prev, type: nextType }));
+                    setAssetForm((prev) => ({ ...prev, type: nextType, mediaGroup: inferMediaGroup(nextType, prev.url) }));
                     setAssetUrlWarning(nextType === 'video' || nextType === 'image' ? getAssetUrlWarning(assetForm.url, nextType) : '');
                   }}
                   className={FORM_INPUT_CLASS}
@@ -3510,6 +3551,8 @@ function DirectorConsole() {
               {[
                 { id: 'projects', label: 'PROJECT LIST' },
                 { id: 'distribution', label: 'DUAL VIEW DISTRIBUTION' },
+                { id: 'videos', label: 'VIDEO WORKS' },
+                { id: 'photos', label: 'PHOTO WORKS' },
               ].map((mode) => (
                 <button
                   key={mode.id}
@@ -3526,7 +3569,53 @@ function DirectorConsole() {
               ))}
             </div>
 
-            {projectsPanelMode === 'distribution' ? (
+            {projectsPanelMode === 'videos' ? (
+              <div>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-sm tracking-[0.16em] text-zinc-100">VIDEO WORKS</h2>
+                    <p className="mt-1 text-[11px] tracking-[0.12em] text-zinc-500">只展示媒体分组为视频的素材</p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-3">
+                  {assets.filter((asset) => asset?.mediaGroup === 'video' || asset?.type === 'video').map((asset) => (
+                    <article key={asset.id} className="rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-4">
+                      <p className="text-sm text-zinc-100">{asset.title}</p>
+                      <p className="mt-1 break-all text-[11px] text-zinc-500">{asset.url}</p>
+                      <p className="mt-2 text-[11px] tracking-[0.12em] text-cyan-300">{getAssetDistributionSummary(asset)}</p>
+                    </article>
+                  ))}
+                  {assets.filter((asset) => asset?.mediaGroup === 'video' || asset?.type === 'video').length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-950/50 p-6 text-center text-xs tracking-[0.14em] text-zinc-500">
+                      NO VIDEO WORKS.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : projectsPanelMode === 'photos' ? (
+              <div>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-sm tracking-[0.16em] text-zinc-100">PHOTO WORKS</h2>
+                    <p className="mt-1 text-[11px] tracking-[0.12em] text-zinc-500">只展示媒体分组为摄影的素材</p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                  {assets.filter((asset) => asset?.mediaGroup === 'photo' || (asset?.mediaGroup !== 'video' && asset?.type !== 'video')).map((asset) => (
+                    <article key={asset.id} className="rounded-xl border border-zinc-700/60 bg-zinc-950/50 p-4">
+                      <p className="text-sm text-zinc-100">{asset.title}</p>
+                      <p className="mt-1 break-all text-[11px] text-zinc-500">{asset.url}</p>
+                      <p className="mt-2 text-[11px] tracking-[0.12em] text-cyan-300">{getAssetDistributionSummary(asset)}</p>
+                    </article>
+                  ))}
+                  {assets.filter((asset) => asset?.mediaGroup === 'photo' || (asset?.mediaGroup !== 'video' && asset?.type !== 'video')).length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-950/50 p-6 text-center text-xs tracking-[0.14em] text-zinc-500">
+                      NO PHOTO WORKS.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : projectsPanelMode === 'distribution' ? (
               <div>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
@@ -3853,6 +3942,7 @@ function DirectorConsole() {
                               {project._readonlyFromProjectData ? (
                                 <p className="mt-1 text-[10px] tracking-[0.1em] text-amber-300">只读占位：来自 Project Modules，建议先迁移/新建项目到 Projects。</p>
                               ) : null}
+                              <ProjectVideoPresence project={project} />
                             </div>
                             <div className="flex gap-2">
                               <button

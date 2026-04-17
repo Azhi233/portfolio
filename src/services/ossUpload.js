@@ -37,30 +37,27 @@ export async function uploadFileToOSS({ file, dir = 'uploads', onProgress }) {
   }
 
   onProgress?.(10);
-  const data = await fileToDataUrl(file);
-  onProgress?.(60);
 
-  const response = await fetch(`${LOCAL_API_BASE}/uploads/local`, {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('dir', dir);
+  formData.append('type', 'public');
+
+  const response = await fetch(`${LOCAL_API_BASE}/uploads`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      fileName: file.name,
-      contentType: file.type || 'application/octet-stream',
-      dir,
-      data,
-    }),
+    body: formData,
   });
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`Local upload failed: ${response.status} ${detail}`);
+    throw new Error(`Upload failed: ${response.status} ${detail}`);
   }
 
   const result = await response.json();
   const payload = result?.data;
 
   if (!payload?.url) {
-    throw new Error('Invalid local upload response');
+    throw new Error('Invalid upload response');
   }
 
   const expiresInSeconds = Number(payload?.expiresInSeconds || 0);

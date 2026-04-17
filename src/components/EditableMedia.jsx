@@ -6,6 +6,19 @@ const REFRESH_BUFFER_MS = 60 * 1000;
 const RECENT_MEDIA_URLS_KEY = 'portfolio.edit.recentMediaUrls';
 const MAX_RECENT_MEDIA_URLS = 20;
 
+function getEmbedUrl(url) {
+  const value = String(url || '').trim();
+  if (!value) return '';
+  if (/\.mp4(\?.*)?$/i.test(value) || /\.(webm|mov|m4v)(\?.*)?$/i.test(value)) return value;
+  const bilibiliMatch = value.match(/(?:bilibili\.com\/video\/|b23\.tv\/)(BV[0-9A-Za-z]+)/i);
+  if (bilibiliMatch?.[1]) return `https://player.bilibili.com/player.html?bvid=${bilibiliMatch[1]}&high_quality=1&danmaku=0&as_wide=1`;
+  const vimeoMatch = value.match(/vimeo\.com\/(?:video\/)?(\d+)/i);
+  if (vimeoMatch?.[1]) return `https://player.vimeo.com/video/${vimeoMatch[1]}?title=0&byline=0&portrait=0`;
+  const youtubeMatch = value.match(/(?:youtube\.com\/watch\?v=|youtube\.com\/embed\/|youtu\.be\/)([A-Za-z0-9_-]{11})/i);
+  if (youtubeMatch?.[1]) return `https://www.youtube-nocookie.com/embed/${youtubeMatch[1]}?autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1`;
+  return value;
+}
+
 function readRecentMediaUrls() {
   if (typeof window === 'undefined') return [];
   try {
@@ -32,6 +45,7 @@ export default function EditableMedia({
   style,
   onLoad,
   onLoadedMetadata,
+  onError,
   onClick,
   onDoubleClick,
   alt = 'editable media',
@@ -56,6 +70,8 @@ export default function EditableMedia({
     if (typeof resolvedSrc === 'string') return resolvedSrc;
     return resolvedSrc.url || '';
   }, [resolvedSrc]);
+
+  const embedSrc = useMemo(() => (type === 'video' ? getEmbedUrl(mediaSrc) : mediaSrc), [mediaSrc, type]);
 
   const handleOpen = (event) => {
     if (!isEditMode) return;
@@ -96,12 +112,30 @@ export default function EditableMedia({
     style,
     onClick: isEditMode ? handleOpen : onClick,
     onDoubleClick: isEditMode ? onDoubleClick : onDoubleClick,
+    onError,
   };
 
   return (
     <>
       {type === 'video' ? (
-        <video src={mediaSrc} controls={!isEditMode} onLoadedMetadata={onLoadedMetadata} {...mediaProps} />
+        embedSrc.includes('player.bilibili.com') ||
+        embedSrc.includes('player.vimeo.com') ||
+        embedSrc.includes('youtube-nocookie.com') ? (
+          <iframe
+            src={embedSrc}
+            title={alt}
+            allow="autoplay; fullscreen; picture-in-picture"
+            allowFullScreen
+            {...mediaProps}
+          />
+        ) : (
+          <video
+            src={embedSrc}
+            controls={!isEditMode}
+            onLoadedMetadata={onLoadedMetadata}
+            {...mediaProps}
+          />
+        )
       ) : (
         <img src={mediaSrc} alt={alt} onLoad={onLoad} {...mediaProps} />
       )}

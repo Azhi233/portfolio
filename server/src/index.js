@@ -40,6 +40,7 @@ app.use(cors({
   origin: ['http://localhost:5175', 'http://localhost:5173', 'http://47.114.95.49'],
   credentials: true,
 }));
+app.set('trust proxy', true);
 app.use(express.json({ limit: '20480mb' }));
 app.use(express.urlencoded({ limit: '20480mb', extended: true }));
 

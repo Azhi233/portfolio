@@ -76,14 +76,25 @@ function ToyProjectPage() {
 
   const videoAsset =
     moduleSlots.get('brand-video') ||
-    orderedAssets.find((item) => item?.type === 'video' || inferType(item?.url) === 'video');
+    orderedAssets.find((item) => item?.type === 'video' || inferType(item?.url) === 'video') ||
+    (data?.mainVideoUrl || data?.videoUrl
+      ? {
+          id: `${data?.id || 'toy-project'}-main-video`,
+          title: `${data?.title || 'Toy Project'} Main Video`,
+          url: data.mainVideoUrl || data.videoUrl,
+          type: 'video',
+          views: { project: { isActive: true, projectId: 'toy_project', moduleSlot: 'brand-video', description: '' } },
+        }
+      : null);
   const distributionLabel = videoAsset?.views?.video?.isActive
     ? '视频页'
     : videoAsset?.views?.project?.isActive && videoAsset?.views?.expertise?.isActive
       ? '双端同步'
       : videoAsset?.views?.project?.isActive
         ? '项目页'
-        : '未分配';
+        : videoAsset
+          ? '主视频'
+          : '未分配';
 
   const socialSource = nonSlotAssets.filter((item) => parseModuleTag(item?.views?.project?.description) === 'social').slice(0, 4);
 
@@ -94,6 +105,30 @@ function ToyProjectPage() {
     url: item.url,
     poster: data?.coverUrl,
   }));
+
+  const videoWorks = useMemo(
+    () =>
+      orderedAssets
+        .filter((item) => item?.type === 'video' || inferType(item?.url) === 'video')
+        .map((item, idx) => ({
+          id: item.id || `video-work-${idx}`,
+          title: item.title || `Video Work ${idx + 1}`,
+          url: item.url,
+        })),
+    [orderedAssets],
+  );
+
+  const photoWorks = useMemo(
+    () =>
+      orderedAssets
+        .filter((item) => (item?.type || inferType(item?.url)) !== 'video')
+        .map((item, idx) => ({
+          id: item.id || `photo-work-${idx}`,
+          title: item.title || `Photography ${idx + 1}`,
+          url: item.url,
+        })),
+    [orderedAssets],
+  );
 
   const bentoItems = nonSlotAssets.slice(0, 6).map((item, idx) => ({
     id: item.id || `bento-${idx}`,
@@ -147,6 +182,21 @@ function ToyProjectPage() {
           print: showcase.assetPhasePrint || reviewCards[2]?.value || '转译为印刷物料，实现线下展陈与销售触点一致性。',
         }}
       />
+      <section className="mx-auto mt-8 w-full max-w-7xl px-6 md:px-12">
+        <div className="grid gap-6 lg:grid-cols-2">
+          <PortfolioBento
+            items={videoWorks.map((item) => ({ ...item, image: item.url }))}
+            heading="视频作品分页"
+            subheading="All video works collected here."
+          />
+          <PortfolioBento
+            items={photoWorks.map((item) => ({ ...item, image: item.url }))}
+            heading="摄影作品分页"
+            subheading="All photo works collected here."
+          />
+        </div>
+      </section>
+
       <PortfolioBento
         items={bentoItems}
         heading={showcase.bentoHeading || data?.modules?.review?.cards?.[0]?.title || 'FULL ECOSYSTEM PORTFOLIO'}

@@ -117,7 +117,18 @@ function IndustryProjectPage() {
   }, [projectAssets]);
 
   const slotUsedIds = useMemo(() => new Set(Array.from(moduleSlots.values()).map((item) => item.id)), [moduleSlots]);
-  const hero = moduleSlots.get('brand-video') || projectAssets[0];
+  const hero =
+    moduleSlots.get('brand-video') ||
+    projectAssets[0] ||
+    (pageData?.mainVideoUrl || pageData?.videoUrl
+      ? {
+          id: `${pageData?.id || 'industry-project'}-main-video`,
+          title: `${pageData?.title || 'Industry Project'} Main Video`,
+          url: pageData.mainVideoUrl || pageData.videoUrl,
+          type: 'video',
+          views: { project: { isActive: true, projectId: 'industry_project', moduleSlot: 'brand-video', description: '' } },
+        }
+      : null);
   const rest = projectAssets.filter((item) => item?.id !== hero?.id && !slotUsedIds.has(item.id));
   const distributionLabel = hero?.views?.video?.isActive
     ? '视频页'
@@ -125,7 +136,9 @@ function IndustryProjectPage() {
       ? '双端同步'
       : hero?.views?.project?.isActive
         ? '项目页'
-        : '未分配';
+        : hero
+          ? '主视频'
+          : '未分配';
 
   const tags = (target.tags || []).length > 0 ? target.tags : ['#工艺理解门槛高', '#素材分散', '#协作成本高'];
   const bullets = (action.bullets || []).length > 0 ? action.bullets : ['展会传播主线', '工艺亮点脚本化', '客户案例可视化'];
@@ -134,6 +147,9 @@ function IndustryProjectPage() {
     { title: '痛点解决', value: '复杂工艺表达标准化' },
     { title: '资产沉淀', value: '可复用素材包形成' },
   ];
+
+  const videoWorks = projectAssets.filter((item) => item?.type === 'video' || inferType(item?.url) === 'video');
+  const photoWorks = projectAssets.filter((item) => (item?.type || inferType(item?.url)) !== 'video');
 
   return (
     <main className="min-h-screen bg-[#050507] pb-16 pt-20 text-zinc-100 md:pt-24">
@@ -244,6 +260,30 @@ function IndustryProjectPage() {
                 <article key={card.title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-md">
                   <p className="text-[11px] tracking-[0.16em] text-zinc-400">{card.title}</p>
                   <p className="mt-3 text-sm leading-relaxed text-zinc-200">{card.value}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-white/10 bg-zinc-950/35 p-6 md:p-8">
+            <p className="text-xs tracking-[0.18em] text-zinc-500">视频作品分页</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {videoWorks.map((item) => (
+                <article key={item.id} className="overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+                  <video src={item.url} controls className="h-56 w-full object-cover" />
+                  <p className="px-4 py-3 text-xs text-zinc-300">{item.title}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-white/10 bg-zinc-950/35 p-6 md:p-8">
+            <p className="text-xs tracking-[0.18em] text-zinc-500">摄影作品分页</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {photoWorks.map((item) => (
+                <article key={item.id} className="overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+                  <img src={item.url} alt={item.title} className="h-56 w-full object-cover" />
+                  <p className="px-4 py-3 text-xs text-zinc-300">{item.title}</p>
                 </article>
               ))}
             </div>

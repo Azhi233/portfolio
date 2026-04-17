@@ -53,7 +53,12 @@ export async function initMinio() {
   await minioClient.setBucketPolicy(PUBLIC_BUCKET, JSON.stringify(buildPublicReadPolicy(PUBLIC_BUCKET)));
 }
 
-export async function uploadFile(fileStream, fileName, isPrivate = false, contentType = 'application/octet-stream') {
+function normalizeBaseUrl(baseUrl = '') {
+  const value = String(baseUrl || '').trim().replace(/\/+$/, '');
+  return value;
+}
+
+export async function uploadFile(fileStream, fileName, isPrivate = false, contentType = 'application/octet-stream', options = {}) {
   ensureClient();
   const bucketName = isPrivate ? PRIVATE_BUCKET : PUBLIC_BUCKET;
   const objectName = buildObjectName(fileName, isPrivate);
@@ -61,6 +66,11 @@ export async function uploadFile(fileStream, fileName, isPrivate = false, conten
   await minioClient.putObject(bucketName, objectName, fileStream, undefined, { 'Content-Type': contentType });
 
   if (!isPrivate) {
+    const explicitBaseUrl = normalizeBaseUrl(options?.baseUrl || '');
+    if (explicitBaseUrl) {
+      return { url: `${explicitBaseUrl}/${bucketName}/${objectName}`, objectName, isPrivate: false };
+    }
+
     const endpoint = process.env.MINIO_ENDPOINT || '';
     const port = process.env.MINIO_PORT || '9000';
     const useSSL = String(process.env.MINIO_USE_SSL || '').toLowerCase() === 'true';

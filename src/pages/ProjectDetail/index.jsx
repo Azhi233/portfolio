@@ -121,11 +121,12 @@ function ProjectDetail() {
   const overrideVideoUrl = typeof window !== 'undefined' ? window.localStorage.getItem(`project.video.override.${project.id}`) : '';
   const mainVideoUrl = overrideVideoUrl || project.mainVideoUrl || project.videoUrl;
   const embedUrl = getEmbedUrl(mainVideoUrl);
-  const isMp4 = /\.mp4(\?.*)?$/i.test(embedUrl);
+  const isMp4 = /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(embedUrl);
   const isEmbedIframe =
     /^https?:\/\/player\.bilibili\.com\//i.test(embedUrl) ||
     /^https?:\/\/player\.vimeo\.com\//i.test(embedUrl) ||
     /^https?:\/\/www\.youtube-nocookie\.com\//i.test(embedUrl);
+  const hasVideoUrl = Boolean(String(mainVideoUrl || '').trim());
 
   const toggleSelect = (asset) => {
     setSelectedIds((prev) => (prev.includes(asset.id) ? prev.filter((idItem) => idItem !== asset.id) : [...prev, asset.id]));
@@ -201,29 +202,45 @@ function ProjectDetail() {
 
             <div className="mt-8 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3 md:p-4">
               <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
-                {isMp4 ? (
-                  <EditableMedia
-                    type="video"
-                    src={embedUrl}
-                    className="h-full w-full object-cover"
-                    onChange={(nextUrl) => {
-                      const next = String(nextUrl || '').trim();
-                      if (!next) return;
-                      updateProject(project.id, {
-                        mainVideoUrl: next,
-                        videoUrl: next,
-                      });
-                    }}
-                  />
-                ) : isEmbedIframe ? (
-                  <AutoRefreshMedia
-                    src={`https://img.youtube.com/vi/${project.id}/hqdefault.jpg`}
-                    alt={project.title}
-                    className="h-full w-full object-cover"
-                  />
+                {hasVideoUrl ? (
+                  isMp4 ? (
+                    <EditableMedia
+                      type="video"
+                      src={embedUrl}
+                      className="h-full w-full object-cover"
+                      onChange={(nextUrl) => {
+                        const next = String(nextUrl || '').trim();
+                        if (!next) return;
+                        updateProject(project.id, {
+                          mainVideoUrl: next,
+                          videoUrl: next,
+                        });
+                      }}
+                    />
+                  ) : isEmbedIframe ? (
+                    <AutoRefreshMedia
+                      src={`https://img.youtube.com/vi/${project.id}/hqdefault.jpg`}
+                      alt={project.title}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <EditableMedia
+                      type="video"
+                      src={mainVideoUrl}
+                      className="h-full w-full object-cover"
+                      onChange={(nextUrl) => {
+                        const next = String(nextUrl || '').trim();
+                        if (!next) return;
+                        updateProject(project.id, {
+                          mainVideoUrl: next,
+                          videoUrl: next,
+                        });
+                      }}
+                    />
+                  )
                 ) : (
                   <div className="flex h-full items-center justify-center px-6 text-center text-sm tracking-[0.08em] text-zinc-400">
-                    Unsupported video URL.
+                    No video assigned yet.
                   </div>
                 )}
               </div>
