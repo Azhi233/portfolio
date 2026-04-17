@@ -1,7 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import seedReviews from '../data/reviews.json';
 
-const API_BASE = '/api';
+import { API_BASE_URL } from '../utils/api.js';
+
+const API_BASE = API_BASE_URL;
 const TOKEN_STORAGE_KEY = 'portfolio.auth.token';
 const EDIT_MODE_STORAGE_KEY = 'portfolio.edit.mode';
 const SYNC_CHANNEL_NAME = 'portfolio-config-sync';

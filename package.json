@@ -16,6 +16,7 @@
   "dependencies": {
     "@gsap/react": "^2.1.2",
     "@studio-freight/lenis": "^1.0.42",
+    "axios": "^1.15.0",
     "chart.js": "^4.5.1",
     "file-saver": "^2.0.5",
     "framer-motion": "^12.38.0",
