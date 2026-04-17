@@ -12,7 +12,15 @@ const secretKey = process.env.MINIO_SECRET_KEY || '';
 
 export const minioBucket = process.env.MINIO_BUCKET || '';
 export const minioUploadPrefix = process.env.MINIO_UPLOAD_PREFIX || 'portfolio';
-export const minioPresignExpiresSeconds = Number(process.env.MINIO_PRESIGN_EXPIRES_SECONDS || '2592000');
+const MAX_MINIO_PRESIGN_EXPIRES_SECONDS = 7 * 24 * 60 * 60;
+const requestedMinioPresignExpiresSeconds = Number(process.env.MINIO_PRESIGN_EXPIRES_SECONDS || '86400');
+
+export const minioPresignExpiresSeconds = Math.min(
+  Number.isFinite(requestedMinioPresignExpiresSeconds) && requestedMinioPresignExpiresSeconds > 0
+    ? requestedMinioPresignExpiresSeconds
+    : 86400,
+  MAX_MINIO_PRESIGN_EXPIRES_SECONDS,
+);
 
 export const minioClient = enabled && endpoint && accessKey && secretKey
   ? new Client({

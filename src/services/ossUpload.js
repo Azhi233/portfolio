@@ -40,25 +40,16 @@ export async function uploadFileToOSS({ file, dir = 'uploads', onProgress }) {
   const data = await fileToDataUrl(file);
   onProgress?.(60);
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
-
-  let response;
-  try {
-    response = await fetch(`${LOCAL_API_BASE}/uploads/local`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
-      body: JSON.stringify({
-        fileName: file.name,
-        contentType: file.type || 'application/octet-stream',
-        dir,
-        data,
-      }),
-    });
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  const response = await fetch(`${LOCAL_API_BASE}/uploads/local`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      fileName: file.name,
+      contentType: file.type || 'application/octet-stream',
+      dir,
+      data,
+    }),
+  });
 
   if (!response.ok) {
     const detail = await response.text();

@@ -46,7 +46,7 @@ app.use(express.urlencoded({ limit: '20480mb', extended: true }));
 const JWT_SECRET = process.env.JWT_SECRET || 'portfolio-dev-secret';
 const DEFAULT_PORT = 8787;
 const LOCAL_UPLOAD_DIR = process.env.LOCAL_UPLOAD_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'uploads');
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20480 * 1024 * 1024 } });
 
 function resolvePort(value, fallback = DEFAULT_PORT) {
   const parsed = Number.parseInt(String(value ?? ''), 10);

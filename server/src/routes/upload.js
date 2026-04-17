@@ -3,7 +3,7 @@ import multer from 'multer';
 import { uploadFile } from '../utils/minio.js';
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20480 * 1024 * 1024 } });
 
 router.post('/', upload.single('file'), async (req, res, next) => {
   try {
