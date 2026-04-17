@@ -1,5 +1,6 @@
-const LOCAL_API_BASE = (import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:8787/api' : 'http://47.114.95.49/api')).replace(/\/+$/, '');
+const LOCAL_API_BASE = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:8787/api' : 'http://47.114.95.49/api')).replace(/\/+$/, '');
 const SIGNED_URL_REFRESH_BUFFER_MS = 60 * 1000;
+const UPLOAD_TIMEOUT_MS = 60 * 60 * 1000;
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -39,16 +40,25 @@ export async function uploadFileToOSS({ file, dir = 'uploads', onProgress }) {
   const data = await fileToDataUrl(file);
   onProgress?.(60);
 
-  const response = await fetch(`${LOCAL_API_BASE}/uploads/local`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      fileName: file.name,
-      contentType: file.type || 'application/octet-stream',
-      dir,
-      data,
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+
+  let response;
+  try {
+    response = await fetch(`${LOCAL_API_BASE}/uploads/local`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        fileName: file.name,
+        contentType: file.type || 'application/octet-stream',
+        dir,
+        data,
+      }),
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const detail = await response.text();

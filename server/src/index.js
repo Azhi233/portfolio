@@ -40,7 +40,8 @@ app.use(cors({
   origin: ['http://localhost:5175', 'http://localhost:5173', 'http://47.114.95.49'],
   credentials: true,
 }));
-app.use(express.json({ limit: '25mb' }));
+app.use(express.json({ limit: '20480mb' }));
+app.use(express.urlencoded({ limit: '20480mb', extended: true }));
 
 const JWT_SECRET = process.env.JWT_SECRET || 'portfolio-dev-secret';
 const DEFAULT_PORT = 8787;
