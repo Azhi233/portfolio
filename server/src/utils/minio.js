@@ -58,6 +58,15 @@ function normalizeBaseUrl(baseUrl = '') {
   return value;
 }
 
+function getPublicBaseUrl(options = {}) {
+  return normalizeBaseUrl(
+    options?.baseUrl ||
+      process.env.MINIO_PUBLIC_BASE_URL ||
+      process.env.PUBLIC_FILE_BASE_URL ||
+      '',
+  );
+}
+
 export async function uploadFile(fileStream, fileName, isPrivate = false, contentType = 'application/octet-stream', options = {}) {
   ensureClient();
   const bucketName = isPrivate ? PRIVATE_BUCKET : PUBLIC_BUCKET;
@@ -66,7 +75,7 @@ export async function uploadFile(fileStream, fileName, isPrivate = false, conten
   await minioClient.putObject(bucketName, objectName, fileStream, undefined, { 'Content-Type': contentType });
 
   if (!isPrivate) {
-    const explicitBaseUrl = normalizeBaseUrl(options?.baseUrl || '');
+    const explicitBaseUrl = getPublicBaseUrl(options);
     if (explicitBaseUrl) {
       return { url: `${explicitBaseUrl}/${bucketName}/${objectName}`, objectName, isPrivate: false };
     }

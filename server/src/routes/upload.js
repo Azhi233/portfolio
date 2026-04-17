@@ -64,6 +64,10 @@ router.post('/', upload.single('file'), async (req, res, next) => {
 
     const isPrivate = type === 'private';
     const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const publicBaseUrl = String(process.env.MINIO_PUBLIC_BASE_URL || process.env.PUBLIC_FILE_BASE_URL || '').trim();
+    const forwardedHost = String(req.headers['x-forwarded-host'] || '').trim();
+    const forwardedProto = String(req.headers['x-forwarded-proto'] || '').trim();
+    const proxyBaseUrl = forwardedHost ? `${forwardedProto || req.protocol}://${forwardedHost}` : '';
 
     let uploadBuffer = file.buffer;
     let uploadName = file.originalname;
@@ -87,7 +91,9 @@ router.post('/', upload.single('file'), async (req, res, next) => {
       }
     }
 
-    const result = await uploadFile(uploadBuffer, uploadName, isPrivate, uploadMime, { baseUrl });
+    const result = await uploadFile(uploadBuffer, uploadName, isPrivate, uploadMime, {
+      baseUrl: publicBaseUrl || proxyBaseUrl || baseUrl,
+    });
 
     return res.status(201).json({
       ok: true,
