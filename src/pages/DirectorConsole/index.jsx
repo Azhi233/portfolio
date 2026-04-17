@@ -2954,6 +2954,7 @@ function DirectorConsole() {
                         const fileName = String(normalizedUrl.split('?')[0] || '').split('/').pop() || '';
                         const token = parseAssetNameToken(fileName);
                         const inferredType = inferAssetTypeFromUrl(normalizedUrl);
+                        const mediaGroup = inferMediaGroup(inferredType, normalizedUrl);
                         const autoTags = token
                           ? [
                               token.product,
@@ -2972,6 +2973,7 @@ function DirectorConsole() {
                           token,
                           inferredType,
                           type: inferredType,
+                          mediaGroup,
                           autoDetected: Boolean(token),
                           title: token?.title || fileName || normalizedUrl,
                           autoTags,
@@ -3026,9 +3028,9 @@ function DirectorConsole() {
                           title: item.title,
                           url: item.url,
                           type: item.type,
-                          mediaGroup: inferMediaGroup(item.type, item.url),
+                          mediaGroup: item.mediaGroup || inferMediaGroup(item.type, item.url),
                           tags,
-                          publishTarget: item.type === 'video' ? 'video' : assetForm.publishTarget,
+                          publishTarget: item.mediaGroup === 'video' || item.type === 'video' ? 'video' : assetForm.publishTarget,
                           views: {
                             expertise: {
                               isActive: assetForm.publishTarget === 'expertise' || assetForm.publishTarget === 'both',

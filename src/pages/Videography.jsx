@@ -5,7 +5,7 @@ import EditableText from '../components/EditableText.jsx';
 import EditableMedia from '../components/EditableMedia.jsx';
 import { useConfig } from '../context/ConfigContext.jsx';
 import { useIntrinsicMediaSize } from '../hooks/useIntrinsicMediaSize.jsx';
-import { videoCategories, videos } from '../data/videoData.js';
+import { videoCategories, videos as fallbackVideos } from '../data/videoData.js';
 
 const FALLBACK_COVER =
   'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=1200&q=80';
@@ -13,12 +13,24 @@ const FALLBACK_COVER =
 function Videography() {
   const [activeFilter, setActiveFilter] = useState('ALL');
   const heroMedia = useIntrinsicMediaSize();
-  const { config, updateConfig } = useConfig();
+  const { config, updateConfig, assets } = useConfig();
+
+  const videoWorks = useMemo(() => (assets || []).filter((asset) => asset?.mediaGroup === 'video' || asset?.type === 'video'), [assets]);
+  const fallbackVideoWorks = useMemo(() => fallbackVideos, []);
 
   const filteredVideos = useMemo(() => {
-    if (activeFilter === 'ALL') return videos;
-    return videos.filter((video) => video.category === activeFilter);
-  }, [activeFilter]);
+    const source = videoWorks.length > 0 ? videoWorks : fallbackVideoWorks.map((video) => ({
+      id: video.id,
+      title: video.title,
+      category: video.category,
+      subTitle: video.subTitle,
+      coverUrl: video.cover,
+      videoUrl: video.videoUrl,
+      priority: 0,
+    }));
+    if (activeFilter === 'ALL') return source;
+    return source.filter((video) => video.category === activeFilter || video.mediaGroup === 'video');
+  }, [activeFilter, videoWorks, fallbackVideoWorks]);
 
   return (
     <main className="min-h-screen bg-[#050507] pb-16 pt-24 text-zinc-100">
@@ -58,7 +70,7 @@ function Videography() {
           <div className="mb-6 overflow-hidden rounded-2xl border border-white/10 bg-black/25" style={{ aspectRatio: heroMedia.aspectRatio || '16 / 9' }}>
             <EditableMedia
               type="video"
-              src={filteredVideos[0]?.videoUrl || ''}
+              src={filteredVideos[0]?.url || filteredVideos[0]?.videoUrl || ''}
               className="h-full w-full object-cover"
               onLoadedMetadata={heroMedia.onVideoLoadedMetadata}
               onChange={(value) => updateConfig('videoHeroUrl', value)}
@@ -76,12 +88,12 @@ function Videography() {
                 items={filteredVideos.map((video, index) => ({
                   id: video.id,
                   title: video.title,
-                  coverUrl: video.cover || FALLBACK_COVER,
-                  tagline: video.subTitle,
-                  category: video.category,
-                  to: video.videoUrl || '/',
+                  coverUrl: video.coverUrl || video.cover || FALLBACK_COVER,
+                  tagline: video.subTitle || video.title,
+                  category: video.category || 'VIDEO',
+                  to: video.url || video.videoUrl || '/',
                   span: video.priority >= 90 ? 'wide' : video.priority >= 70 ? 'tall' : index === 0 ? 'wide-soft' : '',
-                  priority: video.priority,
+                  priority: video.priority || 0,
                   width: video.coverWidth,
                   height: video.coverHeight,
                   aspectRatio: video.coverAspectRatio,
