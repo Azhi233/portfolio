@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import LocalUploadField from '../../components/LocalUploadField.jsx';
 import { useConfig } from '../../context/ConfigContext.jsx';
 import { uploadFileToOSS } from '../../services/ossUpload.js';
+import { createProject, updateProject as updateProjectApi } from '../../utils/api.js';
 import { clearAnalytics, getAnalyticsSnapshot, trackEvent } from '../../utils/analytics.js';
 import { migrateLocalToDB } from '../../utils/migrateLocalToDB.js';
 
@@ -22,6 +23,7 @@ const SERVER_PANEL_URL = import.meta.env.VITE_SERVER_URL || '';
 
 const EMPTY_FORM = {
   title: '',
+  coverFile: null,
   category: 'TVC',
   role: 'DOP',
   releaseDate: '',
@@ -1484,6 +1486,7 @@ function DirectorConsole() {
     setEditingProjectId(project.id);
     setFormState({
       title: project.title,
+      coverFile: null,
       category: project.category,
       role: project.role || 'DOP',
       releaseDate: project.releaseDate || '',
@@ -1601,7 +1604,7 @@ function DirectorConsole() {
     };
   }, [showForm]);
 
-  const handleSubmitForm = (event) => {
+  const handleSubmitForm = async (event) => {
     event.preventDefault();
 
     const nextVisibility = formState.isPrivate
@@ -1661,13 +1664,29 @@ function DirectorConsole() {
       }
     }
 
-    if (formMode === 'edit' && editingProjectId) {
-      updateProject(editingProjectId, payload);
-    } else {
-      addProject(payload);
+    try {
+      if (formMode === 'edit' && editingProjectId) {
+        const saved = await updateProjectApi(editingProjectId, {
+          ...payload,
+          coverFile: formState.coverFile || null,
+        });
+        if (saved) {
+          updateProject(saved.id, saved);
+        }
+      } else {
+        const saved = await createProject({
+          ...payload,
+          coverFile: formState.coverFile || null,
+        });
+        if (saved) {
+          updateProject(saved.id, saved);
+        }
+      }
+      handleCancelForm();
+    } catch (error) {
+      console.error('Failed to save project:', error);
+      window.alert(error?.response?.data?.message || error?.message || '保存作品失败');
     }
-
-    handleCancelForm();
   };
 
   const handleUploadCover = async (file) => {
@@ -1688,7 +1707,7 @@ function DirectorConsole() {
         },
       });
 
-      setFormState((prev) => ({ ...prev, coverUrl: result.url }));
+      setFormState((prev) => ({ ...prev, coverUrl: result.url, coverFile: file }));
       setUploadState((prev) => ({
         ...prev,
         cover: { status: 'success', progress: 100 },

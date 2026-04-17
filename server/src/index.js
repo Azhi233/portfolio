@@ -84,6 +84,17 @@ function safeDir(inputDir = '') {
   return cleaned || 'uploads';
 }
 
+function parseJsonField(value, fallback) {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === 'object') return value;
+  if (typeof value !== 'string' || !value.trim()) return fallback;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
 function authMiddleware(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
@@ -321,54 +332,87 @@ async function uploadProjectImage(file) {
 }
 
 app.post('/api/projects', upload.single('image'), async (req, res) => {
-  const project = req.body || {};
+  try {
+    const project = req.body || {};
 
-  if (!project.id || !project.title) {
-    return res.status(400).json({ ok: false, message: 'Project id and title are required.' });
+    let coverUrl = String(project.coverUrl || project.thumbnailUrl || '').trim();
+    if (req.file) {
+      coverUrl = await uploadProjectImage(req.file);
+    }
+
+    const payload = {
+      ...project,
+      id: String(project.id || crypto.randomUUID()),
+      title: String(project.title || '').trim(),
+      category: String(project.category || '').trim() || null,
+      role: String(project.role || '').trim() || null,
+      releaseDate: String(project.releaseDate || '').trim() || null,
+      coverUrl,
+      thumbnailUrl: String(project.thumbnailUrl || coverUrl || '').trim() || coverUrl,
+      videoUrl: String(project.videoUrl || '').trim() || null,
+      mainVideoUrl: String(project.mainVideoUrl || project.videoUrl || '').trim() || null,
+      btsMedia: parseJsonField(project.btsMedia, []),
+      clientAgency: String(project.clientAgency || '').trim() || null,
+      clientCode: String(project.clientCode || '').trim() || null,
+      isFeatured: project.isFeatured === 'true' || project.isFeatured === true,
+      sortOrder: Number.isFinite(Number(project.sortOrder)) ? Number(project.sortOrder) : 0,
+      description: String(project.description || '').trim() || null,
+      credits: String(project.credits || '').trim() || null,
+      isVisible: project.isVisible === 'false' || project.isVisible === false ? 0 : 1,
+      publishStatus: String(project.publishStatus || 'Draft').trim(),
+      visibility: String(project.visibility || project.publishStatus || 'Draft').trim(),
+      accessPassword: String(project.accessPassword || project.password || '').trim() || null,
+      deliveryPin: String(project.deliveryPin || '').trim() || null,
+      status: String(project.status || 'draft').trim(),
+      password: String(project.password || project.accessPassword || '').trim() || null,
+      privateFiles: parseJsonField(project.privateFiles, []),
+      outlineTags: parseJsonField(project.outlineTags, []),
+    };
+
+    if (!payload.id || !payload.title) {
+      return res.status(400).json({ ok: false, message: 'Project id and title are required.' });
+    }
+
+    const created = await insertProject(payload);
+    notifyConfigChanged('projects');
+    return res.status(201).json({ ok: true, data: created });
+  } catch (error) {
+    console.error('Failed to create project:', error);
+    return res.status(500).json({ ok: false, message: 'Failed to create project.', detail: error?.message || '' });
   }
-
-  let coverUrl = String(project.coverUrl || project.thumbnailUrl || '').trim();
-  if (req.file) {
-    coverUrl = await uploadProjectImage(req.file);
-  }
-
-  const payload = {
-    ...project,
-    coverUrl,
-    thumbnailUrl: String(project.thumbnailUrl || coverUrl || '').trim() || coverUrl,
-  };
-
-  const created = await insertProject(payload);
-  notifyConfigChanged('projects');
-  return res.status(201).json({ ok: true, data: created });
 });
 
 app.put('/api/projects/:id', upload.single('image'), async (req, res) => {
-  const { id } = req.params;
-  const [existingRows] = await pool.execute('SELECT id FROM projects WHERE id = ? LIMIT 1', [id]);
+  try {
+    const { id } = req.params;
+    const [existingRows] = await pool.execute('SELECT id FROM projects WHERE id = ? LIMIT 1', [id]);
 
-  if (!existingRows[0]) {
-    return res.status(404).json({ ok: false, message: 'Project not found.' });
+    if (!existingRows[0]) {
+      return res.status(404).json({ ok: false, message: 'Project not found.' });
+    }
+
+    const { title, ...rest } = req.body || {};
+    if (!title) {
+      return res.status(400).json({ ok: false, message: 'Project title is required.' });
+    }
+
+    let coverUrl = String(rest.coverUrl || rest.thumbnailUrl || '').trim();
+    if (req.file) {
+      coverUrl = await uploadProjectImage(req.file);
+    }
+
+    const updated = await updateProject(id, {
+      ...rest,
+      title,
+      coverUrl,
+      thumbnailUrl: String(rest.thumbnailUrl || coverUrl || '').trim() || coverUrl,
+    });
+    notifyConfigChanged('projects');
+    return res.json({ ok: true, data: updated });
+  } catch (error) {
+    console.error('Failed to update project:', error);
+    return res.status(500).json({ ok: false, message: 'Failed to update project.', detail: error?.message || '' });
   }
-
-  const { title, ...rest } = req.body || {};
-  if (!title) {
-    return res.status(400).json({ ok: false, message: 'Project title is required.' });
-  }
-
-  let coverUrl = String(rest.coverUrl || rest.thumbnailUrl || '').trim();
-  if (req.file) {
-    coverUrl = await uploadProjectImage(req.file);
-  }
-
-  const updated = await updateProject(id, {
-    ...rest,
-    title,
-    coverUrl,
-    thumbnailUrl: String(rest.thumbnailUrl || coverUrl || '').trim() || coverUrl,
-  });
-  notifyConfigChanged('projects');
-  return res.json({ ok: true, data: updated });
 });
 
 app.delete('/api/projects/:id', async (req, res) => {
