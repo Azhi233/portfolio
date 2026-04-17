@@ -534,6 +534,7 @@ function ProjectForm({
           accept="image/*"
           buttonText="上传图片到本地服务器"
           uploadState={uploadState.cover}
+          preview={formState.coverUrl}
           onChange={(nextValue) => onChange('coverUrl', nextValue)}
           onUpload={onUploadCover}
         />
