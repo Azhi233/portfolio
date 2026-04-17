@@ -7,10 +7,11 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies and build outputs
 node_modules
+server/node_modules
 dist
 dist-ssr
-*.local
 
 # Editor directories and files
 .vscode/*
@@ -23,11 +24,18 @@ dist-ssr
 *.sln
 *.sw?
 
+# Hosting and Deployments
 .vercel
-.env*.local
 
-# Local CMS database artifacts
+# Environment variables (全局忽略所有目录下的真实环境配置)
+.env
+.env.*
+*.local
+# 允许提交 example 模板文件，方便在换电脑时参考
+!.env.example
+!server/.env.example
+
+# Local CMS database artifacts (忽略本地 SQLite 数据库)
 server/*.db
 server/*.db-shm
 server/*.db-wal
-server/.env

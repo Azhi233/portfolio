@@ -65,15 +65,19 @@ export default function EditableMedia({
     setOpen(true);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const next = String(draft || '').trim();
     if (!next) {
       setError('请输入有效的 URL。');
       return;
     }
-    saveRecentMediaUrl(next);
-    onChange?.(next);
-    setOpen(false);
+    try {
+      saveRecentMediaUrl(next);
+      await Promise.resolve(onChange?.(next));
+      setOpen(false);
+    } catch (error) {
+      setError(error?.message || '保存失败，请重试。');
+    }
   };
 
   const mediaClass = `${className} ${isEditMode ? 'cursor-pointer border border-dashed border-cyan-400/60 bg-cyan-400/5' : ''}`;

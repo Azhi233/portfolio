@@ -1,8 +1,9 @@
 import CinematicMasonry from '../components/CinematicMasonry.jsx';
+import EditableText from '../components/EditableText.jsx';
 import { useConfig } from '../context/ConfigContext.jsx';
 
 function Industrial() {
-  const { projects } = useConfig();
+  const { projects, config, updateConfig } = useConfig();
   const industrialProjects = projects
     .filter(
       (project) =>
@@ -15,9 +16,9 @@ function Industrial() {
   return (
     <main className="min-h-screen bg-[#050507] pb-16 pt-24 text-zinc-100">
       <section className="mx-auto w-full max-w-7xl px-6 md:px-12">
-        <p className="text-xs tracking-[0.2em] text-zinc-500">CATEGORY</p>
-        <h1 className="mt-2 font-serif text-4xl tracking-[0.12em] md:text-6xl">INDUSTRIAL</h1>
-        <p className="mt-3 text-xs tracking-[0.14em] text-zinc-500">VISIBLE PROJECTS · {industrialProjects.length}</p>
+        <EditableText as="p" className="text-xs tracking-[0.2em] text-zinc-500" value={config.industrialCategoryLabel || 'CATEGORY'} onChange={(value) => updateConfig('industrialCategoryLabel', value)} />
+        <EditableText as="h1" className="mt-2 font-serif text-4xl tracking-[0.12em] md:text-6xl" value={config.industrialTitle || 'INDUSTRIAL'} onChange={(value) => updateConfig('industrialTitle', value)} />
+        <EditableText as="p" className="mt-3 text-xs tracking-[0.14em] text-zinc-500" value={config.industrialCountLabel || `VISIBLE PROJECTS · ${industrialProjects.length}`} onChange={(value) => updateConfig('industrialCountLabel', value)} />
 
         <div className="mt-10 overflow-hidden rounded-3xl border border-white/8 bg-zinc-950/35 p-4 backdrop-blur-sm md:p-6">
           {industrialProjects.length > 0 ? (

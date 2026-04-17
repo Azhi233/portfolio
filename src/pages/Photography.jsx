@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
 import OgilvyGalleryGrid from '../components/OgilvyGalleryGrid.jsx';
 import EditableText from '../components/EditableText.jsx';
+import EditableMedia from '../components/EditableMedia.jsx';
 import { useConfig } from '../context/ConfigContext.jsx';
 
 const PHOTO_TAGS = [
@@ -36,7 +37,7 @@ function getAltTags(project, tag) {
 }
 
 function Photography() {
-  const { projects } = useConfig();
+  const { projects, config, updateConfig } = useConfig();
   const [activeTag, setActiveTag] = useState('all');
 
   const photoProjects = useMemo(
@@ -56,9 +57,9 @@ function Photography() {
   return (
     <main className="min-h-screen bg-[#050507] pb-16 pt-24 text-zinc-100">
       <section className="mx-auto w-full max-w-7xl px-6 md:px-12">
-        <EditableText as="p" className="text-xs tracking-[0.2em] text-zinc-500" value="CATEGORY" />
-        <EditableText as="h1" className="mt-2 font-serif text-4xl tracking-[0.12em] md:text-6xl" value="PHOTOGRAPHY" />
-        <EditableText as="p" className="mt-3 text-xs tracking-[0.14em] text-zinc-500" value={`STATIC IMAGE WORKS · ${filteredProjects.length}`} />
+        <EditableText as="p" className="text-xs tracking-[0.2em] text-zinc-500" value={config.photoKicker || 'CATEGORY'} onChange={(value) => updateConfig('photoKicker', value)} />
+        <EditableText as="h1" className="mt-2 font-serif text-4xl tracking-[0.12em] md:text-6xl" value={config.photoTitle || 'PHOTOGRAPHY'} onChange={(value) => updateConfig('photoTitle', value)} />
+        <EditableText as="p" className="mt-3 text-xs tracking-[0.14em] text-zinc-500" value={config.photoSubtitle || `STATIC IMAGE WORKS · ${filteredProjects.length}`} onChange={(value) => updateConfig('photoSubtitle', value)} />
 
         <motion.div layout className="mt-7 flex flex-wrap gap-2 md:gap-3">
           {PHOTO_TAGS.map((tag) => {

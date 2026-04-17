@@ -1,6 +1,9 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import AutoRefreshMedia from './AutoRefreshMedia.jsx';
+import EditableText from './EditableText.jsx';
+import EditableMedia from './EditableMedia.jsx';
+import { useConfig } from '../context/ConfigContext.jsx';
 import { useIntrinsicMediaSize } from '../hooks/useIntrinsicMediaSize.jsx';
 
 const imageLikePattern = /\.(avif|webp|png|jpe?g|gif|svg)(\?.*)?$/i;
@@ -50,6 +53,7 @@ function getPriorityClass(item, index) {
 }
 
 function GalleryItem({ item, index }) {
+  const { isEditMode } = useConfig();
   const intrinsic = useIntrinsicMediaSize({ width: item?.width, height: item?.height });
   const hasCover = isImageLike(item.coverUrl);
   const aspectClass = getAspectClass(item, index, intrinsic.aspectRatio);
@@ -63,6 +67,11 @@ function GalleryItem({ item, index }) {
       to={item.to || '/'}
       className={`group mb-1 block break-inside-avoid overflow-hidden bg-zinc-900 ${priorityClass}`}
       aria-label={`${item.title} case study`}
+      onDoubleClick={(event) => {
+        if (!isEditMode) return;
+        event.preventDefault();
+        event.stopPropagation();
+      }}
     >
       <div className={`relative w-full overflow-hidden ${aspectClass}`}>
         {hasCover ? (

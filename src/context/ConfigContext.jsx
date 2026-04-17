@@ -14,6 +14,7 @@ const PROJECT_UNLOCKS_STORAGE_KEY = 'portfolio.cms.projectUnlocks';
 const DELIVERY_UNLOCKS_STORAGE_KEY = 'portfolio.cms.deliveryUnlocks';
 const REVIEWS_STORAGE_KEY = 'portfolio.cms.reviews';
 const REVIEW_AUDIT_LOGS_STORAGE_KEY = 'portfolio.cms.reviewAuditLogs';
+const PENDING_CONFIG_PATCH_KEY = 'portfolio.cms.pendingConfigPatch';
 
 function readLocalJson(key, fallback) {
   if (typeof window === 'undefined') return fallback;
@@ -32,6 +33,14 @@ function writeLocalJson(key, value) {
   } catch {
     // ignore storage failures
   }
+}
+
+function readPendingConfigPatch() {
+  return readLocalJson(PENDING_CONFIG_PATCH_KEY, null);
+}
+
+function writePendingConfigPatch(value) {
+  writeLocalJson(PENDING_CONFIG_PATCH_KEY, value);
 }
 
 const DEFAULT_CASE_STUDIES = {
@@ -659,12 +668,14 @@ export function ConfigProvider({ children }) {
         if (cancelled) return;
 
         if (remoteConfig && typeof remoteConfig === 'object') {
-          const nextConfig = normalizeConfig({
-            ...config,
-            ...remoteConfig,
+          setConfig((prev) => {
+            const nextConfig = normalizeConfig({
+              ...prev,
+              ...remoteConfig,
+            });
+            writeLocalJson(CONFIG_STORAGE_KEY, nextConfig);
+            return nextConfig;
           });
-          setConfig(nextConfig);
-          writeLocalJson(CONFIG_STORAGE_KEY, nextConfig);
 
           if (Array.isArray(remoteConfig.assets)) {
             const nextAssets = remoteConfig.assets.map(normalizeAsset);
@@ -764,10 +775,17 @@ export function ConfigProvider({ children }) {
   const updateConfig = (key, value) =>
     setConfig((prev) => {
       const next = { ...prev, [key]: value };
+      const pendingPatch = { ...(readPendingConfigPatch() || {}), [key]: value };
       writeLocalJson(CONFIG_STORAGE_KEY, next);
-      persistConfigSnapshot({ nextConfig: next }).catch((error) => {
-        console.error('Failed to persist config update:', error);
-      });
+      writePendingConfigPatch(pendingPatch);
+      persistConfigSnapshot({ nextConfig: next })
+        .then(() => {
+          writePendingConfigPatch(null);
+        })
+        .catch((error) => {
+          console.error('Failed to persist config update:', error);
+          writePendingConfigPatch(next);
+        });
       return next;
     });
 
@@ -777,16 +795,23 @@ export function ConfigProvider({ children }) {
       ...(nextConfig || {}),
     });
 
-    const data = await persistConfigSnapshot({ nextConfig: mergedConfig });
+    try {
+      const data = await persistConfigSnapshot({ nextConfig: mergedConfig });
 
-    const next = normalizeConfig({
-      ...mergedConfig,
-      ...(data || {}),
-    });
-    setConfig(next);
-    writeLocalJson(CONFIG_STORAGE_KEY, next);
+      const next = normalizeConfig({
+        ...mergedConfig,
+        ...(data || {}),
+      });
+      setConfig(next);
+      writeLocalJson(CONFIG_STORAGE_KEY, next);
+      writePendingConfigPatch(null);
 
-    return data;
+      return data;
+    } catch (error) {
+      writeLocalJson(CONFIG_STORAGE_KEY, mergedConfig);
+      writePendingConfigPatch(mergedConfig);
+      throw error;
+    }
   };
 
   const login = async (username, password) => {
@@ -1273,6 +1298,7 @@ export function ConfigProvider({ children }) {
     writeLocalJson(CONFIG_STORAGE_KEY, nextConfig);
     writeLocalJson(ASSETS_STORAGE_KEY, nextAssets);
     writeLocalJson(PROJECT_DATA_STORAGE_KEY, nextProjectData);
+    writePendingConfigPatch(null);
 
     persistConfigSnapshot({ nextConfig, nextAssets, nextProjectData }).catch((error) => {
       console.error('Failed to persist imported CMS bundle:', error);
@@ -1285,6 +1311,13 @@ export function ConfigProvider({ children }) {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(EDIT_MODE_STORAGE_KEY, String(isEditMode));
   }, [isEditMode]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const patch = readPendingConfigPatch();
+    if (!patch || typeof patch !== 'object') return;
+    setConfig((prev) => normalizeConfig({ ...prev, ...patch }));
+  }, []);
 
   const value = useMemo(
     () => ({

@@ -32,14 +32,18 @@ export default function EditableText({
     setOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const next = String(draft ?? '');
     if (typeof maxLength === 'number' && maxLength > 0 && next.length > maxLength) {
       setError(`最多 ${maxLength} 个字符。`);
       return;
     }
-    onChange?.(next);
-    setOpen(false);
+    try {
+      await Promise.resolve(onChange?.(next));
+      setOpen(false);
+    } catch (error) {
+      setError(error?.message || '保存失败，请重试。');
+    }
   };
 
   const displayValue = useMemo(() => String(value ?? ''), [value]);

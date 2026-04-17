@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -30,7 +34,7 @@ jobs:
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USERNAME }}
-          password: ${{ secrets.SERVER_PASSWORD }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           source: "dist/*"
           target: "/www/wwwroot/portfolio-web/dist/"
@@ -42,34 +46,31 @@ jobs:
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USERNAME }}
-          password: ${{ secrets.SERVER_PASSWORD }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           source: "server/**/*"
           target: "/www/wwwroot/portfolio-web/server/"
           strip_components: 1
           overwrite: true
-          exclude: "server/.env,server/node_modules/**"
+          exclude: "server/.env,server/.env.*,server/node_modules/**,server/uploads/**"
 
-      - name: Update backend and restart service
+      - name: Update backend dependencies and restart service
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USERNAME }}
-          password: ${{ secrets.SERVER_PASSWORD }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           script: |
             set -e
             export PATH=/www/server/nodejs/v20.20.2/bin:$PATH
-            echo "node: $(node -v || true)"
-            echo "npm: $(npm -v || true)"
-            echo "which node: $(which node || true)"
-            echo "which npm: $(which npm || true)"
             cd /www/wwwroot/portfolio-web/server
             test -f package.json
             npm ci --omit=dev
             if command -v pm2 >/dev/null 2>&1; then
-              pm2 restart portfolio-server || pm2 start src/index.js --name portfolio-server
+              pm2 start src/index.js --name portfolio-server --update-env || pm2 restart portfolio-server --update-env
               pm2 save
             else
+              pkill -f "node src/index.js" || true
               nohup npm start >/tmp/portfolio-server.log 2>&1 &
             fi
