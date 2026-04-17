@@ -30,6 +30,10 @@ async function initSchema() {
       role VARCHAR(255) NULL,
       release_date VARCHAR(64) NULL,
       cover_url TEXT NULL,
+      cover_asset_url TEXT NULL,
+      cover_asset_object_name VARCHAR(512) NULL,
+      cover_asset_file_type VARCHAR(128) NULL,
+      cover_asset_is_private TINYINT(1) NOT NULL DEFAULT 0,
       thumbnail_url TEXT NULL,
       video_url TEXT NULL,
       main_video_url TEXT NULL,
@@ -148,6 +152,10 @@ function normalizeProjectRow(row) {
     role: row.role || '',
     releaseDate: row.release_date || '',
     coverUrl: row.cover_url || '',
+    coverAssetUrl: row.cover_asset_url || row.cover_url || '',
+    coverAssetObjectName: row.cover_asset_object_name || '',
+    coverAssetFileType: row.cover_asset_file_type || '',
+    coverAssetIsPrivate: Boolean(toInt(row.cover_asset_is_private, 0)),
     thumbnailUrl: row.thumbnail_url || row.cover_url || '',
     videoUrl: normalizedVideoUrl,
     mainVideoUrl: normalizedVideoUrl,
@@ -180,6 +188,10 @@ function normalizeProjectPayload(project = {}) {
     role,
     releaseDate,
     coverUrl,
+    coverAssetUrl,
+    coverAssetObjectName,
+    coverAssetFileType,
+    coverAssetIsPrivate,
     thumbnailUrl,
     videoUrl,
     mainVideoUrl,
@@ -210,6 +222,10 @@ function normalizeProjectPayload(project = {}) {
     role: role || null,
     release_date: releaseDate || null,
     cover_url: coverUrl || null,
+    cover_asset_url: coverAssetUrl || coverUrl || null,
+    cover_asset_object_name: coverAssetObjectName || null,
+    cover_asset_file_type: coverAssetFileType || null,
+    cover_asset_is_private: coverAssetIsPrivate ? 1 : 0,
     thumbnail_url: thumbnailUrl || coverUrl || null,
     video_url: videoUrl || null,
     main_video_url: mainVideoUrl || videoUrl || null,
@@ -257,8 +273,8 @@ export async function upsertConfigObject(config = {}) {
 
 export async function readProjects() {
   const [rows] = await pool.query(
-    `SELECT id, title, category, role, release_date, cover_url, thumbnail_url, video_url, main_video_url,
-            bts_media_json, client_agency, client_code, is_featured, sort_order, description, credits,
+    `SELECT id, title, category, role, release_date, cover_url, cover_asset_url, cover_asset_object_name, cover_asset_file_type, cover_asset_is_private,
+            thumbnail_url, video_url, main_video_url, bts_media_json, client_agency, client_code, is_featured, sort_order, description, credits,
             is_visible, publish_status, visibility, access_password, delivery_pin, status, password,
             private_files_json, outline_tags_json, content_json, created_at
      FROM projects
@@ -269,8 +285,8 @@ export async function readProjects() {
 
 export async function findProjectById(id) {
   const [rows] = await pool.execute(
-    `SELECT id, title, category, role, release_date, cover_url, thumbnail_url, video_url, main_video_url,
-            bts_media_json, client_agency, client_code, is_featured, sort_order, description, credits,
+    `SELECT id, title, category, role, release_date, cover_url, cover_asset_url, cover_asset_object_name, cover_asset_file_type, cover_asset_is_private,
+            thumbnail_url, video_url, main_video_url, bts_media_json, client_agency, client_code, is_featured, sort_order, description, credits,
             is_visible, publish_status, visibility, access_password, delivery_pin, status, password,
             private_files_json, outline_tags_json, content_json, created_at
      FROM projects WHERE id = ? LIMIT 1`,
@@ -283,11 +299,11 @@ export async function findProjectById(id) {
 export async function insertProject(project) {
   const values = normalizeProjectPayload(project);
   await pool.execute(
-    `INSERT INTO projects (id, title, category, role, release_date, cover_url, thumbnail_url, video_url, main_video_url,
+    `INSERT INTO projects (id, title, category, role, release_date, cover_url, cover_asset_url, cover_asset_object_name, cover_asset_file_type, cover_asset_is_private, thumbnail_url, video_url, main_video_url,
      bts_media_json, client_agency, client_code, is_featured, sort_order, description, credits, is_visible,
      publish_status, visibility, access_password, delivery_pin, status, password, private_files_json, outline_tags_json,
      content_json, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       values.id,
       values.title,
@@ -295,6 +311,10 @@ export async function insertProject(project) {
       values.role,
       values.release_date,
       values.cover_url,
+      values.cover_asset_url,
+      values.cover_asset_object_name,
+      values.cover_asset_file_type,
+      values.cover_asset_is_private,
       values.thumbnail_url,
       values.video_url,
       values.main_video_url,
@@ -325,7 +345,7 @@ export async function updateProject(id, project) {
   const values = normalizeProjectPayload({ ...project, id });
   await pool.execute(
     `UPDATE projects
-     SET title = ?, category = ?, role = ?, release_date = ?, cover_url = ?, thumbnail_url = ?, video_url = ?, main_video_url = ?,
+     SET title = ?, category = ?, role = ?, release_date = ?, cover_url = ?, cover_asset_url = ?, cover_asset_object_name = ?, cover_asset_file_type = ?, cover_asset_is_private = ?, thumbnail_url = ?, video_url = ?, main_video_url = ?,
          bts_media_json = ?, client_agency = ?, client_code = ?, is_featured = ?, sort_order = ?, description = ?, credits = ?,
          is_visible = ?, publish_status = ?, visibility = ?, access_password = ?, delivery_pin = ?, status = ?, password = ?,
          private_files_json = ?, outline_tags_json = ?, content_json = ?, created_at = ?
@@ -336,6 +356,10 @@ export async function updateProject(id, project) {
       values.role,
       values.release_date,
       values.cover_url,
+      values.cover_asset_url,
+      values.cover_asset_object_name,
+      values.cover_asset_file_type,
+      values.cover_asset_is_private,
       values.thumbnail_url,
       values.video_url,
       values.main_video_url,

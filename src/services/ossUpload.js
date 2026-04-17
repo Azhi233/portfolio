@@ -1,4 +1,4 @@
-const LOCAL_API_BASE = (import.meta.env.VITE_API_BASE || 'http://47.114.95.49:8787').replace(/\/$/, '');
+const LOCAL_API_BASE = (import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:8787/api' : 'http://47.114.95.49/api')).replace(/\/+$/, '');
 const SIGNED_URL_REFRESH_BUFFER_MS = 60 * 1000;
 
 function fileToDataUrl(file) {
@@ -15,7 +15,7 @@ function fileToDataUrl(file) {
  * @returns {{url: string, path: string, size?: number, contentType?: string, fileName?: string}}
  */
 async function refreshSignedUrl(path) {
-  const response = await fetch(`${LOCAL_API_BASE}/api/uploads/sign`, {
+  const response = await fetch(`${LOCAL_API_BASE}/uploads/sign`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path }),
@@ -39,7 +39,7 @@ export async function uploadFileToOSS({ file, dir = 'uploads', onProgress }) {
   const data = await fileToDataUrl(file);
   onProgress?.(60);
 
-  const response = await fetch(`${LOCAL_API_BASE}/api/uploads/local`, {
+  const response = await fetch(`${LOCAL_API_BASE}/uploads/local`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

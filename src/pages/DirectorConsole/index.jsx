@@ -1,6 +1,7 @@
 import { Server } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import LocalUploadField from '../../components/LocalUploadField.jsx';
+import CoverUploader from '../../components/CoverUploader.jsx';
 import { useConfig } from '../../context/ConfigContext.jsx';
 import { uploadFileToOSS } from '../../services/ossUpload.js';
 import { createProject, updateProject as updateProjectApi } from '../../utils/api.js';
@@ -23,7 +24,6 @@ const SERVER_PANEL_URL = import.meta.env.VITE_SERVER_URL || '';
 
 const EMPTY_FORM = {
   title: '',
-  coverFile: null,
   category: 'TVC',
   role: 'DOP',
   releaseDate: '',
@@ -409,9 +409,9 @@ function ProjectForm({
   onChange,
   onSubmit,
   onCancel,
-  onUploadCover,
   onUploadVideo,
   uploadState,
+  coverPreviewUrl,
 }) {
   return (
     <form
@@ -527,16 +527,13 @@ function ProjectForm({
           />
         </label>
 
-        <LocalUploadField
+        <CoverUploader
           label="Cover URL"
           value={formState.coverUrl}
-          placeholder="https://images.unsplash.com/..."
-          accept="image/*"
-          buttonText="上传图片到本地服务器"
-          uploadState={uploadState.cover}
           preview={coverPreviewUrl || formState.coverUrl}
+          buttonText="上传封面图片"
           onChange={(nextValue) => onChange('coverUrl', nextValue)}
-          onUpload={onUploadCover}
+          onUploadSuccess={(url) => onChange('coverUrl', url)}
         />
 
         <LocalUploadField
@@ -1481,7 +1478,6 @@ function DirectorConsole() {
     setEditingProjectId(null);
     setFormState(EMPTY_FORM);
     setCoverPreviewUrl('');
-    setCoverPreviewUrl(project.coverUrl || '');
     setShowForm(true);
   };
 
@@ -1490,7 +1486,6 @@ function DirectorConsole() {
     setEditingProjectId(project.id);
     setFormState({
       title: project.title,
-      coverFile: null,
       category: project.category,
       role: project.role || 'DOP',
       releaseDate: project.releaseDate || '',
@@ -1673,7 +1668,6 @@ function DirectorConsole() {
       if (formMode === 'edit' && editingProjectId) {
         const saved = await updateProjectApi(editingProjectId, {
           ...payload,
-          coverFile: formState.coverFile || null,
         });
         if (saved) {
           updateProject(saved.id, saved);
@@ -1681,7 +1675,6 @@ function DirectorConsole() {
       } else {
         const saved = await createProject({
           ...payload,
-          coverFile: formState.coverFile || null,
         });
         if (saved) {
           updateProject(saved.id, saved);
@@ -1694,39 +1687,6 @@ function DirectorConsole() {
     }
   };
 
-  const handleUploadCover = async (file) => {
-    setUploadState((prev) => ({
-      ...prev,
-      cover: { status: 'uploading', progress: 0 },
-    }));
-
-    try {
-      const result = await uploadFileToOSS({
-        file,
-        dir: 'images/cover',
-        onProgress: (progress) => {
-          setUploadState((prev) => ({
-            ...prev,
-            cover: { status: 'uploading', progress },
-          }));
-        },
-      });
-
-      const localPreview = URL.createObjectURL(file);
-      setCoverPreviewUrl(localPreview);
-      setFormState((prev) => ({ ...prev, coverUrl: result.url, coverFile: file }));
-      setUploadState((prev) => ({
-        ...prev,
-        cover: { status: 'success', progress: 100 },
-      }));
-    } catch (error) {
-      console.error(error);
-      setUploadState((prev) => ({
-        ...prev,
-        cover: { status: 'error', progress: 0 },
-      }));
-    }
-  };
 
   const handleUploadVideo = async (file) => {
     setUploadState((prev) => ({
@@ -5410,9 +5370,9 @@ function DirectorConsole() {
                 onChange={(key, value) => setFormState((prev) => ({ ...prev, [key]: value }))}
                 onSubmit={handleSubmitForm}
                 onCancel={handleCancelForm}
-                onUploadCover={handleUploadCover}
                 onUploadVideo={handleUploadVideo}
                 uploadState={uploadState}
+                coverPreviewUrl={coverPreviewUrl}
               />
             </div>
           </div>

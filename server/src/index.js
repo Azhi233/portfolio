@@ -14,7 +14,7 @@ import {
   readConfigObject,
   upsertConfigObject,
   readProjects,
-  findProjectById,
+
   insertProject,
   updateProject,
   deleteProjectById,
@@ -29,12 +29,17 @@ import {
   upsertMediaAsset,
 } from './db.js';
 import { minioClient, minioBucket, minioUploadPrefix, minioPresignExpiresSeconds } from './utils/minioClient.js';
+import { initMinio } from './utils/minio.js';
+import uploadRouter from './routes/upload.js';
 import { seedAdminUser } from '../initAdmin.js';
 
 dotenv.config();
 
 const app = express();
-app.use(cors({ origin: true, credentials: false }));
+app.use(cors({
+  origin: ['http://localhost:5175', 'http://localhost:5173', 'http://47.114.95.49'],
+  credentials: true,
+}));
 app.use(express.json({ limit: '25mb' }));
 
 const JWT_SECRET = process.env.JWT_SECRET || 'portfolio-dev-secret';
@@ -307,8 +312,10 @@ app.get('/api/projects', async (_req, res) => {
   res.json({ ok: true, data: await readProjects() });
 });
 
+app.use('/api/uploads', uploadRouter);
+
 async function uploadProjectImage(file) {
-  if (!file) return '';
+  if (!file) return { url: '', objectName: '' };
 
   if (!minioClient || !minioBucket) {
     throw new Error('MinIO is not enabled.');
@@ -328,7 +335,8 @@ async function uploadProjectImage(file) {
     'Content-Type': file.mimetype || 'application/octet-stream',
   });
 
-  return await minioClient.presignedGetObject(minioBucket, objectName, minioPresignExpiresSeconds);
+  const url = await minioClient.presignedGetObject(minioBucket, objectName, minioPresignExpiresSeconds);
+  return { url, objectName };
 }
 
 app.post('/api/projects', upload.single('image'), async (req, res) => {
@@ -336,8 +344,18 @@ app.post('/api/projects', upload.single('image'), async (req, res) => {
     const project = req.body || {};
 
     let coverUrl = String(project.coverUrl || project.thumbnailUrl || '').trim();
+    let coverAssetUrl = String(project.coverAssetUrl || '').trim();
+    let coverAssetObjectName = String(project.coverAssetObjectName || '').trim();
+    let coverAssetFileType = String(project.coverAssetFileType || '').trim();
+    let coverAssetIsPrivate = project.coverAssetIsPrivate === 'true' || project.coverAssetIsPrivate === true;
+
     if (req.file) {
-      coverUrl = await uploadProjectImage(req.file);
+      const uploadResult = await uploadProjectImage(req.file);
+      coverUrl = uploadResult.url;
+      coverAssetUrl = uploadResult.url;
+      coverAssetObjectName = uploadResult.objectName || '';
+      coverAssetFileType = req.file.mimetype || 'application/octet-stream';
+      coverAssetIsPrivate = false;
     }
 
     const payload = {
@@ -348,6 +366,10 @@ app.post('/api/projects', upload.single('image'), async (req, res) => {
       role: String(project.role || '').trim() || null,
       releaseDate: String(project.releaseDate || '').trim() || null,
       coverUrl,
+      coverAssetUrl,
+      coverAssetObjectName,
+      coverAssetFileType,
+      coverAssetIsPrivate,
       thumbnailUrl: String(project.thumbnailUrl || coverUrl || '').trim() || coverUrl,
       videoUrl: String(project.videoUrl || '').trim() || null,
       mainVideoUrl: String(project.mainVideoUrl || project.videoUrl || '').trim() || null,
@@ -533,6 +555,10 @@ async function bootstrap() {
   const databaseReady = await testConnection();
   if (!databaseReady) {
     throw new Error('Database initialization failed.');
+  }
+
+  if (process.env.MINIO_ENABLED === 'true') {
+    await initMinio();
   }
 
   await seedAdminUser();
