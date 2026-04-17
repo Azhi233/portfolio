@@ -534,7 +534,7 @@ function ProjectForm({
           accept="image/*"
           buttonText="上传图片到本地服务器"
           uploadState={uploadState.cover}
-          preview={formState.coverUrl}
+          preview={coverPreviewUrl || formState.coverUrl}
           onChange={(nextValue) => onChange('coverUrl', nextValue)}
           onUpload={onUploadCover}
         />
@@ -735,6 +735,7 @@ function DirectorConsole() {
   const [formMode, setFormMode] = useState('create');
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [formState, setFormState] = useState(EMPTY_FORM);
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [uploadState, setUploadState] = useState({
     cover: { status: 'idle', progress: 0 },
@@ -1479,6 +1480,8 @@ function DirectorConsole() {
     setFormMode('create');
     setEditingProjectId(null);
     setFormState(EMPTY_FORM);
+    setCoverPreviewUrl('');
+    setCoverPreviewUrl(project.coverUrl || '');
     setShowForm(true);
   };
 
@@ -1569,6 +1572,7 @@ function DirectorConsole() {
     setShowForm(false);
     setEditingProjectId(null);
     setFormState(EMPTY_FORM);
+    setCoverPreviewUrl('');
     setUploadState({
       cover: { status: 'idle', progress: 0 },
       video: { status: 'idle', progress: 0 },
@@ -1708,6 +1712,8 @@ function DirectorConsole() {
         },
       });
 
+      const localPreview = URL.createObjectURL(file);
+      setCoverPreviewUrl(localPreview);
       setFormState((prev) => ({ ...prev, coverUrl: result.url, coverFile: file }));
       setUploadState((prev) => ({
         ...prev,
