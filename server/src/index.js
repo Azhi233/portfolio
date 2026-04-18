@@ -28,10 +28,11 @@ import {
   upsertDeliveryUnlock,
   readMediaAssets,
   upsertMediaAsset,
+  markStaleVideoTranscodeTasks,
 } from './db.js';
 import { minioClient, minioBucket, minioUploadPrefix, minioPresignExpiresSeconds } from './utils/minioClient.js';
 import { initMinio } from './utils/minio.js';
-import uploadRouter, { uploadEvents } from './routes/upload.js';
+import uploadRouter from './routes/upload.js';
 import { seedAdminUser } from '../initAdmin.js';
 
 dotenv.config();
@@ -120,6 +121,30 @@ function authMiddleware(req, res, next) {
 }
 
 const sseClients = new Set();
+
+function normalizeTaskEventPayload(payload = {}) {
+  return {
+    event: String(payload.event || 'task-updated'),
+    taskId: String(payload.taskId || ''),
+    status: String(payload.status || ''),
+    targetUrl: payload.targetUrl ?? null,
+    errorMsg: payload.errorMsg ?? null,
+  };
+}
+
+function emitTaskEvent(payload = {}) {
+  const normalized = normalizeTaskEventPayload(payload);
+  const message = `event: ${normalized.event}\ndata: ${JSON.stringify(normalized)}\n\n`;
+  for (const client of sseClients) {
+    try {
+      client.write(message);
+    } catch {
+      sseClients.delete(client);
+    }
+  }
+  return normalized;
+}
+
 const notifyConfigChanged = (reason = 'config-updated') => {
   const message = `event: config-updated\ndata: ${JSON.stringify({ reason, at: new Date().toISOString() })}\n\n`;
   for (const client of sseClients) {
@@ -131,25 +156,6 @@ const notifyConfigChanged = (reason = 'config-updated') => {
   }
 };
 
-function sendSseEvent(client, eventName, payload) {
-  client.write(`event: ${eventName}\n`);
-  client.write(`data: ${JSON.stringify(payload)}\n\n`);
-}
-
-function broadcastSse(eventName, payload) {
-  for (const client of sseClients) {
-    try {
-      sendSseEvent(client, eventName, payload);
-    } catch {
-      sseClients.delete(client);
-    }
-  }
-}
-
-uploadEvents.on('task-event', (payload) => {
-  if (!payload?.event) return;
-  broadcastSse(payload.event, payload);
-});
 
 app.get('/api/health', async (_req, res) => {
   const databaseReady = await testConnection();
@@ -581,6 +587,8 @@ async function bootstrap() {
   if (!databaseReady) {
     throw new Error('Database initialization failed.');
   }
+
+  await markStaleVideoTranscodeTasks(60);
 
   if (process.env.MINIO_ENABLED === 'true') {
     await initMinio();
