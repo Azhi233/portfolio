@@ -10,6 +10,7 @@ import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import {
   pool,
+  initDB,
   testConnection,
   readConfigObject,
   upsertConfigObject,
@@ -30,7 +31,7 @@ import {
 } from './db.js';
 import { minioClient, minioBucket, minioUploadPrefix, minioPresignExpiresSeconds } from './utils/minioClient.js';
 import { initMinio } from './utils/minio.js';
-import uploadRouter from './routes/upload.js';
+import uploadRouter, { uploadEvents } from './routes/upload.js';
 import { seedAdminUser } from '../initAdmin.js';
 
 dotenv.config();
@@ -130,6 +131,26 @@ const notifyConfigChanged = (reason = 'config-updated') => {
   }
 };
 
+function sendSseEvent(client, eventName, payload) {
+  client.write(`event: ${eventName}\n`);
+  client.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+function broadcastSse(eventName, payload) {
+  for (const client of sseClients) {
+    try {
+      sendSseEvent(client, eventName, payload);
+    } catch {
+      sseClients.delete(client);
+    }
+  }
+}
+
+uploadEvents.on('task-event', (payload) => {
+  if (!payload?.event) return;
+  broadcastSse(payload.event, payload);
+});
+
 app.get('/api/health', async (_req, res) => {
   const databaseReady = await testConnection();
   res.json({ ok: databaseReady, service: 'oss-policy-api-sts', databaseReady });
@@ -144,6 +165,7 @@ app.get('/api/events', (req, res) => {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache, no-transform',
     Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
   });
   res.write(': connected\n\n');
   sseClients.add(res);
@@ -155,7 +177,7 @@ app.get('/api/events', (req, res) => {
       clearInterval(keepAlive);
       sseClients.delete(res);
     }
-  }, 25000);
+  }, 15000);
 
   req.on('close', () => {
     clearInterval(keepAlive);
@@ -554,6 +576,7 @@ app.use((error, _req, res, _next) => {
 });
 
 async function bootstrap() {
+  await initDB();
   const databaseReady = await testConnection();
   if (!databaseReady) {
     throw new Error('Database initialization failed.');

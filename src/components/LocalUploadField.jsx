@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 function statusText(status) {
-  if (status === 'uploading') return '上传中';
+  if (status === 'uploading') return '上传/转码中';
   if (status === 'success') return '上传成功';
   if (status === 'error') return '上传失败';
   return '待上传';
@@ -29,6 +29,13 @@ function LocalUploadField({
   const [isDragOver, setIsDragOver] = useState(false);
   const progress = Math.max(0, Math.min(100, Number(uploadState?.progress || 0)));
   const status = uploadState?.status || 'idle';
+  const taskId = String(uploadState?.taskId || '').trim();
+
+  useEffect(() => {
+    if (status !== 'error' && status !== 'success') return;
+    const timer = window.setTimeout(() => {}, 0);
+    return () => window.clearTimeout(timer);
+  }, [status]);
 
   const openPicker = () => inputRef.current?.click();
 
@@ -111,6 +118,7 @@ function LocalUploadField({
             </div>
             <p className={`mt-1 text-[11px] tracking-[0.08em] ${statusClass(status)}`}>
               {statusText(status)}{status !== 'idle' ? ` · ${progress}%` : ''}
+              {taskId ? ` · Task ${taskId}` : ''}
             </p>
           </div>
         </div>

@@ -4,15 +4,24 @@ import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {
+  createVideoTranscodeTask,
+  getVideoTranscodeTaskByTaskId,
+  updateVideoTranscodeTask,
+} from '../db.js';
 import { uploadFile } from '../utils/minio.js';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20480 * 1024 * 1024 } });
 
-function isMovFile(file = {}) {
+function createTaskId() {
+  return `video-task-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function isVideoFile(file = {}) {
   const name = String(file.originalname || '').toLowerCase();
   const mime = String(file.mimetype || '').toLowerCase();
-  return name.endsWith('.mov') || mime === 'video/quicktime';
+  return mime.startsWith('video/') || name.endsWith('.mov') || name.endsWith('.mp4') || mime === 'video/quicktime';
 }
 
 function runFfmpegTranscode(inputPath, outputPath) {
@@ -38,13 +47,13 @@ function runFfmpegTranscode(inputPath, outputPath) {
       outputPath,
     ];
 
-    const child = spawn('ffmpeg', args, { stdio: 'pipe' });
+    const child = spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'pipe'] });
     let stderr = '';
-    if (child.stderr) {
-      child.stderr.on('data', (chunk) => {
-        stderr += chunk.toString();
-      });
-    }
+
+    child.stderr?.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+
     child.on('error', reject);
     child.on('close', (code) => {
       if (code === 0) resolve();
@@ -53,15 +62,43 @@ function runFfmpegTranscode(inputPath, outputPath) {
   });
 }
 
+async function processVideoTask(taskId, originalName, buffer, reqMeta) {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'portfolio-video-'));
+  const inputPath = path.join(tempDir, originalName || 'input');
+  const outputPath = path.join(tempDir, `${path.basename(originalName, path.extname(originalName)) || 'video'}.mp4`);
+
+  try {
+    await updateVideoTranscodeTask(taskId, { status: 'processing' });
+    await fs.writeFile(inputPath, buffer);
+    await runFfmpegTranscode(inputPath, outputPath);
+
+    const uploadBuffer = await fs.readFile(outputPath);
+    const uploadName = `${path.basename(originalName, path.extname(originalName)) || 'video'}.mp4`;
+    const result = await uploadFile(uploadBuffer, uploadName, false, 'video/mp4', { baseUrl: reqMeta.baseUrl });
+
+    await updateVideoTranscodeTask(taskId, {
+      status: 'completed',
+      targetUrl: result.url,
+      errorMsg: null,
+    });
+  } catch (error) {
+    await updateVideoTranscodeTask(taskId, {
+      status: 'failed',
+      errorMsg: error?.message || 'transcode_failed',
+    });
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 router.post('/', upload.single('file'), async (req, res, next) => {
   try {
     const file = req.file;
-    const type = String(req.body?.type || 'public').toLowerCase();
-
     if (!file) {
       return res.status(400).json({ ok: false, message: 'file is required.' });
     }
 
+    const type = String(req.body?.type || 'public').toLowerCase();
     const isPrivate = type === 'private';
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     const publicBaseUrl = String(process.env.MINIO_PUBLIC_BASE_URL || process.env.PUBLIC_FILE_BASE_URL || '').trim();
@@ -69,27 +106,43 @@ router.post('/', upload.single('file'), async (req, res, next) => {
     const forwardedProto = String(req.headers['x-forwarded-proto'] || '').trim();
     const proxyBaseUrl = forwardedHost ? `${forwardedProto || req.protocol}://${forwardedHost}` : '';
 
-    let uploadBuffer = file.buffer;
-    let uploadName = file.originalname;
-    let uploadMime = file.mimetype || 'application/octet-stream';
-    let convertedFrom = '';
+    if (isVideoFile(file)) {
+      const taskId = createTaskId();
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'portfolio-upload-'));
+      const originalPath = path.join(tempDir, file.originalname || `${taskId}.bin`);
+      await fs.writeFile(originalPath, file.buffer);
 
-    if (isMovFile(file)) {
-      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'portfolio-mov-'));
-      const inputPath = path.join(tempDir, file.originalname || 'input.mov');
-      const outputPath = path.join(tempDir, `${path.basename(file.originalname, path.extname(file.originalname)) || 'video'}.mp4`);
+      await createVideoTranscodeTask({
+        taskId,
+        status: 'processing',
+        originalPath,
+        targetUrl: null,
+        errorMsg: null,
+      });
 
-      try {
-        await fs.writeFile(inputPath, file.buffer);
-        await runFfmpegTranscode(inputPath, outputPath);
-        uploadBuffer = await fs.readFile(outputPath);
-        uploadName = `${path.basename(file.originalname, path.extname(file.originalname)) || 'video'}.mp4`;
-        uploadMime = 'video/mp4';
-        convertedFrom = file.originalname;
-      } finally {
-        await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
-      }
+      processVideoTask(taskId, file.originalname || '', file.buffer, { baseUrl: publicBaseUrl || proxyBaseUrl || baseUrl })
+        .catch(async (error) => {
+          await updateVideoTranscodeTask(taskId, {
+            status: 'failed',
+            errorMsg: error?.message || 'transcode_failed',
+          });
+        })
+        .finally(() => fs.rm(tempDir, { recursive: true, force: true }).catch(() => {}));
+
+      return res.status(202).json({
+        ok: true,
+        data: {
+          taskId,
+          status: 'processing',
+          fileName: file.originalname,
+          fileType: file.mimetype || 'application/octet-stream',
+        },
+      });
     }
+
+    const uploadBuffer = file.buffer;
+    const uploadName = file.originalname;
+    const uploadMime = file.mimetype || 'application/octet-stream';
 
     const result = await uploadFile(uploadBuffer, uploadName, isPrivate, uploadMime, {
       baseUrl: publicBaseUrl || proxyBaseUrl || baseUrl,
@@ -102,12 +155,21 @@ router.post('/', upload.single('file'), async (req, res, next) => {
         fileType: uploadMime,
         fileName: uploadName,
         size: uploadBuffer.length,
-        convertedFrom,
+        convertedFrom: '',
       },
     });
   } catch (error) {
     return next(error);
   }
+});
+
+router.get('/status/:taskId', async (req, res) => {
+  const task = await getVideoTranscodeTaskByTaskId(req.params.taskId);
+  if (!task) {
+    return res.status(404).json({ ok: false, message: 'Task not found.' });
+  }
+
+  return res.json({ ok: true, data: task });
 });
 
 export default router;
