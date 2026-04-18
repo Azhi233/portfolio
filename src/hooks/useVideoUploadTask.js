@@ -20,42 +20,41 @@ export function useVideoUploadTask() {
     const eventSource = new EventSource(`${base}/api/events`);
     eventSourceRef.current = eventSource;
 
-    const handleCompleted = (event) => {
+    const handleTaskEvent = (event) => {
       try {
         const payload = JSON.parse(event.data || '{}');
-        if (resolverRef.current?.taskId === payload.taskId) {
-          resolverRef.current.resolve(payload);
-          resolverRef.current = null;
+        if (!payload?.taskId) return;
+
+        if (payload.status === 'completed') {
+          if (resolverRef.current?.taskId === payload.taskId) {
+            resolverRef.current.resolve(payload);
+            resolverRef.current = null;
+          }
+          setActiveTask((prev) => (prev?.taskId === payload.taskId ? { ...prev, status: 'completed', targetUrl: payload.targetUrl || payload.url || '' } : prev));
+          return;
         }
-        setActiveTask((prev) => (prev?.taskId === payload.taskId ? { ...prev, status: 'completed', targetUrl: payload.targetUrl || payload.url || '' } : prev));
+
+        if (payload.status === 'failed') {
+          if (resolverRef.current?.taskId === payload.taskId) {
+            resolverRef.current.reject(new Error(payload.errorMsg || 'transcode_failed'));
+            resolverRef.current = null;
+          }
+          setActiveTask((prev) => (prev?.taskId === payload.taskId ? { ...prev, status: 'failed', errorMsg: payload.errorMsg || 'transcode_failed' } : prev));
+          return;
+        }
+
+        if (payload.status === 'processing') {
+          setActiveTask((prev) => (prev?.taskId === payload.taskId ? { ...prev, status: 'processing' } : prev));
+        }
       } catch {
         // ignore malformed payload
       }
     };
 
-    const handleError = (event) => {
-      try {
-        const payload = JSON.parse(event.data || '{}');
-        if (resolverRef.current?.taskId === payload.taskId) {
-          resolverRef.current.reject(new Error(payload.errorMsg || 'transcode_failed'));
-          resolverRef.current = null;
-        }
-        setActiveTask((prev) => (prev?.taskId === payload.taskId ? { ...prev, status: 'failed', errorMsg: payload.errorMsg || 'transcode_failed' } : prev));
-      } catch {
-        // ignore malformed payload
-      }
-    };
-
-    eventSource.addEventListener('video-transcode-completed', handleCompleted);
-    eventSource.addEventListener('video-transcode-error', handleError);
-    eventSource.addEventListener('video-transcode-started', (event) => {
-      try {
-        const payload = JSON.parse(event.data || '{}');
-        setActiveTask((prev) => (prev?.taskId === payload.taskId ? { ...prev, status: 'processing' } : prev));
-      } catch {
-        // ignore malformed payload
-      }
-    });
+    eventSource.addEventListener('task-started', handleTaskEvent);
+    eventSource.addEventListener('task-failed', handleTaskEvent);
+    eventSource.addEventListener('task-completed', handleTaskEvent);
+    eventSource.addEventListener('task-updated', handleTaskEvent);
 
     return () => {
       eventSource.close();
