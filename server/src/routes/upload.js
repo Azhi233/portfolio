@@ -9,6 +9,7 @@ import {
   getVideoTranscodeTaskByTaskId,
   updateVideoTranscodeTask,
 } from '../db.js';
+import { emitTaskEvent } from '../utils/taskEvents.js';
 import { uploadFile } from '../utils/minio.js';
 
 const router = express.Router();
@@ -49,15 +50,42 @@ function runFfmpegTranscode(inputPath, outputPath) {
 
     const child = spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'pipe'] });
     let stderr = '';
+    let settled = false;
+
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
+
+    const succeed = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
 
     child.stderr?.on('data', (chunk) => {
       stderr += chunk.toString();
     });
 
-    child.on('error', reject);
-    child.on('close', (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`ffmpeg exited with code ${code}${stderr ? `: ${stderr.slice(-500)}` : ''}`));
+    child.on('error', (error) => {
+      fail(error);
+    });
+
+    child.on('exit', (code, signal) => {
+      if (code === 0) {
+        succeed();
+        return;
+      }
+
+      const reason = signal ? `signal ${signal}` : `code ${code}`;
+      fail(new Error(`ffmpeg exited with ${reason}${stderr ? `: ${stderr.slice(-500)}` : ''}`));
+    });
+
+    child.on('close', (code, signal) => {
+      if (settled) return;
+      const reason = signal ? `signal ${signal}` : `code ${code}`;
+      fail(new Error(`ffmpeg closed with ${reason}${stderr ? `: ${stderr.slice(-500)}` : ''}`));
     });
   });
 }
@@ -81,11 +109,14 @@ async function processVideoTask(taskId, originalName, buffer, reqMeta) {
       targetUrl: result.url,
       errorMsg: null,
     });
+    emitTaskEvent({ event: 'task-completed', taskId, status: 'completed', targetUrl: result.url, errorMsg: null });
   } catch (error) {
+    const errorMsg = error?.message || 'transcode_failed';
     await updateVideoTranscodeTask(taskId, {
       status: 'failed',
-      errorMsg: error?.message || 'transcode_failed',
+      errorMsg,
     });
+    emitTaskEvent({ event: 'task-failed', taskId, status: 'failed', targetUrl: null, errorMsg });
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }
@@ -119,13 +150,16 @@ router.post('/', upload.single('file'), async (req, res, next) => {
         targetUrl: null,
         errorMsg: null,
       });
+      emitTaskEvent({ event: 'task-started', taskId, status: 'processing', targetUrl: null, errorMsg: null });
 
       processVideoTask(taskId, file.originalname || '', file.buffer, { baseUrl: publicBaseUrl || proxyBaseUrl || baseUrl })
         .catch(async (error) => {
+          const errorMsg = error?.message || 'transcode_failed';
           await updateVideoTranscodeTask(taskId, {
             status: 'failed',
-            errorMsg: error?.message || 'transcode_failed',
+            errorMsg,
           });
+          emitTaskEvent({ event: 'task-failed', taskId, status: 'failed', targetUrl: null, errorMsg });
         })
         .finally(() => fs.rm(tempDir, { recursive: true, force: true }).catch(() => {}));
 

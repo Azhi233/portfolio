@@ -557,12 +557,12 @@ export async function getVideoTranscodeTaskByTaskId(taskId) {
   };
 }
 
-export async function markStaleVideoTranscodeTasks(minutes = 30) {
+export async function markStaleVideoTranscodeTasks(minutes = 60) {
   await pool.execute(
     `UPDATE video_transcode_tasks
-     SET status = 'failed', error_msg = CONCAT('stale task auto-marked after ', ?, ' minutes'), updated_at = CURRENT_TIMESTAMP
+     SET status = 'failed', error_msg = 'Task timed out due to server restart', updated_at = CURRENT_TIMESTAMP
      WHERE status IN ('queued', 'processing')
        AND updated_at < (NOW() - INTERVAL ? MINUTE)`,
-    [minutes, minutes],
+    [minutes],
   );
 }
