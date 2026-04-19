@@ -1,266 +1,89 @@
-import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
-import OgilvyGalleryGrid from '../components/OgilvyGalleryGrid.jsx';
-import ProjectShowcase from '../components/ProjectShowcase.jsx';
-import EditableText from '../components/EditableText.jsx';
-import EditableMedia from '../components/EditableMedia.jsx';
-import { useConfig } from '../context/ConfigContext.jsx';
+import { Link } from 'react-router-dom';
+import { useI18n } from '../context/I18nContext.jsx';
+import Button from '../components/Button.jsx';
+import Card from '../components/Card.jsx';
+import Badge from '../components/Badge.jsx';
 
-const STAGE_DURATION_MS = 2000;
-
-function Home({ viewMode = 'expertise' }) {
-  const { assets, config, updateConfig } = useConfig();
-  const [expertiseCategoryFilter, setExpertiseCategoryFilter] = useState('all');
-
-  const [showIntro, setShowIntro] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    return sessionStorage.getItem('introSeen') !== 'true';
-  });
-
-  useEffect(() => {
-    if (!showIntro) return undefined;
-
-    const timer = window.setTimeout(() => {
-      setShowIntro(false);
-      sessionStorage.setItem('introSeen', 'true');
-    }, STAGE_DURATION_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [showIntro]);
-
-  const expertiseItems = useMemo(
-    () =>
-      assets
-        .filter((asset) => asset?.views?.expertise?.isActive)
-        .filter((asset) =>
-          expertiseCategoryFilter === 'all' ? true : asset?.views?.expertise?.category === expertiseCategoryFilter,
-        )
-        .map((asset, index) => ({
-          id: asset.id,
-          title: asset.title,
-          coverUrl: asset.url,
-          tagline: asset.views.expertise.description || `EXPERTISE · ${asset.views.expertise.category}`,
-          category:
-            asset.views.expertise.category === 'industrial'
-              ? 'Industrial'
-              : asset.views.expertise.category === 'events'
-                ? 'Misc'
-                : 'Toys',
-          sortOrder: index,
-          to:
-            asset.views.project?.projectId === 'industry_project'
-              ? '/project/industry'
-              : '/project/toy',
-        })),
-    [assets, expertiseCategoryFilter],
-  );
-
-  const awards = useMemo(
-    () =>
-      String(config.resumeAwardsText || '')
-        .split('\n')
-        .map((item) => item.trim())
-        .filter(Boolean),
-    [config.resumeAwardsText],
-  );
-
-  const experiences = useMemo(
-    () =>
-      String(config.resumeExperienceText || '')
-        .split('\n')
-        .map((item) => item.trim())
-        .filter(Boolean),
-    [config.resumeExperienceText],
-  );
-
-  const gearList = useMemo(
-    () =>
-      String(config.resumeGearText || '')
-        .split('\n')
-        .map((item) => item.trim())
-        .filter(Boolean),
-    [config.resumeGearText],
-  );
+function Home() {
+  const { locale, t } = useI18n();
+  const highlights = t('home.highlights', {});
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#050507] pt-16 text-zinc-100">
-      <AnimatePresence>
-        {showIntro ? (
-          <motion.section
-            key="stage-light"
-            className="absolute inset-0 z-30 flex items-center justify-center"
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0, transition: { duration: 0.9, ease: 'easeInOut' } }}
-          >
-            <motion.div
-              initial={{ opacity: 0.2, scale: 0.94 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1.2, ease: 'easeOut' }}
-              className="relative"
-            >
-              <div className="absolute left-1/2 top-1/2 h-[52vh] w-[52vh] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.18)_0%,rgba(116,116,136,0.07)_38%,rgba(5,5,7,0)_72%)] blur-2xl" />
-              <h1 className="relative px-6 text-center font-serif text-3xl tracking-[0.18em] text-zinc-100 md:text-5xl">
-                DIRECTOR.VISION
+    <main className="min-h-screen bg-[#050507] px-6 pb-20 pt-20 text-zinc-100 md:px-10 md:pt-24">
+      <section className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+        <Card className="overflow-hidden p-0">
+          <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="p-8 md:p-12">
+              <p className="text-[11px] tracking-[0.32em] text-zinc-500">{t('home.eyebrow')}</p>
+              <h1 className="mt-5 max-w-3xl font-serif text-5xl leading-[1.02] tracking-[0.08em] text-white md:text-7xl">
+                {t('home.title')}
               </h1>
-            </motion.div>
-          </motion.section>
-        ) : null}
-      </AnimatePresence>
+              <p className="mt-6 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">
+                {t('home.subtitle')}
+              </p>
 
-      <motion.main
-        initial={showIntro ? { opacity: 0 } : false}
-        animate={{ opacity: 1 }}
-        transition={{ duration: showIntro ? 0.9 : 0.35, ease: 'easeOut' }}
-        className="relative z-10"
-      >
-        {viewMode === 'projects' ? (
-          <ProjectShowcase />
-        ) : (
-          <section className="mx-auto min-h-[58vh] w-full max-w-7xl px-6 pb-10 pt-8 md:px-12 md:pt-10">
-            <div className="mb-6">
-              <EditableText
-                as="p"
-                className="font-serif text-2xl tracking-[0.16em] text-zinc-100 md:text-3xl"
-                value={config.homeSelectedWorksTitle || 'SELECTED WORKS'}
-                label="HOME · SELECTED WORKS TITLE"
-                maxLength={80}
-                onChange={(next) => updateConfig('homeSelectedWorksTitle', next)}
-              />
-              <EditableText
-                as="p"
-                className="mt-2 text-sm tracking-[0.14em] text-zinc-500"
-                value={config.homeSelectedWorksSubtitle || 'EXPERTISE VIEW · TECHNICAL EXECUTION'}
-                label="HOME · SELECTED WORKS SUBTITLE"
-                maxLength={120}
-                onChange={(next) => updateConfig('homeSelectedWorksSubtitle', next)}
-              />
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {[
-                  { id: 'all', label: 'ALL' },
-                  { id: 'commercial', label: 'COMMERCIAL' },
-                  { id: 'industrial', label: 'INDUSTRIAL' },
-                  { id: 'events', label: 'EVENTS' },
-                ].map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setExpertiseCategoryFilter(item.id)}
-                    className={`rounded-full border px-3 py-1 text-[10px] tracking-[0.14em] transition ${
-                      expertiseCategoryFilter === item.id
-                        ? 'border-zinc-300/70 bg-zinc-100/10 text-zinc-100'
-                        : 'border-zinc-700 bg-zinc-900/70 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link to="/projects">
+                  <Button as="span" variant="primary">
+                    {t('home.viewProjects')}
+                  </Button>
+                </Link>
+                <Link to="/client-access">
+                  <Button as="span" variant="subtle">
+                    {t('home.clientAccess')}
+                  </Button>
+                </Link>
+                <Link to="/console">
+                  <Button as="span" variant="default">
+                    {t('home.console')}
+                  </Button>
+                </Link>
               </div>
-              <p className="mt-2 text-xs tracking-[0.14em] text-zinc-500">ASSETS {expertiseItems.length}</p>
             </div>
 
-            <div className="relative">
-              <OgilvyGalleryGrid items={expertiseItems} />
-            </div>
-          </section>
-        )}
-
-        <section className="mx-auto w-full max-w-7xl px-6 pb-24 pt-10 md:px-12 md:pt-16">
-          <div className="grid gap-10 rounded-3xl border border-white/8 bg-zinc-950/35 p-8 md:grid-cols-[220px_1fr] md:gap-14 md:p-12">
-            <div className="flex items-start">
-              <EditableMedia
-                type="image"
-                src={config.homeProfileImageUrl || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80'}
-                className="h-40 w-40 rounded-full object-cover"
-                onChange={(value) => {
-                  updateConfig('homeProfileImageUrl', value);
-                }}
-              />
-            </div>
-
-            <div>
-              <EditableText
-                as="p"
-                className="text-xs tracking-[0.22em] text-zinc-500"
-                value={config.homeAboutKicker || 'ABOUT THE DIRECTOR'}
-                label="HOME · ABOUT KICKER"
-                maxLength={80}
-                onChange={(next) => updateConfig('homeAboutKicker', next)}
-              />
-              <EditableText
-                as="h2"
-                className="mt-3 font-serif text-3xl tracking-[0.1em] text-zinc-100 md:text-5xl"
-                value={config.homeAboutHeadline || 'Silence, Frame, Emotion.'}
-                label="HOME · ABOUT HEADLINE"
-                maxLength={120}
-                onChange={(next) => updateConfig('homeAboutHeadline', next)}
-              />
-
-              <div className="mt-8 grid gap-5 md:grid-cols-3">
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <EditableText
-                    as="p"
-                    className="text-xs tracking-[0.2em] text-zinc-500"
-                    value={config.homeAwardsLabel || 'AWARDS'}
-                    label="HOME · AWARDS LABEL"
-                    maxLength={40}
-                    onChange={(next) => updateConfig('homeAwardsLabel', next)}
-                  />
-                  {awards.length > 0 ? (
-                    <ul className="mt-3 space-y-2 text-xs leading-relaxed text-zinc-300">
-                      {awards.map((item) => (
-                        <li key={item}>• {item}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="mt-3 text-xs text-zinc-500">No awards data yet.</p>
-                  )}
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <EditableText
-                    as="p"
-                    className="text-xs tracking-[0.2em] text-zinc-500"
-                    value={config.homeExperienceLabel || 'EXPERIENCE'}
-                    label="HOME · EXPERIENCE LABEL"
-                    maxLength={40}
-                    onChange={(next) => updateConfig('homeExperienceLabel', next)}
-                  />
-                  {experiences.length > 0 ? (
-                    <ul className="mt-3 space-y-2 text-xs leading-relaxed text-zinc-300">
-                      {experiences.map((item) => (
-                        <li key={item}>• {item}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="mt-3 text-xs text-zinc-500">No experience data yet.</p>
-                  )}
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <EditableText
-                    as="p"
-                    className="text-xs tracking-[0.2em] text-zinc-500"
-                    value={config.homeGearLabel || 'GEAR LIST'}
-                    label="HOME · GEAR LABEL"
-                    maxLength={40}
-                    onChange={(next) => updateConfig('homeGearLabel', next)}
-                  />
-                  {gearList.length > 0 ? (
-                    <ul className="mt-3 space-y-2 text-xs leading-relaxed text-zinc-300">
-                      {gearList.map((item) => (
-                        <li key={item}>• {item}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="mt-3 text-xs text-zinc-500">No gear data yet.</p>
-                  )}
-                </div>
+            <div className="border-t border-white/10 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),rgba(255,255,255,0.02)_36%,rgba(0,0,0,0.22)_72%)] p-8 md:p-12 lg:border-l lg:border-t-0">
+              <p className="text-[11px] tracking-[0.28em] text-zinc-500">{t('home.navigation')}</p>
+              <div className="mt-5 grid gap-3">
+                {[
+                  ['/projects', t('home.navProjects'), t('home.navProjectsDesc')],
+                  ['/client-access', t('home.navAccess'), t('home.navAccessDesc')],
+                  ['/about', t('home.navAbout'), t('home.navAboutDesc')],
+                  ['/console', t('home.navConsole'), t('home.navConsoleDesc')],
+                ].map(([to, title, desc]) => (
+                  <Link key={to} to={to} className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 transition hover:border-white/20 hover:bg-white/[0.05]">
+                    <p className="text-sm tracking-[0.12em] text-white">{title}</p>
+                    <p className="mt-1 text-sm leading-7 text-zinc-400">{desc}</p>
+                  </Link>
+                ))}
               </div>
             </div>
           </div>
-        </section>
-      </motion.main>
-    </div>
+        </Card>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          {Object.values(highlights).map(([id, title, desc]) => (
+            <Card key={id} className="p-6">
+              <p className="text-[11px] tracking-[0.22em] text-zinc-500">{id}</p>
+              <h2 className="mt-4 text-lg tracking-[0.12em] text-white">{title}</h2>
+              <p className="mt-3 text-sm leading-7 text-zinc-400">{desc}</p>
+            </Card>
+          ))}
+        </div>
+
+        <Card className="p-8 md:p-10">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-[11px] tracking-[0.28em] text-zinc-500">{t('home.signals')}</p>
+              <h2 className="mt-3 text-2xl tracking-[0.08em] text-white">{t('home.structure')}</h2>
+            </div>
+            <Badge tone="warning">{locale === 'zh' ? '重构模式' : 'REWRITE MODE'}</Badge>
+          </div>
+          <p className="mt-5 max-w-3xl text-sm leading-7 text-zinc-300">
+            {t('home.structureDesc')}
+          </p>
+        </Card>
+      </section>
+    </main>
   );
 }
 

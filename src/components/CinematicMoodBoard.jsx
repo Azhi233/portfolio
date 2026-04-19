@@ -52,20 +52,6 @@ function CinematicMoodBoard({ onModeChange, onPointerChange }) {
   }, [activeMode.label, onModeChange]);
 
   useEffect(() => {
-    const unsubscribeX = smoothX.on('change', (value) => {
-      onPointerChange?.((prev) => ({ ...prev, x: value }));
-    });
-    const unsubscribeY = smoothY.on('change', (value) => {
-      onPointerChange?.((prev) => ({ ...prev, y: value }));
-    });
-
-    return () => {
-      unsubscribeX();
-      unsubscribeY();
-    };
-  }, [onPointerChange, smoothX, smoothY]);
-
-  useEffect(() => {
     const el = boardRef.current;
     if (!el) return undefined;
 

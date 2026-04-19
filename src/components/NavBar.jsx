@@ -5,7 +5,6 @@ import { useI18n } from '../context/I18nContext.jsx';
 import { useConfig } from '../context/ConfigContext.jsx';
 import EditableMedia from './EditableMedia.jsx';
 import EditableText from './EditableText.jsx';
-import LocaleToggleButton from './LocaleToggleButton.jsx';
 
 const NAV_ITEMS = [
   { key: 'home', to: '/' },
@@ -13,7 +12,6 @@ const NAV_ITEMS = [
   { key: 'videography', to: '/videography' },
   { key: 'about', to: '/about' },
   { key: 'clientAccess', to: '/client-access' },
-  { key: 'lab', to: '/lab' },
 ];
 
 const HEADER_BASE_CLASS = 'fixed left-0 right-0 top-0 z-[120] transition-all duration-500 ease-out';
@@ -161,11 +159,6 @@ function NavBar({ viewMode = 'expertise', setViewMode = () => {}, logoUrl = '', 
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
-          <LocaleToggleButton
-            locale={locale}
-            onToggle={() => switchLocale(locale === 'zh' ? 'en' : 'zh')}
-            className="rounded-full border border-white/20 bg-zinc-900/60 px-3 py-1 text-[10px] tracking-[0.14em] text-zinc-300 transition hover:border-zinc-400 hover:text-zinc-100"
-          />
           <ul className="flex items-center gap-4 md:gap-7">
             {NAV_ITEMS.map((item) => {
               const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);
@@ -191,11 +184,6 @@ function NavBar({ viewMode = 'expertise', setViewMode = () => {}, logoUrl = '', 
         </div>
 
         <div className="flex items-center gap-2 md:hidden">
-          <LocaleToggleButton
-            locale={locale}
-            onToggle={() => switchLocale(locale === 'zh' ? 'en' : 'zh')}
-            className="touch-manipulation inline-flex min-h-10 items-center rounded-full border border-white/35 bg-zinc-900/85 px-3 py-2 text-xs tracking-[0.14em] text-zinc-100"
-          />
           {isHome ? <ModeToggle viewMode={viewMode} setViewMode={setViewMode} t={t} /> : null}
           <button
             type="button"

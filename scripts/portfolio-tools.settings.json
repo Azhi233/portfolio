@@ -1,0 +1,9 @@
+﻿{
+  "Language": "zh",
+  "FrontendPort": 5175,
+  "BackendPort": 8788,
+  "AutoOpen": true,
+  "MinioRootUser": "moses233",
+  "MinioRootPassword": "moses233",
+  "MinioConsolePort": 9001
+}

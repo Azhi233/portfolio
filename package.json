@@ -11,7 +11,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "preflight": "node ./scripts/preflight-check.mjs",
-    "preflight:quick": "node ./scripts/preflight-check.mjs --quick"
+    "preflight:quick": "node ./scripts/preflight-check.mjs --quick",
+    "healthcheck": "node ./scripts/env-health-check.mjs",
+    "healthcheck:json": "node ./scripts/env-health-check.mjs --json",
+    "sync:i18n": "node ./scripts/sync-translations.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

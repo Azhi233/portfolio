@@ -1,12 +1,7 @@
 import { Check, ScanLine } from 'lucide-react';
 import { useMemo } from 'react';
 import EditableMedia from './EditableMedia.jsx';
-
-const VARIANT_ORDER = ['raw', 'graded', 'styled'];
-
-function isValidUrl(value) {
-  return typeof value === 'string' && value.trim().length > 0;
-}
+import { canCompareAsset, getCoverSource, getImageVariantKeys } from './imageCompareUtils.js';
 
 function ImageCompareCard({
   asset,
@@ -18,14 +13,10 @@ function ImageCompareCard({
 }) {
   const variants = asset?.variants && typeof asset.variants === 'object' ? asset.variants : {};
 
-  const variantKeys = useMemo(() => {
-    const known = VARIANT_ORDER.filter((key) => isValidUrl(variants[key]));
-    const extra = Object.keys(variants).filter((key) => !known.includes(key) && isValidUrl(variants[key]));
-    return [...known, ...extra];
-  }, [variants]);
+  const variantKeys = useMemo(() => getImageVariantKeys(variants), [variants]);
 
-  const coverSrc = variants.graded || variants.raw || variants.styled || asset?.url || '';
-  const canCompare = variantKeys.length >= 2 || asset?.type === 'image-comparison';
+  const coverSrc = getCoverSource(asset);
+  const canCompare = canCompareAsset(asset, variantKeys);
 
   const handleClick = () => {
     if (isSelectionMode) {

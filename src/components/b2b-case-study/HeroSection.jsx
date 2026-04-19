@@ -4,6 +4,7 @@ import { useGSAP } from '@gsap/react';
 import { b2bCaseStudyData } from '../../data/b2bCaseStudyData.js';
 import EditableText from '../EditableText.jsx';
 import EditableMedia from '../EditableMedia.jsx';
+import MetricCard from './MetricCard.jsx';
 import { useConfig } from '../../context/ConfigContext.jsx';
 
 function HeroSection() {
@@ -117,11 +118,14 @@ function HeroSection() {
             <EditableText as="h1" className="hero-title text-[30px] font-semibold leading-[1.15] text-slate-700 sm:text-4xl md:text-6xl" value={hero.title} onChange={(value) => updateConfig('b2bHeroTitle', value)} />
 
             <div className="grid max-w-md grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
-              {hero.metrics.map((metric) => (
-                <div key={metric.label} className="hero-metric rounded-xl border border-slate-200/80 bg-primary-white/70 px-3.5 py-3 backdrop-blur-sm md:px-4">
-                  <EditableText as="p" className="text-[10px] tracking-[0.14em] text-slate-gray/70" value={metric.label} onChange={(value) => updateConfig(`b2bHeroMetricLabel${index}`, value)} />
-                  <EditableText as="p" className="mt-1 text-[13px] font-medium text-slate-700 md:text-sm" value={metric.value} onChange={(value) => updateConfig(`b2bHeroMetricValue${index}`, value)} />
-                </div>
+              {hero.metrics.map((metric, index) => (
+                <MetricCard
+                  key={metric.label}
+                  metric={metric}
+                  index={index}
+                  onLabelChange={(metricIndex, value) => updateConfig(`b2bHeroMetricLabel${metricIndex}`, value)}
+                  onValueChange={(metricIndex, value) => updateConfig(`b2bHeroMetricValue${metricIndex}`, value)}
+                />
               ))}
             </div>
           </div>

@@ -65,10 +65,6 @@ function AspectRatioToggle({
     const applyScreenMode = (matched) => {
       const shouldLock = lockOnMobile && matched;
       setIsMobileLocked(shouldLock);
-      if (shouldLock) {
-        setActiveRatio('standard169');
-        onRatioChange?.('standard169');
-      }
     };
 
     applyScreenMode(mediaQuery.matches);
@@ -82,7 +78,15 @@ function AspectRatioToggle({
     return () => {
       mediaQuery.removeEventListener('change', handleChange);
     };
-  }, [lockOnMobile, onRatioChange]);
+  }, [lockOnMobile]);
+
+  useEffect(() => {
+    if (!isMobileLocked) return;
+    if (activeRatio === 'standard169') return;
+
+    setActiveRatio('standard169');
+    onRatioChange?.('standard169');
+  }, [isMobileLocked, activeRatio, onRatioChange]);
 
   const activeConfig = useMemo(() => RATIOS.find((item) => item.id === activeRatio) ?? RATIOS[2], [activeRatio]);
   const maskSize = useMemo(() => buildMaskSize(activeConfig.value), [activeConfig.value]);

@@ -3,12 +3,18 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const dbHost = process.env.DB_HOST || process.env.BAOTA_DB_HOST || process.env.MYSQL_HOST || '127.0.0.1';
+const dbUser = process.env.DB_USER || process.env.BAOTA_DB_USER || process.env.MYSQL_USER || 'mywebsite';
+const dbPassword = process.env.DB_PASSWORD || process.env.DB_PASS || process.env.BAOTA_DB_PASSWORD || process.env.MYSQL_PASSWORD || '';
+const dbName = process.env.DB_NAME || process.env.BAOTA_DB_NAME || process.env.MYSQL_DATABASE || 'mywebsite';
+const dbPort = Number(process.env.DB_PORT || process.env.BAOTA_DB_PORT || process.env.MYSQL_PORT || 3306);
+
 export const pool = mysql.createPool({
-  host: process.env.DB_HOST || '127.0.0.1',
-  user: process.env.DB_USER || 'mywebsite',
-  password: process.env.DB_PASSWORD || process.env.DB_PASS || '',
-  database: process.env.DB_NAME || 'mywebsite',
-  port: Number(process.env.DB_PORT || 3306),
+  host: dbHost,
+  user: dbUser,
+  password: dbPassword,
+  database: dbName,
+  port: Number.isFinite(dbPort) && dbPort > 0 ? dbPort : 3306,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,

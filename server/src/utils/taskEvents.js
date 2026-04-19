@@ -1,4 +1,7 @@
+import { EventEmitter } from 'node:events';
+
 const sseClients = new Set();
+export const uploadEvents = new EventEmitter();
 
 export function registerSseClient(client) {
   sseClients.add(client);

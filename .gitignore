@@ -27,11 +27,14 @@ dist-ssr
 # Hosting and Deployments
 .vercel
 
-# Environment variables (全局忽略所有目录下的真实环境配置)
+# Environment variables (ignore real secrets/configs; keep examples only)
 .env
 .env.*
 *.local
-# 允许提交 example 模板文件，方便在换电脑时参考
+server/.env
+server/.env.*
+
+# Allow committing example templates
 !.env.example
 !server/.env.example
 

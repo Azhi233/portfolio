@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { b2bCaseStudyData } from '../../data/b2bCaseStudyData.js';
+import LightPanelShell from '../LightPanelShell.jsx';
 
 function StrategySystem() {
   const rootRef = useRef(null);
@@ -78,17 +79,17 @@ function StrategySystem() {
           </p>
         </div>
 
-        <div className="grid gap-4 rounded-3xl border border-slate-200 bg-primary-white p-3.5 md:gap-6 md:p-6 md:grid-cols-2">
-          <article className="strategy-reveal rounded-2xl border border-slate-200 bg-primary-white p-4 md:p-6">
+        <div className="grid gap-4 md:gap-6 md:grid-cols-2">
+          <LightPanelShell as="article" className="strategy-reveal p-4 md:p-6">
             <p className="mb-4 text-xs tracking-[0.18em] text-slate-gray/70">{strategy.blueprintLabel}</p>
             <div className="grid gap-4">
               {strategy.blueprintImages.map((image) => (
                 <img key={image.src} src={image.src} alt={image.alt} className="h-40 w-full rounded-xl object-cover md:h-48" />
               ))}
             </div>
-          </article>
+          </LightPanelShell>
 
-          <article className="strategy-reveal rounded-2xl border border-slate-200 bg-primary-white p-4 md:p-6">
+          <LightPanelShell as="article" className="strategy-reveal p-4 md:p-6">
             <p className="mb-2 text-[10px] tracking-[0.14em] text-slate-gray/70 md:mb-4 md:text-xs md:tracking-[0.18em]">{strategy.sliderLabel}</p>
             <p className="mb-3 text-[11px] text-slate-gray/75 md:hidden">左右拖动中线查看前后对比</p>
 
@@ -161,7 +162,7 @@ function StrategySystem() {
                 GRADED
               </div>
             </div>
-          </article>
+          </LightPanelShell>
         </div>
       </div>
     </section>

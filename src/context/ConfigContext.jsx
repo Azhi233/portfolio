@@ -2,40 +2,33 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import seedReviews from '../data/reviews.json';
 
 import { API_BASE_URL } from '../utils/api.js';
+import {
+  ASSETS_STORAGE_KEY,
+  CONFIG_STORAGE_KEY,
+  DELIVERY_UNLOCKS_STORAGE_KEY,
+  EDIT_MODE_STORAGE_KEY,
+  PENDING_CONFIG_PATCH_KEY,
+  PROJECT_DATA_STORAGE_KEY,
+  PROJECTS_STORAGE_KEY,
+  PROJECT_UNLOCKS_STORAGE_KEY,
+  REVIEW_AUDIT_LOGS_STORAGE_KEY,
+  REVIEWS_STORAGE_KEY,
+  SYNC_CHANNEL_NAME,
+  SYNC_EVENT_NAME,
+  TOKEN_STORAGE_KEY,
+  readLocalJson,
+  writeLocalJson,
+} from './configStorage.js';
+import {
+  normalizeAsset,
+  normalizeCaseStudies,
+  normalizeConfig,
+  normalizeProject,
+  normalizeProjectData,
+} from './configNormalizers.js';
+import { DEFAULT_CASE_STUDIES, DEFAULT_PROJECT_DATA, DEFAULT_CONFIG } from './configDefaults.js';
 
 const API_BASE = API_BASE_URL;
-const TOKEN_STORAGE_KEY = 'portfolio.auth.token';
-const EDIT_MODE_STORAGE_KEY = 'portfolio.edit.mode';
-const SYNC_CHANNEL_NAME = 'portfolio-config-sync';
-const SYNC_EVENT_NAME = 'portfolio-config-updated';
-const CONFIG_STORAGE_KEY = 'portfolio.cms.config';
-const PROJECTS_STORAGE_KEY = 'portfolio.cms.projects';
-const ASSETS_STORAGE_KEY = 'portfolio.cms.assets';
-const PROJECT_DATA_STORAGE_KEY = 'portfolio.cms.projectData';
-const PROJECT_UNLOCKS_STORAGE_KEY = 'portfolio.cms.projectUnlocks';
-const DELIVERY_UNLOCKS_STORAGE_KEY = 'portfolio.cms.deliveryUnlocks';
-const REVIEWS_STORAGE_KEY = 'portfolio.cms.reviews';
-const REVIEW_AUDIT_LOGS_STORAGE_KEY = 'portfolio.cms.reviewAuditLogs';
-const PENDING_CONFIG_PATCH_KEY = 'portfolio.cms.pendingConfigPatch';
-
-function readLocalJson(key, fallback) {
-  if (typeof window === 'undefined') return fallback;
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function writeLocalJson(key, value) {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // ignore storage failures
-  }
-}
 
 function readPendingConfigPatch() {
   return readLocalJson(PENDING_CONFIG_PATCH_KEY, null);
@@ -45,152 +38,15 @@ function writePendingConfigPatch(value) {
   writeLocalJson(PENDING_CONFIG_PATCH_KEY, value);
 }
 
-const DEFAULT_CASE_STUDIES = {
-  toy: {
-    target: '占位：品牌定位、用户画像、传播核心信息、视觉风格基准。',
-    action: '占位：电商主图/详情页、短视频脚本、素材矩阵、投放组合。',
-    assets: '占位：主KV、产品白底图、组装过程短视频、店铺详情页切片。',
-    review: '占位：复购内容、社媒栏目化输出、UGC 激励机制、视觉资产复用策略。',
-  },
-  industry: {
-    target: '占位：展会主KV、传播节奏、媒体包与新闻素材、统一叙事框架。',
-    action: '占位：销售手册视频、工艺亮点模块化表达、客户场景案例包装。',
-    assets: '占位：生产线工艺图集、展会采访片段、企业标准化视觉模板。',
-    review: '占位：客户见证内容、标准化工厂纪录资产、年度视觉策略迭代。',
-  },
-};
+function isSameJson(a, b) {
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
+}
 
-const DEFAULT_PROJECT_DATA = {
-  toy_project: {
-    id: 'toy_project',
-    title: '《构建消费级拼装玩具数字资产》',
-    subtitle: '从0到1搭建全渠道电商与社媒营销视觉库',
-    coverUrl: 'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&w=1800&q=80',
-    modules: {
-      target: {
-        headline: 'CHALLENGE',
-        summary: '围绕拼装玩具从兴趣内容走向可转化内容，建立可复用视觉资产体系。',
-        tags: ['#视觉溢价感低', '#用户理解门槛高', '#素材复用率不足'],
-      },
-      action: {
-        title: '视觉策略',
-        bullets: ['素材矩阵规划', '布光策略制定', '镜头语言统一', '后期调色规范'],
-        supportImageUrl:
-          'https://images.unsplash.com/photo-1545239351-1141bd82e8a6?auto=format&fit=crop&w=1400&q=80',
-      },
-      assets: {
-        intro: '核心素材用于电商、社媒和复盘页多场景分发。',
-        assetUrls: [],
-      },
-      review: {
-        cards: [
-          { title: '产出规模', value: '0到1主导 · 100+ 素材' },
-          { title: '痛点解决', value: '引入 GIF / 动图，显著降低理解门槛' },
-          { title: '资产沉淀', value: '多渠道复用，跨部门协作效率提升' },
-        ],
-      },
-      showcase: {
-        heroKicker: '从0到1搭建全渠道电商与社媒营销视觉库',
-        heroTitle: '《构建消费级拼装玩具数字资产》',
-        brandCaptionTitle: 'BRAND SCREENING ROOM',
-        brandCaptionSubtitle: '核心素材用于电商、社媒和复盘页多场景分发。',
-        socialHeading: '视觉策略',
-        socialSubheading: '镜头语言统一，打造可复用的社媒矩阵内容。',
-        assetPhaseRaw: '围绕拼装玩具从兴趣内容走向可转化内容，建立可复用视觉资产体系。',
-        assetPhaseWeb: '素材矩阵规划',
-        assetPhasePrint: '多渠道复用，跨部门协作效率提升',
-        bentoHeading: '全生态作品库',
-        bentoSubheading: '探索更多跨渠道、跨触点的商业视觉资产。',
-      },
-    },
-  },
-  industry_project: {
-    id: 'industry_project',
-    title: '《ToB制造业的视觉公关与营销统筹》',
-    subtitle: '大型展会纪实与工业化生产线视觉塑造',
-    coverUrl: 'https://images.unsplash.com/photo-1565106430482-8f6e74349ca1?auto=format&fit=crop&w=1800&q=80',
-    modules: {
-      target: {
-        headline: 'INDUSTRY CHALLENGE',
-        summary: '将复杂工艺转化为可被市场理解与销售复用的视觉叙事。',
-        tags: ['#工艺理解门槛高', '#素材分散', '#跨部门协作成本高'],
-      },
-      action: {
-        title: '统筹策略',
-        bullets: ['展会传播主线', '工艺亮点脚本化', '客户案例可视化', '销售素材模块化'],
-        supportImageUrl:
-          'https://images.unsplash.com/photo-1581092335397-9583eb92d232?auto=format&fit=crop&w=1400&q=80',
-      },
-      assets: {
-        intro: '以工业质感为核心，沉淀可跨年度复用的品牌资产。',
-        assetUrls: [],
-      },
-      review: {
-        cards: [
-          { title: '产出规模', value: '展会+线上双线联动' },
-          { title: '痛点解决', value: '复杂工艺表达标准化，客户理解效率提升' },
-          { title: '资产沉淀', value: '形成可复制素材包，支撑销售长期转化' },
-        ],
-      },
-      showcase: {
-        heroKicker: '大型展会纪实与工业化生产线视觉塑造',
-        heroTitle: '《ToB制造业的视觉公关与营销统筹》',
-        brandCaptionTitle: 'INDUSTRY SCREENING ROOM',
-        brandCaptionSubtitle: '以工业质感为核心，沉淀可跨年度复用的品牌资产。',
-        socialHeading: '统筹策略',
-        socialSubheading: '工艺亮点脚本化，形成销售可复用的短视频矩阵。',
-        assetPhaseRaw: '将复杂工艺转化为可被市场理解与销售复用的视觉叙事。',
-        assetPhaseWeb: '展会传播主线',
-        assetPhasePrint: '形成可复制素材包，支撑销售长期转化',
-        bentoHeading: '全生态作品库',
-        bentoSubheading: '查看更多工业与品牌传播的系统化案例。',
-      },
-    },
-  },
-};
 
-const DEFAULT_CONFIG = {
-  vignetteIntensity: 0.8,
-  filmGrainOpacity: 0.03,
-  spotlightRadius: 600,
-  showHUD: true,
-  siteTitle: 'DIRECTOR.VISION',
-  siteDescription: 'Cinematic portfolio showcasing toys, industrial, and experimental visual storytelling.',
-  ogImage: '',
-  logoImageUrl: '',
-  logoAltText: 'DIRECTOR.VISION',
-  contactEmail: '',
-  contactPhone: '',
-  contactLocation: '',
-  loginEntryLabel: 'ADMIN',
-  loginModalTitle: '进入编辑后台',
-  loginRegisterLabel: '没有账号？去注册',
-  loginBackLabel: '返回登录',
-  loginButtonText: '登录',
-  registerButtonText: '注册并登录',
-  loginCloseLabel: '关闭',
-  loginUsernamePlaceholder: '用户名',
-  loginPasswordPlaceholder: '密码',
-  loginConfirmPasswordPlaceholder: '确认密码',
-  resumeAwardsText: '',
-  resumeExperienceText: '',
-  resumeGearText: '',
-  testimonialsText:
-    '“团队协作顺畅，内容在投放后转化显著提升。”|市场负责人|消费品牌\n“把复杂工艺讲清楚了，销售团队复用效率很高。”|销售总监|制造业企业\n“从策略到交付都很专业，节奏和质量都可控。”|品牌经理|新消费项目',
-  brandNamesText: 'TOYVERSE\nINDUSTRIAL PRO\nMOTIONLAB\nNOVA BRAND\nEXPO TECH\nVISION MAKERS',
-  qrCodeImageUrl: '',
-  servicesText:
-    '商业视觉项目统筹|前期策略,拍摄执行,后期交付|2-6周|品牌新品发布/Campaign\n制造业内容营销体系|工艺可视化脚本,展会素材包,销售内容包|4-8周|ToB制造业企业\n长期内容资产服务|月度选题,拍摄排期,素材库维护|按月合作|需要持续内容输出的团队',
-  caseStudies: DEFAULT_CASE_STUDIES,
-  homeSelectedWorksTitle: 'SELECTED WORKS',
-  homeSelectedWorksSubtitle: 'EXPERTISE VIEW · TECHNICAL EXECUTION',
-  homeProfileImageUrl: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80',
-  homeAboutKicker: 'ABOUT THE DIRECTOR',
-  homeAboutHeadline: 'Silence, Frame, Emotion.',
-  homeAwardsLabel: 'AWARDS',
-  homeExperienceLabel: 'EXPERIENCE',
-  homeGearLabel: 'GEAR LIST',
-};
 
 const DEFAULT_ASSETS = [
   {
@@ -253,276 +109,6 @@ const DEFAULT_PROJECTS = [
 ];
 
 const ConfigContext = createContext(null);
-
-function normalizeSortOrder(value) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return 0;
-  return numeric;
-}
-
-function normalizePrivateFiles(files) {
-  if (!Array.isArray(files)) return [];
-  return files
-    .map((item, index) => ({
-      id: String(item?.id || `pf-${Date.now()}-${index}`),
-      name: String(item?.name || `File ${index + 1}`),
-      url: String(item?.url || ''),
-      actionType: item?.actionType === 'upload' ? 'upload' : 'download',
-      note: String(item?.note || ''),
-      sortOrder: normalizeSortOrder(item?.sortOrder ?? index),
-      enabled: item?.enabled !== false,
-    }))
-    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
-}
-
-function normalizeProject(project) {
-  const normalizedPublishStatus = VALID_PUBLISH_STATUS.includes(project?.publishStatus)
-    ? project.publishStatus
-    : project?.status === 'private'
-      ? 'Private'
-      : project?.isVisible === false
-        ? 'Draft'
-        : 'Published';
-
-  const visibility = VALID_PUBLISH_STATUS.includes(project?.visibility)
-    ? project.visibility
-    : normalizedPublishStatus;
-
-  const status =
-    project?.status === 'private' || normalizedPublishStatus === 'Private'
-      ? 'private'
-      : normalizedPublishStatus === 'Draft'
-        ? 'draft'
-        : 'published';
-
-  const password = String(project?.password || project?.accessPassword || '');
-  const deliveryPin = String(project?.deliveryPin || '');
-
-  const outlineTags = Array.isArray(project?.outlineTags)
-    ? project.outlineTags.map((tag) => String(tag || '').trim()).filter(Boolean)
-    : [];
-
-  const normalizedVideoUrl = String(project?.mainVideoUrl || project?.videoUrl || '');
-
-  return {
-    id: String(project?.id || ''),
-    title: String(project?.title || 'Untitled Project'),
-    category: VALID_CATEGORIES.includes(project?.category) ? project.category : 'Misc',
-    role: String(project?.role || ''),
-    releaseDate: String(project?.releaseDate || ''),
-    coverUrl: String(project?.coverUrl || ''),
-    thumbnailUrl: String(project?.thumbnailUrl || project?.coverUrl || ''),
-    logoImageUrl: String(project?.logoImageUrl || ''),
-    videoUrl: normalizedVideoUrl,
-    mainVideoUrl: normalizedVideoUrl,
-    btsMedia: Array.isArray(project?.btsMedia) ? project.btsMedia.map((item) => String(item || '')) : [],
-    clientAgency: String(project?.clientAgency || ''),
-    clientCode: String(project?.clientCode || ''),
-    isFeatured: Boolean(project?.isFeatured),
-    sortOrder: normalizeSortOrder(project?.sortOrder),
-    description: String(project?.description || ''),
-    credits: String(project?.credits || ''),
-    privateTitle: String(project?.privateTitle || ''),
-    privateDescription: String(project?.privateDescription || ''),
-    privateAccessLabel: String(project?.privateAccessLabel || ''),
-    privateAccessHint: String(project?.privateAccessHint || ''),
-    privateAccessButtonText: String(project?.privateAccessButtonText || ''),
-    privateErrorText: String(project?.privateErrorText || ''),
-    deliveryTitle: String(project?.deliveryTitle || ''),
-    deliverySuccessText: String(project?.deliverySuccessText || ''),
-    deliveryPinPlaceholder: String(project?.deliveryPinPlaceholder || ''),
-    deliveryErrorText: String(project?.deliveryErrorText || ''),
-    deliveryButtonText: String(project?.deliveryButtonText || ''),
-    downloadTitle: String(project?.downloadTitle || ''),
-    downloadAllButtonText: String(project?.downloadAllButtonText || ''),
-    downloadSelectedButtonText: String(project?.downloadSelectedButtonText || ''),
-    galleryTitle: String(project?.galleryTitle || ''),
-    galleryActionBarText: String(project?.galleryActionBarText || ''),
-    gallerySelectionText: String(project?.gallerySelectionText || ''),
-    buttonText: String(project?.buttonText || ''),
-    isVisible: visibility !== 'Draft',
-    publishStatus: normalizedPublishStatus,
-    visibility,
-    accessPassword: password,
-    deliveryPin,
-    status,
-    password,
-    privateFiles: normalizePrivateFiles(project?.privateFiles),
-    outlineTags,
-  };
-}
-
-function inferMediaGroupFromAsset(asset = {}, resolvedType = 'image') {
-  const type = String(asset?.type || '').toLowerCase();
-  const url = String(asset?.url || asset?.coverUrl || asset?.videoUrl || '').toLowerCase();
-  if (asset?.mediaGroup === 'video' || type === 'video' || /\.(mp4|webm|mov|m4v)(\?.*)?$/.test(url)) return 'video';
-  if (asset?.mediaGroup === 'photo') return 'photo';
-  return resolvedType === 'video' ? 'video' : 'photo';
-}
-
-function normalizeAsset(asset) {
-  const type = VALID_ASSET_TYPES.includes(asset?.type) ? asset.type : asset?.type === 'video' ? 'video' : 'image';
-  const rawVariants = asset?.variants && typeof asset.variants === 'object' ? asset.variants : {};
-  const variants = VALID_VARIANT_KEYS.reduce((acc, key) => {
-    const value = String(rawVariants?.[key] || '').trim();
-    if (value) acc[key] = value;
-    return acc;
-  }, {});
-
-  const variantCount = Object.keys(variants).length;
-  const resolvedType = type === 'image-comparison' || variantCount > 1 ? 'image-comparison' : type;
-  const baseUrl = String(asset?.url || asset?.coverUrl || variants.graded || variants.raw || variants.styled || '');
-  const normalizedProjectId = String(asset?.views?.project?.projectId || '').trim() || 'toy_project';
-  const normalizedModuleSlot = String(asset?.views?.project?.moduleSlot || asset?.moduleSlot || '').trim();
-  const normalizedPublishTarget = ['expertise', 'project', 'both'].includes(asset?.publishTarget)
-    ? asset.publishTarget
-    : asset?.views?.video?.isActive
-      ? 'both'
-      : asset?.views?.expertise?.isActive && asset?.views?.project?.isActive
-        ? 'both'
-        : asset?.views?.project?.isActive
-          ? 'project'
-          : 'expertise';
-
-  const mediaGroup = inferMediaGroupFromAsset(asset, resolvedType);
-  const isExpertiseActive = normalizedPublishTarget === 'expertise' || normalizedPublishTarget === 'both';
-  const isProjectActive = normalizedPublishTarget === 'project' || normalizedPublishTarget === 'both';
-  const isVideoActive =
-    mediaGroup === 'video' || Boolean(asset?.views?.video?.isActive) || (resolvedType === 'video' && (normalizedPublishTarget === 'both' || normalizedPublishTarget === 'video'));
-
-  return {
-    id: String(asset?.id || `asset-${Date.now()}-${Math.round(Math.random() * 9999)}`),
-    type: resolvedType,
-    url: baseUrl,
-    mediaGroup,
-    variants,
-    title: String(asset?.title || 'Untitled Asset'),
-    publishTarget: isVideoActive && !isExpertiseActive && !isProjectActive ? 'video' : normalizedPublishTarget,
-    moduleSlot: normalizedModuleSlot,
-    autoTags: Array.isArray(asset?.autoTags)
-      ? asset.autoTags.map((tag) => String(tag || '').trim()).filter(Boolean)
-      : String(asset?.autoTags || '')
-          .split(/[\r\n,，;]/)
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-    tags: Array.isArray(asset?.tags)
-      ? asset.tags.map((tag) => String(tag || '').trim()).filter(Boolean)
-      : String(asset?.tags || '')
-          .split(/[\r\n,，;]/)
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-    views: {
-      expertise: {
-        isActive: isExpertiseActive,
-        category: ['commercial', 'industrial', 'events'].includes(asset?.views?.expertise?.category)
-          ? asset.views.expertise.category
-          : 'commercial',
-        description: String(asset?.views?.expertise?.description || ''),
-      },
-      project: {
-        isActive: isProjectActive,
-        projectId: normalizedProjectId,
-        moduleSlot: normalizedModuleSlot,
-        description: String(asset?.views?.project?.description || ''),
-      },
-      video: {
-        isActive: isVideoActive,
-        category: ['COMMERCIAL', 'ENGINEERING', 'CULTURE'].includes(asset?.views?.video?.category)
-          ? asset.views.video.category
-          : 'COMMERCIAL',
-        description: String(asset?.views?.video?.description || ''),
-      },
-    },
-  };
-}
-
-function normalizeProjectData(input) {
-  const base = input || {};
-  return {
-    toy_project: {
-      ...DEFAULT_PROJECT_DATA.toy_project,
-      ...(base.toy_project || {}),
-      modules: {
-        ...DEFAULT_PROJECT_DATA.toy_project.modules,
-        ...(base.toy_project?.modules || {}),
-        target: {
-          ...DEFAULT_PROJECT_DATA.toy_project.modules.target,
-          ...(base.toy_project?.modules?.target || {}),
-        },
-        action: {
-          ...DEFAULT_PROJECT_DATA.toy_project.modules.action,
-          ...(base.toy_project?.modules?.action || {}),
-        },
-        assets: {
-          ...DEFAULT_PROJECT_DATA.toy_project.modules.assets,
-          ...(base.toy_project?.modules?.assets || {}),
-        },
-        review: {
-          ...DEFAULT_PROJECT_DATA.toy_project.modules.review,
-          ...(base.toy_project?.modules?.review || {}),
-        },
-        showcase: {
-          ...DEFAULT_PROJECT_DATA.toy_project.modules.showcase,
-          ...(base.toy_project?.modules?.showcase || {}),
-        },
-      },
-    },
-    industry_project: {
-      ...DEFAULT_PROJECT_DATA.industry_project,
-      ...(base.industry_project || {}),
-      modules: {
-        ...DEFAULT_PROJECT_DATA.industry_project.modules,
-        ...(base.industry_project?.modules || {}),
-        target: {
-          ...DEFAULT_PROJECT_DATA.industry_project.modules.target,
-          ...(base.industry_project?.modules?.target || {}),
-        },
-        action: {
-          ...DEFAULT_PROJECT_DATA.industry_project.modules.action,
-          ...(base.industry_project?.modules?.action || {}),
-        },
-        assets: {
-          ...DEFAULT_PROJECT_DATA.industry_project.modules.assets,
-          ...(base.industry_project?.modules?.assets || {}),
-        },
-        review: {
-          ...DEFAULT_PROJECT_DATA.industry_project.modules.review,
-          ...(base.industry_project?.modules?.review || {}),
-        },
-        showcase: {
-          ...DEFAULT_PROJECT_DATA.industry_project.modules.showcase,
-          ...(base.industry_project?.modules?.showcase || {}),
-        },
-      },
-    },
-  };
-}
-
-function normalizeCaseStudies(caseStudies) {
-  return {
-    toy: {
-      ...DEFAULT_CASE_STUDIES.toy,
-      ...(caseStudies?.toy || {}),
-    },
-    industry: {
-      ...DEFAULT_CASE_STUDIES.industry,
-      ...(caseStudies?.industry || {}),
-    },
-  };
-}
-
-function normalizeConfig(input) {
-  const stored = input && typeof input === 'object' ? input : {};
-  return {
-    ...DEFAULT_CONFIG,
-    ...stored,
-    vignetteIntensity: Number(stored.vignetteIntensity ?? DEFAULT_CONFIG.vignetteIntensity),
-    filmGrainOpacity: Number(stored.filmGrainOpacity ?? DEFAULT_CONFIG.filmGrainOpacity),
-    spotlightRadius: Number(stored.spotlightRadius ?? DEFAULT_CONFIG.spotlightRadius),
-    showHUD: stored.showHUD !== undefined ? Boolean(stored.showHUD) : DEFAULT_CONFIG.showHUD,
-    caseStudies: normalizeCaseStudies(stored.caseStudies || DEFAULT_CONFIG.caseStudies),
-  };
-}
 
 function readStoredConfig() {
   return normalizeConfig(readLocalJson(CONFIG_STORAGE_KEY, DEFAULT_CONFIG));
@@ -601,7 +187,7 @@ function readStoredProjectUnlocks() {
 async function fetchJson(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
     headers: {
-      'Content-Type': 'application/json',
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
       ...(options.headers || {}),
     },
     ...options,
@@ -680,46 +266,46 @@ export function ConfigProvider({ children }) {
         if (cancelled) return;
 
         if (remoteConfig && typeof remoteConfig === 'object') {
-          setConfig((prev) => {
-            const nextConfig = normalizeConfig({
-              ...prev,
-              ...remoteConfig,
-            });
-            writeLocalJson(CONFIG_STORAGE_KEY, nextConfig);
-            return nextConfig;
+          const nextConfig = normalizeConfig({
+            ...config,
+            ...remoteConfig,
           });
+          setConfig((prev) => (isSameJson(prev, nextConfig) ? prev : nextConfig));
+          writeLocalJson(CONFIG_STORAGE_KEY, nextConfig);
 
           if (Array.isArray(remoteConfig.assets)) {
             const nextAssets = remoteConfig.assets.map(normalizeAsset);
-            setAssets(nextAssets);
+            setAssets((prev) => (isSameJson(prev, nextAssets) ? prev : nextAssets));
             writeLocalJson(ASSETS_STORAGE_KEY, nextAssets);
           }
 
           if (remoteConfig.projectData && typeof remoteConfig.projectData === 'object') {
             const nextProjectData = normalizeProjectData(remoteConfig.projectData);
-            setProjectData(nextProjectData);
+            setProjectData((prev) => (isSameJson(prev, nextProjectData) ? prev : nextProjectData));
             writeLocalJson(PROJECT_DATA_STORAGE_KEY, nextProjectData);
           }
         }
 
         if (Array.isArray(remoteProjects)) {
-          setProjects(remoteProjects.map(normalizeProject));
+          const nextProjects = remoteProjects.map(normalizeProject);
+          setProjects((prev) => (isSameJson(prev, nextProjects) ? prev : nextProjects));
         }
 
         if (Array.isArray(remoteReviews)) {
-          setReviews(remoteReviews.map((item, index) => normalizeReview(item, index)));
+          const nextReviews = remoteReviews.map((item, index) => normalizeReview(item, index));
+          setReviews((prev) => (isSameJson(prev, nextReviews) ? prev : nextReviews));
         }
 
         if (Array.isArray(remoteReviewAuditLogs)) {
-          setReviewAuditLogs(remoteReviewAuditLogs);
+          setReviewAuditLogs((prev) => (isSameJson(prev, remoteReviewAuditLogs) ? prev : remoteReviewAuditLogs));
         }
 
         if (remoteProjectUnlocks && typeof remoteProjectUnlocks === 'object') {
-          setProjectUnlocks(remoteProjectUnlocks);
+          setProjectUnlocks((prev) => (isSameJson(prev, remoteProjectUnlocks) ? prev : remoteProjectUnlocks));
         }
 
         if (remoteDeliveryUnlocks && typeof remoteDeliveryUnlocks === 'object') {
-          setDeliveryUnlocks(remoteDeliveryUnlocks);
+          setDeliveryUnlocks((prev) => (isSameJson(prev, remoteDeliveryUnlocks) ? prev : remoteDeliveryUnlocks));
         }
       } catch (error) {
         console.error('Failed to load CMS data from server:', error);

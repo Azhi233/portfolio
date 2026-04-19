@@ -14,7 +14,12 @@ function SpotlightBackground({ focusTight = false }) {
     const handlePointerMove = (event) => {
       const x = (event.clientX / window.innerWidth) * 100;
       const y = (event.clientY / window.innerHeight) * 100;
-      setPosition({ x, y });
+
+      setPosition((prev) => {
+        const next = { x, y };
+        const hasChanged = Math.abs(prev.x - next.x) > 0.1 || Math.abs(prev.y - next.y) > 0.1;
+        return hasChanged ? next : prev;
+      });
     };
 
     window.addEventListener('pointermove', handlePointerMove, { passive: true });

@@ -1,26 +1,25 @@
 import { createContext, useContext, useMemo, useState } from 'react';
 import { messages } from '../i18n/messages.js';
+import { getInitialLocale, normalizeLocale, persistLocale } from '../i18n/registry.js';
 
 const I18nContext = createContext(null);
 
+function getNestedMessage(source, path) {
+  return path.split('.').reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), source);
+}
+
 export function I18nProvider({ children }) {
-  const [locale, setLocale] = useState(() => {
-    if (typeof window === 'undefined') return 'zh';
-    const saved = window.localStorage.getItem('site.locale');
-    return saved === 'en' ? 'en' : 'zh';
-  });
+  const [locale, setLocale] = useState(getInitialLocale);
 
   const switchLocale = (nextLocale) => {
-    const normalized = nextLocale === 'en' ? 'en' : 'zh';
+    const normalized = normalizeLocale(nextLocale);
     setLocale(normalized);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('site.locale', normalized);
-    }
+    persistLocale(normalized);
   };
 
   const t = (path, fallback = '') => {
     const dict = messages[locale] || messages.zh;
-    const value = path.split('.').reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), dict);
+    const value = getNestedMessage(dict, path);
     return value ?? fallback;
   };
 
