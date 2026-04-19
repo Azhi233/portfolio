@@ -85,9 +85,9 @@ export const zh = {
     reset: '重置为待审核',
   },
   projects: {
-    eyebrow: 'PROJECT ARCHIVE',
-    title: '项目集',
-    subtitle: '这里展示全部项目档案，支持搜索、分类和排序。后续可以继续扩展封面瀑布流、分页和更细的标签筛选。',
+    eyebrow: 'VIDEO ARCHIVE',
+    title: '视频集',
+    subtitle: '这里展示全部视频档案，支持搜索、分类和排序。后续可以继续扩展封面瀑布流、分页和更细的标签筛选。',
     search: '搜索项目...',
     all: '全部',
     sortNewest: '最新优先',

@@ -1,0 +1,135 @@
+{
+  "ok": false,
+  "passed": 17,
+  "failed": 4,
+  "total": 21,
+  "results": [
+    {
+      "name": ".env root variables",
+      "pass": true,
+      "detail": "ok",
+      "severity": "required"
+    },
+    {
+      "name": "server/.env variables",
+      "pass": true,
+      "detail": "ok",
+      "severity": "required"
+    },
+    {
+      "name": "MinIO public URL config",
+      "pass": true,
+      "detail": "ok",
+      "severity": "required"
+    },
+    {
+      "name": "start-all loads shared settings",
+      "pass": true,
+      "detail": "uses shared settings file",
+      "severity": "required"
+    },
+    {
+      "name": "start-minio uses shared settings",
+      "pass": true,
+      "detail": "uses shared settings file",
+      "severity": "required"
+    },
+    {
+      "name": "GUI has Start MinIO action",
+      "pass": true,
+      "detail": "button wired",
+      "severity": "required"
+    },
+    {
+      "name": "upload-related backend modules present",
+      "pass": true,
+      "detail": "ok",
+      "severity": "required"
+    },
+    {
+      "name": "backend mentions MinIO upload path",
+      "pass": true,
+      "detail": "storage flow detected",
+      "severity": "required"
+    },
+    {
+      "name": "MinIO connection info complete",
+      "pass": true,
+      "detail": "ok",
+      "severity": "required"
+    },
+    {
+      "name": "MinIO expected to receive uploads",
+      "pass": true,
+      "detail": "public URL set",
+      "severity": "required"
+    },
+    {
+      "name": "Node available",
+      "pass": true,
+      "detail": "v24.14.1",
+      "severity": "required"
+    },
+    {
+      "name": "npm available",
+      "pass": false,
+      "detail": "spawnSync npm ENOENT",
+      "severity": "required"
+    },
+    {
+      "name": "frontend homepage reachable",
+      "pass": true,
+      "detail": "HTTP 200",
+      "severity": "required"
+    },
+    {
+      "name": "homepage contains root mount",
+      "pass": true,
+      "detail": "root element present",
+      "severity": "required"
+    },
+    {
+      "name": "homepage includes Vite entry",
+      "pass": true,
+      "detail": "entry script detected",
+      "severity": "required"
+    },
+    {
+      "name": "homepage has title tag",
+      "pass": true,
+      "detail": "title present",
+      "severity": "required"
+    },
+    {
+      "name": "upload image test",
+      "pass": false,
+      "detail": "HTTP 500 <!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Error: connect ECONNREFUSED 127.0.0.1:9000<br> &nbsp; &nbsp;at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)</pre>\n</body>\n</html>\n",
+      "severity": "required"
+    },
+    {
+      "name": "track image object",
+      "pass": false,
+      "detail": "missing object name from upload response",
+      "severity": "required"
+    },
+    {
+      "name": "upload video test",
+      "pass": true,
+      "detail": "HTTP 202",
+      "severity": "required"
+    },
+    {
+      "name": "track video object",
+      "pass": false,
+      "detail": "missing object name from upload response",
+      "severity": "required"
+    },
+    {
+      "name": "cleanup test objects",
+      "pass": true,
+      "detail": "",
+      "severity": "required"
+    }
+  ],
+  "trackedObjects": []
+}

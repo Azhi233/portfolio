@@ -39,11 +39,19 @@ function Stop-PortProcess($port) {
   $conn = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($null -ne $conn) {
     try {
-      Stop-Process -Id $conn.OwningProcess -Force -ErrorAction SilentlyContinue
-      Write-Host "Stopped process on port $port (PID $($conn.OwningProcess))"
+      if ($conn.OwningProcess -gt 0) {
+        Stop-Process -Id $conn.OwningProcess -Force -ErrorAction SilentlyContinue
+        Write-Host "Stopped process on port $port (PID $($conn.OwningProcess))"
+      }
     } catch {
       Write-Host "Failed to stop process on port ${port}: $($_.Exception.Message)"
     }
+  }
+}
+
+function Stop-PortRange([int[]]$ports) {
+  foreach ($port in $ports) {
+    Stop-PortProcess $port
   }
 }
 
@@ -61,6 +69,16 @@ function Wait-ForPort($port, $label, $timeoutSeconds = 45) {
   return $false
 }
 
+function Get-FirstListeningPort([int[]]$ports) {
+  foreach ($port in $ports) {
+    $conn = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -ne $conn -and $conn.State -eq 'Listen') {
+      return [pscustomobject]@{ Port = $port; Pid = $conn.OwningProcess }
+    }
+  }
+  return $null
+}
+
 function Ensure-MinioBinary {
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $minioExe) | Out-Null
   New-Item -ItemType Directory -Force -Path $minioDataDir | Out-Null
@@ -71,10 +89,7 @@ function Ensure-MinioBinary {
   }
 }
 
-Stop-PortProcess $frontendPort
-Stop-PortProcess $backendPort
-Stop-PortProcess $minioPort
-Stop-PortProcess $minioConsolePort
+Stop-PortRange @($frontendPort, $backendPort, $backendPort + 1, $backendPort + 2, $minioPort, $minioConsolePort)
 Start-Sleep -Seconds 1
 
 foreach ($path in @($frontendLogOut, $frontendLogErr, $backendLogOut, $backendLogErr, $minioLogOut, $minioLogErr)) {
@@ -101,16 +116,32 @@ $backend = Start-Process powershell -PassThru -WindowStyle Hidden -ArgumentList 
   '-NoProfile',
   '-ExecutionPolicy', 'Bypass',
   '-Command',
-  "Set-Location '$root/server'; `$env:MINIO_ENABLED='true'; `$env:MINIO_ENDPOINT='127.0.0.1'; `$env:MINIO_PORT='$minioPort'; `$env:MINIO_USE_SSL='false'; `$env:MINIO_ACCESS_KEY='$minioRootUser'; `$env:MINIO_SECRET_KEY='$minioRootPassword'; `$env:MINIO_PUBLIC_BASE_URL='http://localhost:$minioPort'; `$env:PUBLIC_FILE_BASE_URL='http://localhost:$minioPort'; npm run dev -- --port $backendPort *>> '$backendLogOut' 2>> '$backendLogErr'"
+  "Set-Location '$root/server'; `$env:MINIO_ENABLED='true'; `$env:MINIO_ENDPOINT='127.0.0.1'; `$env:MINIO_PORT='$minioPort'; `$env:MINIO_USE_SSL='false'; `$env:MINIO_ACCESS_KEY='$minioRootUser'; `$env:MINIO_SECRET_KEY='$minioRootPassword'; `$env:MINIO_PUBLIC_BASE_URL='http://localhost:$minioPort'; `$env:PUBLIC_FILE_BASE_URL='http://localhost:$minioPort'; npm run start -- --port $backendPort *>> '$backendLogOut' 2>> '$backendLogErr'"
 )
 
 $minioReady = Wait-ForPort $minioPort 'MinIO' 60
 $minioConsoleReady = Wait-ForPort $minioConsolePort 'MinIO Console' 60
 $backendReady = Wait-ForPort $backendPort 'Backend' 60
+if (-not $backendReady) {
+  $backendProbe = Get-FirstListeningPort @($backendPort, $backendPort + 1, $backendPort + 2)
+  if ($backendProbe) {
+    $backendPort = $backendProbe.Port
+    $backendReady = $true
+    Write-Host "Backend actually ready on port $backendPort (PID $($backendProbe.Pid))"
+  }
+}
 $frontendReady = Wait-ForPort $frontendPort 'Frontend' 60
+if (-not $frontendReady) {
+  $frontendProbe = Get-FirstListeningPort @($frontendPort, $frontendPort + 1, $frontendPort + 2)
+  if ($frontendProbe) {
+    $frontendPort = $frontendProbe.Port
+    $frontendReady = $true
+    Write-Host "Frontend actually ready on port $frontendPort (PID $($frontendProbe.Pid))"
+  }
+}
 
 if ($frontendReady) {
-  Start-Process $frontendUrl
+  Start-Process "http://localhost:$frontendPort"
 }
 
 Write-Host ''

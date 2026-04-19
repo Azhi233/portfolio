@@ -1,0 +1,104 @@
+{
+  "ok": false,
+  "passed": 15,
+  "failed": 1,
+  "total": 16,
+  "results": [
+    {
+      "name": ".env root variables",
+      "pass": true,
+      "detail": "ok",
+      "severity": "required"
+    },
+    {
+      "name": "server/.env variables",
+      "pass": true,
+      "detail": "ok",
+      "severity": "required"
+    },
+    {
+      "name": "MinIO public URL config",
+      "pass": true,
+      "detail": "ok",
+      "severity": "required"
+    },
+    {
+      "name": "start-all loads shared settings",
+      "pass": true,
+      "detail": "uses shared settings file",
+      "severity": "required"
+    },
+    {
+      "name": "start-minio uses shared settings",
+      "pass": true,
+      "detail": "uses shared settings file",
+      "severity": "required"
+    },
+    {
+      "name": "GUI has Start MinIO action",
+      "pass": true,
+      "detail": "button wired",
+      "severity": "required"
+    },
+    {
+      "name": "upload-related backend modules present",
+      "pass": true,
+      "detail": "ok",
+      "severity": "required"
+    },
+    {
+      "name": "backend mentions MinIO upload path",
+      "pass": true,
+      "detail": "storage flow detected",
+      "severity": "required"
+    },
+    {
+      "name": "MinIO connection info complete",
+      "pass": true,
+      "detail": "ok",
+      "severity": "required"
+    },
+    {
+      "name": "MinIO expected to receive uploads",
+      "pass": true,
+      "detail": "public URL set",
+      "severity": "required"
+    },
+    {
+      "name": "Node available",
+      "pass": true,
+      "detail": "v24.14.1",
+      "severity": "required"
+    },
+    {
+      "name": "npm available",
+      "pass": false,
+      "detail": "spawnSync npm ENOENT",
+      "severity": "required"
+    },
+    {
+      "name": "frontend homepage reachable",
+      "pass": true,
+      "detail": "HTTP 200",
+      "severity": "required"
+    },
+    {
+      "name": "homepage contains root mount",
+      "pass": true,
+      "detail": "root element present",
+      "severity": "required"
+    },
+    {
+      "name": "homepage includes Vite entry",
+      "pass": true,
+      "detail": "entry script detected",
+      "severity": "required"
+    },
+    {
+      "name": "homepage has title tag",
+      "pass": true,
+      "detail": "title present",
+      "severity": "required"
+    }
+  ]
+}

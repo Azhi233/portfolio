@@ -85,9 +85,9 @@ export const en = {
     reset: 'Reset to pending',
   },
   projects: {
-    eyebrow: 'PROJECT ARCHIVE',
-    title: 'Projects',
-    subtitle: 'Browse all project records with search, category filtering, and sorting. This can later expand into a cover grid, pagination, and deeper tag filtering.',
+    eyebrow: 'VIDEO ARCHIVE',
+    title: 'Videos',
+    subtitle: 'Browse the full video archive with search, category filtering, and sorting. This can later expand into a cover grid, pagination, and deeper tag filtering.',
     search: 'Search projects...',
     all: 'All',
     sortNewest: 'Newest first',

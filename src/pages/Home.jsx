@@ -23,9 +23,14 @@ function Home() {
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link to="/projects">
+                <Link to="/videos">
                   <Button as="span" variant="primary">
-                    {t('home.viewProjects')}
+                    {t('home.viewVideos', 'View Videos')}
+                  </Button>
+                </Link>
+                <Link to="/images">
+                  <Button as="span" variant="subtle">
+                    {t('home.viewImages', 'View Images')}
                   </Button>
                 </Link>
                 <Link to="/client-access">
@@ -45,7 +50,8 @@ function Home() {
               <p className="text-[11px] tracking-[0.28em] text-zinc-500">{t('home.navigation')}</p>
               <div className="mt-5 grid gap-3">
                 {[
-                  ['/projects', t('home.navProjects'), t('home.navProjectsDesc')],
+                  ['/videos', locale === 'zh' ? '视频页' : 'VIDEO PAGE', locale === 'zh' ? '独立浏览作品视频' : 'Browse portfolio videos separately'],
+                  ['/images', locale === 'zh' ? '图片页' : 'IMAGE PAGE', locale === 'zh' ? '独立浏览图片文件' : 'Browse image files separately'],
                   ['/client-access', t('home.navAccess'), t('home.navAccessDesc')],
                   ['/about', t('home.navAbout'), t('home.navAboutDesc')],
                   ['/console', t('home.navConsole'), t('home.navConsoleDesc')],

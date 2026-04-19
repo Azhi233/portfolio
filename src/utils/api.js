@@ -22,10 +22,15 @@ const client = axios.create({
 
 export async function fetchJson(url, options = {}) {
   const { body, data, headers, ...rest } = options;
+  const requestData = data !== undefined ? data : body;
+  const isFormData = typeof FormData !== 'undefined' && requestData instanceof FormData;
+
   const response = await client.request({
     url,
-    data: data !== undefined ? data : body,
-    headers,
+    data: requestData,
+    headers: {
+      ...(isFormData ? {} : headers),
+    },
     ...rest,
   });
   return response.data?.data ?? response.data;

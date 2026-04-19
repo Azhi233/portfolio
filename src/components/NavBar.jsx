@@ -8,8 +8,8 @@ import EditableText from './EditableText.jsx';
 
 const NAV_ITEMS = [
   { key: 'home', to: '/' },
-  { key: 'photography', to: '/photography' },
-  { key: 'videography', to: '/videography' },
+  { key: 'videos', to: '/videos' },
+  { key: 'images', to: '/images' },
   { key: 'about', to: '/about' },
   { key: 'clientAccess', to: '/client-access' },
 ];
@@ -25,12 +25,12 @@ const NAV_LINK_ACTIVE_CLASS = 'text-zinc-100';
 const NAV_LINK_INACTIVE_CLASS = 'text-zinc-500 hover:text-zinc-100 focus-visible:text-zinc-100';
 
 function ModeToggle({ viewMode, setViewMode, t }) {
-  const isProjects = viewMode === 'projects';
+  const isVideos = viewMode === 'projects';
 
   return (
     <button
       type="button"
-      onClick={() => setViewMode(isProjects ? 'expertise' : 'projects')}
+      onClick={() => setViewMode(isVideos ? 'expertise' : 'projects')}
       className="group relative inline-flex h-9 w-[168px] items-center rounded-full border border-white/15 bg-zinc-900/70 p-1 text-[10px] tracking-[0.16em] text-zinc-300"
       aria-label="Switch home view mode"
     >
@@ -38,16 +38,16 @@ function ModeToggle({ viewMode, setViewMode, t }) {
         layout
         transition={{ type: 'spring', stiffness: 460, damping: 36 }}
         className={`absolute top-1 h-7 w-[78px] rounded-full border ${
-          isProjects
+          isVideos
             ? 'left-[84px] border-white/20 bg-white/14'
             : 'left-1 border-white/20 bg-white/14'
         }`}
       />
-      <span className={`relative z-10 w-[78px] text-center ${isProjects ? 'text-zinc-400' : 'text-zinc-100'}`}>
+      <span className={`relative z-10 w-[78px] text-center ${isVideos ? 'text-zinc-400' : 'text-zinc-100'}`}>
         {t('nav.expertise', 'EXPERTISE')}
       </span>
-      <span className={`relative z-10 w-[78px] text-center ${isProjects ? 'text-zinc-100' : 'text-zinc-400'}`}>
-        {t('nav.projects', 'PROJECTS')}
+      <span className={`relative z-10 w-[78px] text-center ${isVideos ? 'text-zinc-100' : 'text-zinc-400'}`}>
+        {t('nav.videos', 'VIDEOS')}
       </span>
     </button>
   );
@@ -68,6 +68,12 @@ function NavBar({ viewMode = 'expertise', setViewMode = () => {}, logoUrl = '', 
     if (window.location.pathname !== to) {
       window.location.href = to;
     }
+  };
+
+  const getNavLabel = (item) => {
+    if (item.key === 'videos') return t('nav.videos', 'VIDEOS');
+    if (item.key === 'images') return t('nav.images', 'IMAGES');
+    return t(`nav.${item.key}`, item.key);
   };
 
   useEffect(() => {
@@ -170,7 +176,7 @@ function NavBar({ viewMode = 'expertise', setViewMode = () => {}, logoUrl = '', 
                     onClick={() => handleNav(item.to)}
                     className={`${NAV_LINK_BASE_CLASS} ${isActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS}`}
                   >
-                    <span className="relative z-10">{t(`nav.${item.key}`, item.key)}</span>
+                    <span className="relative z-10">{getNavLabel(item)}</span>
                     <span
                       className={`absolute -bottom-2 left-0 h-px w-full origin-left bg-white/90 transition-transform duration-500 ease-out ${
                         isActive ? 'scale-x-100' : 'scale-x-0 group-hover/nav:scale-x-100'
@@ -224,7 +230,7 @@ function NavBar({ viewMode = 'expertise', setViewMode = () => {}, logoUrl = '', 
                             : 'text-zinc-300 hover:bg-white/5 hover:text-zinc-100 active:bg-white/10'
                         }`}
                       >
-                        {t(`nav.${item.key}`, item.key)}
+                        {getNavLabel(item)}
                       </button>
                     </li>
                   );

@@ -568,7 +568,7 @@ function Start-Services {
   }
 
   $frontendCmd = "Set-Location '$projectRoot'; npm run dev:frontend -- --port $($state.FrontendPort) *> '$frontendLog' 2> '$frontendErrLog'"
-  $backendCmd = "Set-Location '$projectRoot/server'; npm run dev -- --port $($state.BackendPort) *> '$backendLog' 2> '$backendErrLog'"
+  $backendCmd = "Set-Location '$projectRoot/server'; npm run start -- --port $($state.BackendPort) *> '$backendLog' 2> '$backendErrLog'"
 
   $frontendProc = Start-Process powershell -ArgumentList '-NoExit', '-Command', $frontendCmd -PassThru
   $backendProc = Start-Process powershell -ArgumentList '-NoExit', '-Command', $backendCmd -PassThru

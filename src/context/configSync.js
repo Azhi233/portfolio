@@ -9,11 +9,10 @@ import {
   REVIEWS_STORAGE_KEY,
   SYNC_CHANNEL_NAME,
   SYNC_EVENT_NAME,
-  TOKEN_STORAGE_KEY,
-  readLocalJson,
   writeLocalJson,
 } from './configStorage.js';
 import { normalizeAsset, normalizeConfig, normalizeProjectData, normalizeProject, normalizeReview } from './configNormalizers.js';
+import { getStoredToken } from './configAuth.js';
 
 const API_BASE = API_BASE_URL;
 const DATA_SYNC_INTERVAL_MS = 15000;
@@ -116,7 +115,7 @@ export function createConfigSyncService({
       assets: nextAssets,
       projectData: nextProjectData,
     };
-    const token = typeof window !== 'undefined' ? window.localStorage.getItem(TOKEN_STORAGE_KEY) || '' : '';
+    const token = getStoredToken();
     const data = await fetchJson('/config', {
       method: 'POST',
       headers: token ? { Authorization: `Bearer ${token}` } : {},

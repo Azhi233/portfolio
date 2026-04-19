@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.js",
+    "dev": "node src/index.js",
     "start": "node src/index.js",
-    "dev:port": "node --watch src/index.js",
+    "dev:port": "node src/index.js",
     "start:port": "node src/index.js"
   },
   "dependencies": {

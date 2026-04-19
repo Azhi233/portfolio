@@ -56,6 +56,7 @@ function ProjectDetailPage() {
   const galleryImages = gallery.filter((item) => !String(item.kind || '').startsWith('video'));
   const galleryVideos = gallery.filter((item) => String(item.kind || '').startsWith('video'));
   const heroMedia = project?.mainVideoUrl || project?.videoUrl || project?.coverUrl || '';
+  const hasPrivateAccess = Boolean(project?.accessPassword || project?.password || project?.deliveryPin);
 
   if (loading) {
     return (
@@ -88,14 +89,22 @@ function ProjectDetailPage() {
     );
   }
 
-  const canViewPrivate = !project.accessPassword || showAccess;
-  const sortedGallery = [...gallery].sort((a, b) => String(a.title || a.label || '').localeCompare(String(b.title || b.label || '')));
+  const privateAccessCode = String(project.accessPassword || project.password || project.deliveryPin || '').trim();
+  const canViewPrivate = !privateAccessCode || showAccess;
 
   const handleDownload = (file) => {
-    setDownloadMessage(t('projectDetail.preparingDownload', { name: file.label || file.name || file.id }));
+    const fileName = file.label || file.name || file.id;
+    const url = String(file?.url || '').trim();
+    if (!url) {
+      setDownloadMessage(t('projectDetail.noUrl', 'No url'));
+      return;
+    }
+
+    setDownloadMessage(t('projectDetail.preparingDownload', { name: fileName }));
     window.setTimeout(() => {
-      setDownloadMessage(t('projectDetail.downloadStarted', { name: file.label || file.name || file.id }));
-    }, 500);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      setDownloadMessage(t('projectDetail.downloadStarted', { name: fileName }));
+    }, 300);
   };
 
   const resetAccess = () => {
@@ -139,7 +148,7 @@ function ProjectDetailPage() {
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                   <p className="text-[11px] tracking-[0.2em] text-zinc-500">{t('projectDetail.privateAccess', 'PRIVATE ACCESS')}</p>
-                  <p className="mt-2">{project.accessPassword ? t('projectDetail.protected', 'Protected') : t('projectDetail.open', 'Open')}</p>
+                  <p className="mt-2">{hasPrivateAccess ? t('projectDetail.protected', 'Protected') : t('projectDetail.open', 'Open')}</p>
                 </div>
               </div>
             </div>
@@ -148,8 +157,10 @@ function ProjectDetailPage() {
 
         <Card className="p-6 md:p-8">
           <p className="text-[11px] tracking-[0.24em] text-zinc-500">{t('projectDetail.videoPreview', 'VIDEO / PREVIEW')}</p>
-          <div className="mt-4 aspect-video overflow-hidden rounded-[1.5rem] border border-white/10 bg-black/40">
-            <MediaPreview src={String(heroMedia)} title={project.title} kind="video" autoPlay muted={false} />
+          <div className="mt-4 rounded-[1.5rem] border border-white/10 bg-black/40 p-3">
+            <div className="aspect-video overflow-hidden rounded-[1.1rem] bg-black/60">
+              <MediaPreview src={String(heroMedia)} title={project.title} kind="video" autoPlay muted={false} />
+            </div>
           </div>
         </Card>
 
@@ -193,11 +204,11 @@ function ProjectDetailPage() {
           <Card className="p-6 md:p-8">
             <p className="text-[11px] tracking-[0.24em] text-zinc-500">{t('projectDetail.privateSection', 'PRIVATE ACCESS')}</p>
             <p className="mt-4 text-sm leading-7 text-zinc-300">
-              {project.accessPassword
+              {hasPrivateAccess
                 ? t('projectDetail.protectedPrompt', 'This project is protected. Enter the access code to reveal private delivery content.')
                 : t('projectDetail.publicPrompt', 'This project is public and can be viewed directly.')}
             </p>
-            {project.accessPassword ? (
+            {hasPrivateAccess ? (
               <div className="mt-4 grid gap-3">
                 <Input
                   value={accessCode}
@@ -208,7 +219,7 @@ function ProjectDetailPage() {
                   type="button"
                   variant="success"
                   onClick={() => {
-                    const matched = String(accessCode).trim() === String(project.accessPassword).trim();
+                    const matched = String(accessCode).trim() === privateAccessCode;
                     setShowAccess(matched);
                     setUnlockMessage(matched ? t('projectDetail.accessGranted', 'Access granted. Private files are now visible.') : t('projectDetail.accessDenied', 'Incorrect access code.'));
                   }}
@@ -234,7 +245,7 @@ function ProjectDetailPage() {
                         <p className="mt-2 break-all text-xs text-zinc-500">{file.url || t('projectDetail.noUrl', 'No url')}</p>
                       </div>
                       <Button type="button" variant="subtle" onClick={() => handleDownload(file)}>
-                        {t('projectDetail.download', 'DOWNLOAD')}
+                        {t('projectDetail.download', 'OPEN FILE')}
                       </Button>
                     </div>
                   </div>

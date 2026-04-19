@@ -27,9 +27,15 @@ function ClientAccessPage() {
     try {
       const projects = await fetchJson('/projects');
       const matches = (Array.isArray(projects) ? projects : []).filter((project) => {
-        const codeOk = !state.clientCode || String(project.clientCode || '').trim().toLowerCase() === String(state.clientCode || '').trim().toLowerCase();
-        const passwordOk = !project.accessPassword || String(project.accessPassword || '') === String(state.password || '');
-        return codeOk && passwordOk && Boolean(project.accessPassword || project.clientCode);
+        const normalizedClientCode = String(state.clientCode || '').trim().toLowerCase();
+        const normalizedPassword = String(state.password || '').trim();
+        const projectClientCode = String(project.clientCode || '').trim().toLowerCase();
+        const projectPasswords = [project.accessPassword, project.password, project.deliveryPin].map((value) => String(value || '').trim()).filter(Boolean);
+
+        const codeOk = !normalizedClientCode || projectClientCode === normalizedClientCode;
+        const passwordOk = projectPasswords.length === 0 || projectPasswords.includes(normalizedPassword);
+
+        return codeOk && passwordOk && Boolean(project.accessPassword || project.password || project.deliveryPin || project.clientCode);
       });
 
       if (matches.length === 0) {
