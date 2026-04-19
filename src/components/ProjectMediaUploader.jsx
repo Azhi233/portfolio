@@ -7,7 +7,7 @@ function getKind(item = {}) {
   return String(item.kind || '').startsWith('video') || /\.(mp4|webm|mov|ogg)(\?|#|$)/i.test(String(item.url || '')) ? 'video' : 'image';
 }
 
-export default function ProjectMediaUploader({ items = [], uploading = false, onUpload, onRemove, onUpdate, onMoveUp, onMoveDown, onReorder }) {
+export default function ProjectMediaUploader({ items = [], uploading = false, progress = 0, uploadStage = 'idle', uploadStatus = '', uploadTarget = 'auto', onUpload, onRemove, onUpdate, onMoveUp, onMoveDown, onReorder }) {
   const [dragIndex, setDragIndex] = useState(null);
 
   const handleDrop = (dropIndex) => {
@@ -20,9 +20,12 @@ export default function ProjectMediaUploader({ items = [], uploading = false, on
     <div className="grid gap-4">
       <MediaPicker
         label="BTS Media"
-        accept="image/*,video/*"
+        accept={uploadTarget === 'image' ? 'image/*' : uploadTarget === 'video' ? 'video/*' : 'image/*,video/*'}
         uploading={uploading}
-        helperText="Upload BTS assets one by one, then reorder or edit them below."
+        progress={progress}
+        stage={uploadStage}
+        statusText={uploadStatus}
+        helperText="Upload BTS assets one by one (videos are transcode-triggered on the server), then reorder or edit them below."
         onPick={onUpload}
       />
 

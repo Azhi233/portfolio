@@ -55,6 +55,7 @@ function ProjectDetailPage() {
   const files = useMemo(() => (Array.isArray(project?.privateFiles) ? project.privateFiles.filter((item) => item?.enabled !== false) : []), [project]);
   const galleryImages = gallery.filter((item) => !String(item.kind || '').startsWith('video'));
   const galleryVideos = gallery.filter((item) => String(item.kind || '').startsWith('video'));
+  const heroMedia = project?.mainVideoUrl || project?.videoUrl || project?.coverUrl || '';
 
   if (loading) {
     return (
@@ -148,7 +149,7 @@ function ProjectDetailPage() {
         <Card className="p-6 md:p-8">
           <p className="text-[11px] tracking-[0.24em] text-zinc-500">{t('projectDetail.videoPreview', 'VIDEO / PREVIEW')}</p>
           <div className="mt-4 aspect-video overflow-hidden rounded-[1.5rem] border border-white/10 bg-black/40">
-            <MediaPreview src={String(project.mainVideoUrl || project.videoUrl || '')} title={project.title} />
+            <MediaPreview src={String(heroMedia)} title={project.title} kind="video" autoPlay muted={false} />
           </div>
         </Card>
 
@@ -162,7 +163,7 @@ function ProjectDetailPage() {
                   {galleryImages.length > 0 ? galleryImages.map((item, index) => (
                     <button key={item.id || `img-${index}`} type="button" onClick={() => setActiveAsset(item)} className="overflow-hidden rounded-2xl border border-white/10 bg-black/20 text-left transition hover:border-white/20 hover:bg-white/5">
                       <div className="aspect-[4/3] bg-black/40">
-                        <MediaPreview src={item.url} title={item.title || item.label || `Image ${index + 1}`} />
+                        <MediaPreview src={item.url} title={item.title || item.label || `Image ${index + 1}`} kind={item.kind} />
                       </div>
                       <div className="p-3">
                         <p className="text-sm text-zinc-200">{item.title || item.label || `${t('projectDetail.asset', 'Asset')} ${index + 1}`}</p>
@@ -177,7 +178,7 @@ function ProjectDetailPage() {
                   {galleryVideos.length > 0 ? galleryVideos.map((item, index) => (
                     <button key={item.id || `vid-${index}`} type="button" onClick={() => setActiveAsset(item)} className="overflow-hidden rounded-2xl border border-white/10 bg-black/20 text-left transition hover:border-white/20 hover:bg-white/5">
                       <div className="aspect-video bg-black/40">
-                        <MediaPreview src={item.url} title={item.title || item.label || `Video ${index + 1}`} />
+                        <MediaPreview src={item.url} title={item.title || item.label || `Video ${index + 1}`} kind={item.kind} />
                       </div>
                       <div className="p-3">
                         <p className="text-sm text-zinc-200">{item.title || item.label || `${t('projectDetail.asset', 'Asset')} ${index + 1}`}</p>
@@ -253,7 +254,7 @@ function ProjectDetailPage() {
           <div className="space-y-4">
             <p className="text-sm leading-7 text-zinc-300">{activeAsset?.description || t('projectDetail.noAdditionalDescription', 'No additional description.')}</p>
             <div className="aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black/40">
-              <MediaPreview src={activeAsset?.url || ''} title={activeAsset?.title || 'Asset preview'} />
+              <MediaPreview src={activeAsset?.url || ''} title={activeAsset?.title || 'Asset preview'} kind={activeAsset?.kind} />
             </div>
             <Textarea value={activeAsset?.url || ''} readOnly />
             <div className="flex flex-wrap gap-3">

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchJson, uploadFile } from '../../utils/api.js';
+import { fetchJson } from '../../utils/api.js';
+import { uploadMediaAsset } from '../../utils/projectVideoUpload.js';
 import Card from '../../components/Card.jsx';
 import Badge from '../../components/Badge.jsx';
 import Button from '../../components/Button.jsx';
@@ -37,6 +38,9 @@ function ProjectsPanel() {
     loading: true,
     saving: false,
     uploading: false,
+    uploadProgress: 0,
+    uploadStage: 'idle',
+    uploadStatus: '',
     deleting: false,
     error: '',
     items: [],
@@ -46,6 +50,7 @@ function ProjectsPanel() {
     mode: 'create',
     draft: blankDraft,
     filterMode: 'all',
+    uploadTarget: 'auto',
   });
 
   const load = async () => {
@@ -92,14 +97,32 @@ function ProjectsPanel() {
     }));
 
   const save = async () => {
+    const draft = state.draft || {};
+    if (!String(draft.title || '').trim()) {
+      setState((prev) => ({ ...prev, error: 'Project title is required.' }));
+      return;
+    }
+
     setState((prev) => ({ ...prev, saving: true, error: '' }));
     try {
-      const endpoint = state.mode === 'edit' && state.draft.id ? `/projects/${state.draft.id}` : '/projects';
+      const endpoint = state.mode === 'edit' && draft.id ? `/projects/${draft.id}` : '/projects';
       const method = state.mode === 'edit' ? 'PUT' : 'POST';
+      const formData = new FormData();
+
+      Object.entries(draft).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        if (key === 'btsMedia' || key === 'privateFiles' || key === 'outlineTags') {
+          formData.append(key, JSON.stringify(Array.isArray(value) ? value : []));
+          return;
+        }
+        if (typeof value === 'object') return;
+        formData.append(key, String(value));
+      });
 
       await fetchJson(endpoint, {
         method,
-        body: JSON.stringify(state.draft || {}),
+        data: formData,
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
       await load();
       setState((prev) => ({ ...prev, saving: false, isOpen: false, draft: { ...blankDraft } }));
@@ -110,24 +133,72 @@ function ProjectsPanel() {
 
   const uploadAsset = async (file, kind = 'image') => {
     if (!file) return;
-    setState((prev) => ({ ...prev, uploading: true, error: '' }));
+    setState((prev) => ({ ...prev, uploading: true, uploadProgress: 0, uploadStage: 'preparing', uploadStatus: `Preparing ${file.name}...`, error: '', uploadFailureStage: '' }));
     try {
-      const result = await uploadFile(file, 'public');
+      const { result, file: uploadFileObject, converted } = await uploadMediaAsset(file, {
+        type: 'public',
+        onProgress: ({ stage, progress, fileName }) => {
+          setState((prev) => ({
+            ...prev,
+            uploadStage: stage,
+            uploadProgress: Math.max(prev.uploadProgress, progress || 0),
+            uploadStatus:
+              stage === 'uploading-source'
+                ? `Uploading source video ${fileName}...`
+                : stage === 'uploading'
+                  ? `Uploading ${fileName}...`
+                  : stage === 'transcoding'
+                    ? `Transcoding ${fileName || file.name}...`
+                    : prev.uploadStatus,
+          }));
+        },
+        onStage: ({ stage, status, message, fileName }) => {
+          setState((prev) => ({
+            ...prev,
+            uploadStage: stage,
+            uploadStatus:
+              stage === 'transcoding'
+                ? `Transcoding ${fileName || file.name} to MP4...`
+                : stage === 'preparing'
+                  ? `Preparing ${fileName || file.name}...`
+                  : stage === 'writing-back'
+                    ? 'Writing uploaded media back to project...'
+                    : status === 'completed'
+                      ? 'Transcoding complete.'
+                      : message || prev.uploadStatus,
+          }));
+        },
+      });
+
+      setState((prev) => ({ ...prev, uploadStage: 'writing-back', uploadStatus: 'Writing uploaded media back to project...' }));
+      await new Promise((resolve) => setTimeout(resolve, 180));
+
       setState((prev) => ({
         ...prev,
         uploading: false,
+        uploadStage: 'done',
+        uploadProgress: 100,
+        uploadStatus: `Upload succeeded: ${result?.url || uploadFileObject?.name || 'file ready'}`,
         draft: {
           ...prev.draft,
-          coverUrl: kind === 'image' ? result.url : prev.draft.coverUrl,
-          coverAssetUrl: kind === 'image' ? result.url : prev.draft.coverAssetUrl,
-          coverAssetObjectName: result.objectName || prev.draft.coverAssetObjectName,
-          coverAssetFileType: file.type || prev.draft.coverAssetFileType || 'application/octet-stream',
-          videoUrl: kind === 'video' ? result.url : prev.draft.videoUrl,
-          mainVideoUrl: kind === 'video' ? result.url : prev.draft.mainVideoUrl,
+          coverUrl: kind === 'image' ? result?.url : prev.draft.coverUrl,
+          coverAssetUrl: kind === 'image' ? result?.url : prev.draft.coverAssetUrl,
+          coverAssetObjectName: result?.objectName || prev.draft.coverAssetObjectName,
+          coverAssetFileType: uploadFileObject?.type || prev.draft.coverAssetFileType || 'application/octet-stream',
+          videoUrl: kind === 'video' ? result?.url : prev.draft.videoUrl,
+          mainVideoUrl: kind === 'video' ? result?.url : prev.draft.mainVideoUrl,
         },
       }));
     } catch (error) {
-      setState((prev) => ({ ...prev, uploading: false, error: error.message || 'Failed to upload file.' }));
+      setState((prev) => ({
+        ...prev,
+        uploading: false,
+        uploadStage: 'error',
+        uploadFailureStage: 'transcoding',
+        uploadProgress: 0,
+        uploadStatus: `Upload failed: ${error.message || 'Unknown error'}`,
+        error: error.message || 'Failed to upload file.',
+      }));
     }
   };
 
@@ -135,19 +206,68 @@ function ProjectsPanel() {
 
   const addBtsItem = async (file) => {
     if (!file) return;
-    setState((prev) => ({ ...prev, uploading: true, error: '' }));
+    setState((prev) => ({ ...prev, uploading: true, uploadProgress: 0, uploadStage: 'preparing', uploadStatus: `Preparing ${file.name}...`, error: '', uploadFailureStage: '' }));
     try {
-      const result = await uploadFile(file, 'public');
+      const { result, file: uploadFileObject } = await uploadMediaAsset(file, {
+        type: 'public',
+        onProgress: ({ stage, progress, fileName }) => {
+          setState((prev) => ({
+            ...prev,
+            uploadStage: stage,
+            uploadProgress: Math.max(prev.uploadProgress, progress || 0),
+            uploadStatus:
+              stage === 'uploading-source'
+                ? `Uploading source video ${fileName}...`
+                : stage === 'uploading'
+                  ? `Uploading ${fileName}...`
+                  : stage === 'transcoding'
+                    ? `Transcoding ${fileName || file.name}...`
+                    : prev.uploadStatus,
+          }));
+        },
+        onStage: ({ stage, status, message, fileName }) => {
+          setState((prev) => ({
+            ...prev,
+            uploadStage: stage,
+            uploadStatus:
+              stage === 'transcoding'
+                ? `Transcoding ${fileName || file.name} to MP4...`
+                : stage === 'preparing'
+                  ? `Preparing ${fileName || file.name}...`
+                  : stage === 'writing-back'
+                    ? 'Writing uploaded media back to project...'
+                    : status === 'completed'
+                      ? 'Transcoding complete.'
+                      : message || prev.uploadStatus,
+          }));
+        },
+      });
+
       const nextItem = {
         id: crypto.randomUUID(),
-        title: file.name,
-        label: file.name,
-        url: result.url,
-        kind: file.type.startsWith('video/') ? 'video' : 'image',
+        title: uploadFileObject.name,
+        label: uploadFileObject.name,
+        url: result?.url,
+        kind: uploadFileObject.type.startsWith('video/') ? 'video' : 'image',
       };
-      setState((prev) => ({ ...prev, uploading: false, draft: { ...prev.draft, btsMedia: [...(Array.isArray(prev.draft.btsMedia) ? prev.draft.btsMedia : []), nextItem] } }));
+      setState((prev) => ({
+        ...prev,
+        uploading: false,
+        uploadStage: 'done',
+        uploadProgress: 100,
+        uploadStatus: `Upload succeeded: ${result?.url || file.name}`,
+        draft: { ...prev.draft, btsMedia: [...(Array.isArray(prev.draft.btsMedia) ? prev.draft.btsMedia : []), nextItem] },
+      }));
     } catch (error) {
-      setState((prev) => ({ ...prev, uploading: false, error: error.message || 'Failed to upload BTS media.' }));
+      setState((prev) => ({
+        ...prev,
+        uploading: false,
+        uploadStage: 'error',
+        uploadFailureStage: 'transcoding',
+        uploadProgress: 0,
+        uploadStatus: `Upload failed: ${error.message || 'Unknown error'}`,
+        error: error.message || 'Failed to upload BTS media.',
+      }));
     }
   };
 
@@ -259,25 +379,54 @@ function ProjectsPanel() {
             <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Description</p>
             <Textarea value={state.draft.description || ''} onChange={(event) => setState((prev) => ({ ...prev, draft: { ...prev.draft, description: event.target.value } }))} />
           </label>
+          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+            <label className="block">
+              <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Upload Type</p>
+              <Select value={state.uploadTarget} onChange={(event) => setState((prev) => ({ ...prev, uploadTarget: event.target.value }))}>
+                <option value="auto">Auto detect</option>
+                <option value="image">Image</option>
+                <option value="video">Video</option>
+              </Select>
+            </label>
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-xs leading-6 text-zinc-500">
+              <p className="tracking-[0.12em] text-zinc-400">封面图可不传</p>
+              <p className="mt-1">不上传封面图也可以保存项目。</p>
+            </div>
+          </div>
           <div className="grid gap-4 md:grid-cols-2">
             <MediaPicker
-              label="Cover Image"
+              label="Image Upload"
               accept="image/*"
               value={state.draft.coverUrl}
               uploading={state.uploading}
+              progress={state.uploadProgress}
+              stage={state.uploadStage}
+              statusText={state.uploadStatus}
+              failedStage={state.uploadFailureStage}
+              helperText="图片会显示在图片页。"
               onPick={(file) => uploadAsset(file, 'image')}
             />
             <MediaPicker
-              label="Main Video"
+              label="Video Upload"
               accept="video/*"
               value={state.draft.mainVideoUrl}
               uploading={state.uploading}
+              progress={state.uploadProgress}
+              stage={state.uploadStage}
+              statusText={state.uploadStatus}
+              failedStage={state.uploadFailureStage}
+              helperText="视频会走转码逻辑并显示在视频页。"
               onPick={(file) => uploadAsset(file, 'video')}
             />
           </div>
           <ProjectMediaUploader
             items={Array.isArray(state.draft.btsMedia) ? state.draft.btsMedia : []}
             uploading={state.uploading}
+            progress={state.uploadProgress}
+            uploadStage={state.uploadStage}
+            uploadStatus={state.uploadStatus}
+            failedStage={state.uploadFailureStage}
+            uploadTarget={state.uploadTarget}
             onUpload={addBtsItem}
             onRemove={(index) => updateBtsMedia((Array.isArray(state.draft.btsMedia) ? state.draft.btsMedia : []).filter((_, i) => i !== index))}
             onUpdate={(index, nextItem) => updateBtsMedia((Array.isArray(state.draft.btsMedia) ? state.draft.btsMedia : []).map((item, i) => (i === index ? nextItem : item)))}

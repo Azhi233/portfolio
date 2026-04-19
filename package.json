@@ -14,9 +14,13 @@
     "preflight:quick": "node ./scripts/preflight-check.mjs --quick",
     "healthcheck": "node ./scripts/env-health-check.mjs",
     "healthcheck:json": "node ./scripts/env-health-check.mjs --json",
+    "healthcheck:keep": "node ./scripts/env-health-check.mjs --keep-test-files",
+    "healthcheck:open": "node ./scripts/env-health-check.mjs --open-page",
     "sync:i18n": "node ./scripts/sync-translations.mjs"
   },
   "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
     "@gsap/react": "^2.1.2",
     "@studio-freight/lenis": "^1.0.42",
     "axios": "^1.15.0",

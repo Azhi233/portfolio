@@ -1,7 +1,17 @@
 import crypto from 'node:crypto';
 import { createProject, editProject, getProjectById, listProjects, removeProject } from '../services/projects.service.js';
 
-export function createProjectsController({ uploadProjectImage, notifyConfigChanged, pool, parseJsonField }) {
+function parseJsonField(value, fallback = []) {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (Array.isArray(value) || typeof value === 'object') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+export function createProjectsController({ uploadProjectImage, notifyConfigChanged, pool }) {
   async function getProjects(req, res) {
     const kind = String(req.query.kind || 'all').toLowerCase();
     const items = await listProjects();

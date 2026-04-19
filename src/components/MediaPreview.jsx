@@ -8,7 +8,7 @@ function isImageUrl(url = '') {
   return /\.(png|jpe?g|gif|webp|avif|svg)(\?|#|$)/.test(value) || value.includes('image');
 }
 
-export default function MediaPreview({ src = '', title = '', className = '', muted = false, autoPlay = false }) {
+export default function MediaPreview({ src = '', title = '', className = '', muted = false, autoPlay = false, kind = '' }) {
   if (!src) {
     return (
       <div className={`flex h-full min-h-[220px] items-center justify-center text-sm text-zinc-500 ${className}`.trim()}>
@@ -17,7 +17,7 @@ export default function MediaPreview({ src = '', title = '', className = '', mut
     );
   }
 
-  if (isVideoUrl(src)) {
+  if (String(kind).startsWith('video') || isVideoUrl(src)) {
     return (
       <video
         className={`h-full w-full object-cover ${className}`.trim()}

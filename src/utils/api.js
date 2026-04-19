@@ -6,20 +6,11 @@ function normalizeApiBaseUrl(rawValue) {
   const value = String(rawValue || '').trim();
   if (!value || value === 'undefined' || value === 'null') return fallbackBaseURL;
 
-  if (typeof window !== 'undefined') {
-    try {
-      const parsed = new URL(value, window.location.origin);
-      const isLocalhostBackend = ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname);
-      const isSameOrigin = parsed.origin === window.location.origin;
-      if (isLocalhostBackend && !isSameOrigin) {
-        return fallbackBaseURL;
-      }
-    } catch {
-      // ignore malformed URLs and fall back below
-    }
+  try {
+    return value.replace(/\/+$/, '');
+  } catch {
+    return fallbackBaseURL;
   }
-
-  return value.replace(/\/+$/, '');
 }
 
 export const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || fallbackBaseURL);
@@ -40,7 +31,7 @@ export async function fetchJson(url, options = {}) {
   return response.data?.data ?? response.data;
 }
 
-export async function uploadFile(file, type = 'public') {
+export async function uploadFile(file, type = 'public', onUploadProgress) {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('type', type);
@@ -48,5 +39,6 @@ export async function uploadFile(file, type = 'public') {
     method: 'POST',
     data: formData,
     headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress,
   });
 }

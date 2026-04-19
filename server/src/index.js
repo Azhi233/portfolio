@@ -9,7 +9,7 @@ import { seedAdminUser } from '../initAdmin.js';
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'portfolio-dev-secret';
-const DEFAULT_PORT = 8788;
+const DEFAULT_PORT = resolvePort(process.env.VITE_BACKEND_PORT || process.env.PORT, 8789);
 const BAOTA_DB_HINT = {
   host: process.env.DB_HOST || process.env.BAOTA_DB_HOST || process.env.MYSQL_HOST || '127.0.0.1',
   port: process.env.DB_PORT || process.env.BAOTA_DB_PORT || process.env.MYSQL_PORT || 3306,
@@ -35,6 +35,23 @@ const app = createApp({
   sseClients,
 });
 
+async function waitForMinioReady(attempts = 8, delayMs = 1000) {
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      await initMinio();
+      return true;
+    } catch (error) {
+      const message = String(error?.message || error || '');
+      if (!message.includes('ECONNREFUSED')) {
+        throw error;
+      }
+      if (i === attempts - 1) return false;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  return false;
+}
+
 async function bootstrap() {
   try {
     await initDB();
@@ -50,7 +67,10 @@ async function bootstrap() {
 
   if (process.env.MINIO_ENABLED === 'true') {
     try {
-      await initMinio();
+      const minioReady = await waitForMinioReady();
+      if (!minioReady) {
+        console.warn('MinIO initialization skipped after bounded retry: ECONNREFUSED');
+      }
     } catch (error) {
       console.warn('MinIO initialization skipped:', error?.message || error);
     }

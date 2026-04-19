@@ -23,6 +23,7 @@ import { createReviewAuditRouter } from './routes/review-audit.routes.js';
 import { createTranslationReviewController } from './controllers/translation-review.controller.js';
 import { createTranslationReviewRouter } from './routes/translation-review.routes.js';
 import { createUploadRouter } from './routes/upload.routes.js';
+import { createHealthcheckRouter } from './routes/healthcheck.routes.js';
 
 export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged, uploadEvents, sseClients }) {
   const app = express();
@@ -91,6 +92,7 @@ export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged,
   app.use('/api/translation-review-items', createTranslationReviewRouter(createTranslationReviewController()));
   const uploadController = createUploadController();
   app.use('/api/uploads', createUploadRouter(uploadController));
+  app.use('/api/healthcheck', createHealthcheckRouter());
 
   return app;
 }

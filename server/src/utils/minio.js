@@ -92,6 +92,14 @@ export async function uploadFile(fileStream, fileName, isPrivate = false, conten
   return { url, objectName, isPrivate: true };
 }
 
+export async function deleteObject(bucketName, objectName) {
+  ensureClient();
+  if (!bucketName || !objectName) {
+    throw new Error('bucketName and objectName are required.');
+  }
+  await minioClient.removeObject(bucketName, objectName);
+}
+
 export async function getPresignedUrl(objectName) {
   ensureClient();
   await ensureBucket(PRIVATE_BUCKET);

@@ -16,7 +16,8 @@ function createTaskId() {
 function isVideoFile(file = {}) {
   const name = String(file.originalname || '').toLowerCase();
   const mime = String(file.mimetype || '').toLowerCase();
-  return mime.startsWith('video/') || name.endsWith('.mov') || name.endsWith('.mp4') || mime === 'video/quicktime';
+  if (name.endsWith('.mp4') || mime === 'video/mp4') return false;
+  return mime.startsWith('video/') || name.endsWith('.mov') || mime === 'video/quicktime';
 }
 
 function runFfmpegTranscode(inputPath, outputPath) {
