@@ -12,7 +12,7 @@ import {
   readStoredReviews,
 } from './configHelpers.js';
 
-export function createInitialConfigState() {
+export function createConfigState() {
   return {
     config: readStoredConfig(),
     projects: readStoredProjects(),
@@ -25,6 +25,10 @@ export function createInitialConfigState() {
     isAdmin: isTokenPresent(),
     isEditMode: readStoredEditMode(),
   };
+}
+
+export function createInitialConfigState() {
+  return createConfigState();
 }
 
 export function getDefaultConfigState() {
