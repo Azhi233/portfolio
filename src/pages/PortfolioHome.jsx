@@ -29,13 +29,13 @@ function PortfolioHome() {
 
   return (
     <main className="relative min-h-screen bg-[#FAF9F6] text-[#151515]">
-      <header className="relative z-20 border-b border-black/5 bg-[#FAF9F6]">
+      <header className="relative z-50 border-b border-black/5 bg-[#FAF9F6]">
         <div className="mx-auto flex max-w-7xl items-center justify-center px-6 py-4 md:px-12">
           <nav className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-[11px] uppercase tracking-[0.34em] text-[#151515]/55 md:gap-x-12">
-            <Link to="/images" className="cursor-pointer rounded-full px-2 py-2 transition-colors hover:text-[#151515] hover:bg-black/5">Images</Link>
-            <Link to="/videos" className="cursor-pointer rounded-full px-2 py-2 transition-colors hover:text-[#151515] hover:bg-black/5">Videos</Link>
-            <Link to="/about" className="cursor-pointer rounded-full px-2 py-2 transition-colors hover:text-[#151515] hover:bg-black/5">About</Link>
-            <Link to="/client-access" className="cursor-pointer rounded-full px-2 py-2 transition-colors hover:text-[#151515] hover:bg-black/5">Client Deliverables</Link>
+            <a href="/images" className="pointer-events-auto cursor-pointer rounded-full px-2 py-2 transition-colors hover:text-[#151515] hover:bg-black/5">Images</a>
+            <a href="/videos" className="pointer-events-auto cursor-pointer rounded-full px-2 py-2 transition-colors hover:text-[#151515] hover:bg-black/5">Videos</a>
+            <a href="/about" className="pointer-events-auto cursor-pointer rounded-full px-2 py-2 transition-colors hover:text-[#151515] hover:bg-black/5">About</a>
+            <a href="/client-access" className="pointer-events-auto cursor-pointer rounded-full px-2 py-2 transition-colors hover:text-[#151515] hover:bg-black/5">Client Deliverables</a>
           </nav>
         </div>
       </header>
@@ -72,10 +72,10 @@ function PortfolioHome() {
 
           <div className="grid gap-8 md:grid-cols-2">
             {FEATURED_PROJECTS.map((project) => (
-              <Link
+              <a
                 key={project.id}
-                to="/"
-                className="group overflow-hidden rounded-3xl border border-black/5 bg-white shadow-[0_30px_80px_rgba(0,0,0,0.05)] transition-transform duration-300 hover:-translate-y-1"
+                href="/"
+                className="pointer-events-auto group overflow-hidden rounded-3xl border border-black/5 bg-white shadow-[0_30px_80px_rgba(0,0,0,0.05)] transition-transform duration-300 hover:-translate-y-1"
               >
                 <div className="aspect-[4/5] overflow-hidden bg-black/5">
                   <img
@@ -97,7 +97,7 @@ function PortfolioHome() {
       <footer className="px-6 pb-10 md:px-12">
         <div className="mx-auto flex max-w-7xl items-center justify-between border-t border-black/5 pt-6 text-[11px] uppercase tracking-[0.24em] text-[#151515]/45">
           <span>© 2026</span>
-          <Link to="/oldhome" className="transition-opacity hover:opacity-60">Old Home</Link>
+          <a href="/oldhome" className="transition-opacity hover:opacity-60">Old Home</a>
         </div>
       </footer>
     </main>
