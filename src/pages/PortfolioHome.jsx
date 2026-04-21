@@ -32,13 +32,13 @@ function PortfolioHome() {
 
   return (
     <main className="relative min-h-screen bg-[#FAF9F6] text-[#151515]">
-      <header className="relative z-20 border-b border-black/5 bg-[#FAF9F6]/95 backdrop-blur-sm">
+      <header className="relative z-20 border-b border-black/5 bg-[#FAF9F6]">
         <div className="mx-auto flex max-w-7xl items-center justify-center px-6 py-4 md:px-12">
           <nav className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-[11px] uppercase tracking-[0.34em] text-[#151515]/55 md:gap-x-12">
-            <button type="button" onClick={() => navigateTo('/images')} className="cursor-pointer rounded-full px-1 py-1 transition-colors hover:text-[#151515]">Images</button>
-            <button type="button" onClick={() => navigateTo('/videos')} className="cursor-pointer rounded-full px-1 py-1 transition-colors hover:text-[#151515]">Videos</button>
-            <button type="button" onClick={() => navigateTo('/about')} className="cursor-pointer rounded-full px-1 py-1 transition-colors hover:text-[#151515]">About</button>
-            <button type="button" onClick={() => navigateTo('/client-access')} className="cursor-pointer rounded-full px-1 py-1 transition-colors hover:text-[#151515]">Client Deliverables</button>
+            <button type="button" onClick={() => navigateTo('/images')} className="cursor-pointer rounded-full px-2 py-2 transition-colors hover:text-[#151515] hover:bg-black/5">Images</button>
+            <button type="button" onClick={() => navigateTo('/videos')} className="cursor-pointer rounded-full px-2 py-2 transition-colors hover:text-[#151515] hover:bg-black/5">Videos</button>
+            <button type="button" onClick={() => navigateTo('/about')} className="cursor-pointer rounded-full px-2 py-2 transition-colors hover:text-[#151515] hover:bg-black/5">About</button>
+            <button type="button" onClick={() => navigateTo('/client-access')} className="cursor-pointer rounded-full px-2 py-2 transition-colors hover:text-[#151515] hover:bg-black/5">Client Deliverables</button>
           </nav>
         </div>
       </header>
