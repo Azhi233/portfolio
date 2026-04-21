@@ -18,7 +18,7 @@ function App() {
 
   return (
     <>
-      <div className="fixed left-0 right-0 top-0 z-[220] flex justify-end px-3 pt-3 md:px-6">
+      <div className="fixed right-3 top-3 z-[220] md:right-6 md:top-6">
         <LanguageSwitcher
           locale={locale}
           onChange={switchLocale}
