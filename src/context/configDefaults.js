@@ -143,6 +143,10 @@ const DEFAULT_CONFIG = {
   homeAwardsLabel: 'AWARDS',
   homeExperienceLabel: 'EXPERIENCE',
   homeGearLabel: 'GEAR LIST',
+  featuredImagesTitle: 'SELECTED IMAGES',
+  featuredImagesSubtitle: 'Curated stills chosen for the public image wall.',
+  featuredImagesText:
+    'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1600&q=80\nhttps://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=1600&q=80\nhttps://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80',
 };
 
 export { DEFAULT_CASE_STUDIES, DEFAULT_PROJECT_DATA, DEFAULT_CONFIG };

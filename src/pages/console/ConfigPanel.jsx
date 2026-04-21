@@ -7,7 +7,7 @@ import Textarea from '../../components/Textarea.jsx';
 import Modal from '../../components/Modal.jsx';
 import ReviewNotice from '../../components/ReviewNotice.jsx';
 
-const editableKeys = ['siteTitle', 'siteSubtitle', 'homeHeadline', 'homeDescription', 'contactEmail', 'contactWeChat'];
+const editableKeys = ['siteTitle', 'siteSubtitle', 'homeHeadline', 'homeDescription', 'contactEmail', 'contactWeChat', 'featuredImagesTitle', 'featuredImagesSubtitle', 'featuredImagesText'];
 const configLabels = {
   siteTitle: 'Site Title',
   siteSubtitle: 'Site Subtitle',
@@ -15,6 +15,9 @@ const configLabels = {
   homeDescription: 'Home Description',
   contactEmail: 'Contact Email',
   contactWeChat: 'Contact WeChat',
+  featuredImagesTitle: 'Featured Images Title',
+  featuredImagesSubtitle: 'Featured Images Subtitle',
+  featuredImagesText: 'Featured Images URLs',
 };
 
 const createEmptyDraft = () => ({
@@ -24,6 +27,9 @@ const createEmptyDraft = () => ({
   homeDescription: '',
   contactEmail: '',
   contactWeChat: '',
+  featuredImagesTitle: '',
+  featuredImagesSubtitle: '',
+  featuredImagesText: '',
 });
 
 function ConfigPanel() {

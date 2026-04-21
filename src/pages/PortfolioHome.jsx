@@ -28,15 +28,17 @@ function PortfolioHome() {
 
   return (
     <main className="min-h-screen bg-[#FAF9F6] text-[#151515]">
-      <header className="fixed left-0 right-0 top-0 z-50 flex items-center justify-between px-6 py-5 md:px-12">
-        <Link to="/" className="text-[11px] uppercase tracking-[0.32em] text-[#151515]/70">
+      <header className="fixed left-0 right-0 top-0 z-50 grid grid-cols-[1fr_auto_1fr] items-center px-6 py-5 md:px-12">
+        <Link to="/" className="justify-self-start text-[11px] uppercase tracking-[0.32em] text-[#151515]/70">
           {t('home.brand', 'YOUR NAME')}
         </Link>
-        <nav className="flex items-center gap-5 text-[11px] uppercase tracking-[0.24em] text-[#151515]/65">
-          <Link to="#work" className="transition-opacity hover:opacity-60">Work</Link>
+        <nav className="justify-self-center flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.24em] text-[#151515]/55 md:gap-x-6">
+          <Link to="/images" className="transition-opacity hover:opacity-60">Images</Link>
+          <Link to="/videos" className="transition-opacity hover:opacity-60">Videos</Link>
           <Link to="/about" className="transition-opacity hover:opacity-60">About</Link>
           <Link to="/client-access" className="transition-opacity hover:opacity-60">Client Deliverables</Link>
         </nav>
+        <div className="justify-self-end" />
       </header>
 
       <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 pt-24 md:px-12">

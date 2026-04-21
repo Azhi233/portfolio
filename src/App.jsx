@@ -4,7 +4,9 @@ import { useI18n } from './context/I18nContext.jsx';
 import Home from './pages/Home.jsx';
 import PortfolioHome from './pages/PortfolioHome.jsx';
 import VideosPage from './pages/ProjectsPage.jsx';
+import OldVideoPage from './pages/OldVideoPage.jsx';
 import ImagesPage from './pages/ImagesPage.jsx';
+import OldImagesPage from './pages/OldImagesPage.jsx';
 import ImageDetailPage from './pages/ImageDetailPage.jsx';
 import VideoDetailPage from './pages/VideoDetailPage.jsx';
 import AboutPage from './pages/AboutPage.jsx';
@@ -27,8 +29,10 @@ function App() {
       <Routes>
         <Route path="/" element={<PortfolioHome />} />
         <Route path="/videos" element={<VideosPage />} />
+        <Route path="/oldvideo" element={<OldVideoPage />} />
         <Route path="/projects" element={<Navigate to="/videos" replace />} />
         <Route path="/images" element={<ImagesPage />} />
+        <Route path="/oldImages" element={<OldImagesPage />} />
         <Route path="/images/:id" element={<ImageDetailPage />} />
         <Route path="/videos/:id" element={<VideoDetailPage />} />
         <Route path="/about" element={<AboutPage />} />

@@ -23,12 +23,12 @@ function Home() {
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link to="/videos">
+                <Link to="/oldvideo">
                   <Button as="span" variant="primary">
                     {t('home.viewVideos', 'View Videos')}
                   </Button>
                 </Link>
-                <Link to="/images">
+                <Link to="/oldImages">
                   <Button as="span" variant="subtle">
                     {t('home.viewImages', 'View Images')}
                   </Button>
