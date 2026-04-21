@@ -32,22 +32,18 @@ function PortfolioHome() {
 
   return (
     <main className="relative min-h-screen bg-[#FAF9F6] text-[#151515]">
-      <header className="fixed left-0 right-0 top-0 z-[200] px-6 py-5 md:px-12 pointer-events-none">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center pointer-events-auto">
-          <button type="button" onClick={() => navigateTo('/')} className="justify-self-start text-[11px] uppercase tracking-[0.32em] text-[#151515]/70 transition-opacity hover:opacity-60 cursor-pointer">
-            {t('home.brand', 'YOUR NAME')}
-          </button>
-          <nav className="justify-self-center flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.24em] text-[#151515]/55 md:gap-x-6">
-            <button type="button" onClick={() => navigateTo('/images')} className="transition-opacity hover:opacity-60 cursor-pointer">Images</button>
-            <button type="button" onClick={() => navigateTo('/videos')} className="transition-opacity hover:opacity-60 cursor-pointer">Videos</button>
-            <button type="button" onClick={() => navigateTo('/about')} className="transition-opacity hover:opacity-60 cursor-pointer">About</button>
-            <button type="button" onClick={() => navigateTo('/client-access')} className="transition-opacity hover:opacity-60 cursor-pointer">Client Deliverables</button>
+      <header className="relative z-20 border-b border-black/5 bg-[#FAF9F6]/95 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-7xl items-center justify-center px-6 py-4 md:px-12">
+          <nav className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-[11px] uppercase tracking-[0.34em] text-[#151515]/55 md:gap-x-12">
+            <button type="button" onClick={() => navigateTo('/images')} className="cursor-pointer rounded-full px-1 py-1 transition-colors hover:text-[#151515]">Images</button>
+            <button type="button" onClick={() => navigateTo('/videos')} className="cursor-pointer rounded-full px-1 py-1 transition-colors hover:text-[#151515]">Videos</button>
+            <button type="button" onClick={() => navigateTo('/about')} className="cursor-pointer rounded-full px-1 py-1 transition-colors hover:text-[#151515]">About</button>
+            <button type="button" onClick={() => navigateTo('/client-access')} className="cursor-pointer rounded-full px-1 py-1 transition-colors hover:text-[#151515]">Client Deliverables</button>
           </nav>
-          <div className="justify-self-end" />
         </div>
       </header>
 
-      <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 pt-24 md:px-12">
+      <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 pt-10 md:px-12 md:pt-14">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(0,0,0,0.06),transparent_42%),linear-gradient(180deg,rgba(250,249,246,0.2),rgba(250,249,246,1))]" />
         <motion.div
           initial={{ opacity: 0, y: 24 }}
