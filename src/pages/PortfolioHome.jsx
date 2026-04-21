@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useI18n } from '../context/I18nContext.jsx';
 
@@ -25,19 +25,20 @@ const FEATURED_PROJECTS = [
 
 function PortfolioHome() {
   const { t } = useI18n();
+  const navigate = useNavigate();
 
   return (
     <main className="min-h-screen bg-[#FAF9F6] text-[#151515]">
-      <header className="fixed left-0 right-0 top-0 z-50 grid grid-cols-[1fr_auto_1fr] items-center px-6 py-5 md:px-12">
-        <Link to="/" className="justify-self-start text-[11px] uppercase tracking-[0.32em] text-[#151515]/70">
+      <header className="fixed left-0 right-0 top-0 z-[80] grid grid-cols-[1fr_auto_1fr] items-center px-6 py-5 md:px-12 pointer-events-none">
+        <div className="pointer-events-auto justify-self-start text-[11px] uppercase tracking-[0.32em] text-[#151515]/70" onClick={() => navigate('/')} role="button" tabIndex={0}>
           {t('home.brand', 'YOUR NAME')}
-        </Link>
-        <nav className="justify-self-center flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.24em] text-[#151515]/55 md:gap-x-6">
-          <Link to="/images" className="transition-opacity hover:opacity-60">Images</Link>
-          <Link to="/videos" className="transition-opacity hover:opacity-60">Videos</Link>
-          <Link to="/about" className="transition-opacity hover:opacity-60">About</Link>
-          <Link to="/client-access" className="transition-opacity hover:opacity-60">Client Deliverables</Link>
-        </nav>
+        </div>
+        <div className="pointer-events-auto justify-self-center flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.24em] text-[#151515]/55 md:gap-x-6">
+          <div onClick={() => navigate('/images')} role="button" tabIndex={0} className="cursor-pointer transition-opacity hover:opacity-60">Images</div>
+          <div onClick={() => navigate('/videos')} role="button" tabIndex={0} className="cursor-pointer transition-opacity hover:opacity-60">Videos</div>
+          <div onClick={() => navigate('/about')} role="button" tabIndex={0} className="cursor-pointer transition-opacity hover:opacity-60">About</div>
+          <div onClick={() => navigate('/client-access')} role="button" tabIndex={0} className="cursor-pointer transition-opacity hover:opacity-60">Client Deliverables</div>
+        </div>
         <div className="justify-self-end" />
       </header>
 
