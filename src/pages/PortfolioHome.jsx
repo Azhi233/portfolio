@@ -1,6 +1,9 @@
-import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useI18n } from '../context/I18nContext.jsx';
+
+const navigateTo = (path) => {
+  window.location.assign(path);
+};
 
 const FEATURED_PROJECTS = [
   {
@@ -30,14 +33,14 @@ function PortfolioHome() {
     <main className="relative min-h-screen bg-[#FAF9F6] text-[#151515]">
       <header className="fixed left-0 right-0 top-0 z-[200] px-6 py-5 md:px-12 pointer-events-none">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center pointer-events-auto">
-          <a href="/" className="justify-self-start text-[11px] uppercase tracking-[0.32em] text-[#151515]/70 transition-opacity hover:opacity-60 cursor-pointer">
+          <button type="button" onClick={() => navigateTo('/')} className="justify-self-start text-[11px] uppercase tracking-[0.32em] text-[#151515]/70 transition-opacity hover:opacity-60 cursor-pointer">
             {t('home.brand', 'YOUR NAME')}
-          </a>
+          </button>
           <nav className="justify-self-center flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.24em] text-[#151515]/55 md:gap-x-6">
-            <a href="/images" className="transition-opacity hover:opacity-60 cursor-pointer">Images</a>
-            <a href="/videos" className="transition-opacity hover:opacity-60 cursor-pointer">Videos</a>
-            <a href="/about" className="transition-opacity hover:opacity-60 cursor-pointer">About</a>
-            <a href="/client-access" className="transition-opacity hover:opacity-60 cursor-pointer">Client Deliverables</a>
+            <button type="button" onClick={() => navigateTo('/images')} className="transition-opacity hover:opacity-60 cursor-pointer">Images</button>
+            <button type="button" onClick={() => navigateTo('/videos')} className="transition-opacity hover:opacity-60 cursor-pointer">Videos</button>
+            <button type="button" onClick={() => navigateTo('/about')} className="transition-opacity hover:opacity-60 cursor-pointer">About</button>
+            <button type="button" onClick={() => navigateTo('/client-access')} className="transition-opacity hover:opacity-60 cursor-pointer">Client Deliverables</button>
           </nav>
           <div className="justify-self-end" />
         </div>
