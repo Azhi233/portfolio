@@ -88,7 +88,7 @@ function PortfolioHome() {
                   <h3 className="text-xl font-light tracking-[0.08em] md:text-2xl">{project.title}</h3>
                   <p className="mt-2 text-sm leading-7 text-[#151515]/55">{project.subtitle}</p>
                 </div>
-              </Link>
+              </a>
             ))}
           </div>
         </div>
