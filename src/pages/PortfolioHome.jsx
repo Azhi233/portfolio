@@ -27,22 +27,24 @@ function PortfolioHome() {
   const { t } = useI18n();
 
   return (
-    <main className="min-h-screen bg-[#FAF9F6] text-[#151515]">
-      <header className="fixed left-0 right-0 top-0 z-[120] grid grid-cols-[1fr_auto_1fr] items-center px-6 py-5 md:px-12">
-        <a href="/" className="justify-self-start text-[11px] uppercase tracking-[0.32em] text-[#151515]/70 transition-opacity hover:opacity-60 cursor-pointer">
-          {t('home.brand', 'YOUR NAME')}
-        </a>
-        <nav className="justify-self-center flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.24em] text-[#151515]/55 md:gap-x-6">
-          <a href="/images" className="transition-opacity hover:opacity-60 cursor-pointer">Images</a>
-          <a href="/videos" className="transition-opacity hover:opacity-60 cursor-pointer">Videos</a>
-          <a href="/about" className="transition-opacity hover:opacity-60 cursor-pointer">About</a>
-          <a href="/client-access" className="transition-opacity hover:opacity-60 cursor-pointer">Client Deliverables</a>
-        </nav>
-        <div className="justify-self-end" />
+    <main className="relative min-h-screen bg-[#FAF9F6] text-[#151515]">
+      <header className="fixed left-0 right-0 top-0 z-[200] px-6 py-5 md:px-12 pointer-events-none">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center pointer-events-auto">
+          <a href="/" className="justify-self-start text-[11px] uppercase tracking-[0.32em] text-[#151515]/70 transition-opacity hover:opacity-60 cursor-pointer">
+            {t('home.brand', 'YOUR NAME')}
+          </a>
+          <nav className="justify-self-center flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.24em] text-[#151515]/55 md:gap-x-6">
+            <a href="/images" className="transition-opacity hover:opacity-60 cursor-pointer">Images</a>
+            <a href="/videos" className="transition-opacity hover:opacity-60 cursor-pointer">Videos</a>
+            <a href="/about" className="transition-opacity hover:opacity-60 cursor-pointer">About</a>
+            <a href="/client-access" className="transition-opacity hover:opacity-60 cursor-pointer">Client Deliverables</a>
+          </nav>
+          <div className="justify-self-end" />
+        </div>
       </header>
 
       <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 pt-24 md:px-12">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(0,0,0,0.06),transparent_42%),linear-gradient(180deg,rgba(250,249,246,0.2),rgba(250,249,246,1))]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(0,0,0,0.06),transparent_42%),linear-gradient(180deg,rgba(250,249,246,0.2),rgba(250,249,246,1))]" />
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
