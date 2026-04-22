@@ -1,158 +1,148 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { fetchJson } from '../utils/api.js';
+import { useNavigate } from 'react-router-dom';
+import { fetchJson, storeAccessToken } from '../utils/api.js';
 import { useI18n } from '../context/I18nContext.jsx';
-import Card from '../components/Card.jsx';
 import Button from '../components/Button.jsx';
 import Input from '../components/Input.jsx';
-import Select from '../components/Select.jsx';
-import Badge from '../components/Badge.jsx';
-import NavBar from '../components/NavBar.jsx';
+import MinimalTopNav from '../components/MinimalTopNav.jsx';
+
+const ACCESS_PASSWORD_KEY = 'client-access-password';
+
+function normalizePassword(value) {
+  return String(value || '').trim();
+}
+
+function readStoredPassword() {
+  try {
+    return window.sessionStorage.getItem(ACCESS_PASSWORD_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function storePassword(password) {
+  try {
+    window.sessionStorage.setItem(ACCESS_PASSWORD_KEY, password);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function AccessIcon() {
+  return (
+    <div className="flex h-[42px] w-[42px] items-center justify-center rounded-full border border-[#d9d4cc] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+      <div className="relative flex h-5 w-5 items-end justify-center">
+        <span className="absolute top-0 h-2.5 w-2.5 rounded-[3px] border-[1.5px] border-[#b3ada5] border-b-0 bg-transparent" />
+        <span className="absolute top-[5px] h-[11px] w-[11px] rounded-[3px] bg-[#c9c2b8] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]" />
+        <span className="absolute top-[10px] h-1 w-[3px] rounded-full bg-[#a59f97]" />
+      </div>
+    </div>
+  );
+}
 
 function ClientAccessPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const [state, setState] = useState({ clientCode: '', password: '', error: '', loading: false, matches: [], selectedProjectId: '', submitted: false });
+  const [password, setPassword] = useState(readStoredPassword());
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [hint, setHint] = useState('');
 
-  const hasMultiple = Array.isArray(state.matches) && state.matches.length > 1;
-  const hasMatches = Array.isArray(state.matches) && state.matches.length > 0;
+  const canUseStored = useMemo(() => Boolean(readStoredPassword()), []);
 
-  const selectedProject = useMemo(
-    () => state.matches.find((item) => item.id === state.selectedProjectId) || state.matches[0] || null,
-    [state.matches, state.selectedProjectId],
-  );
+  const unlock = async (nextPassword = password) => {
+    const normalizedPassword = normalizePassword(nextPassword);
+    if (!normalizedPassword) {
+      setError(t('clientAccess.passwordRequired', 'Please enter a password.'));
+      setHint('');
+      return;
+    }
 
-  const submit = async (event) => {
-    event.preventDefault();
-    setState((prev) => ({ ...prev, loading: true, error: '' }));
+    setLoading(true);
+    setError('');
+    setHint('');
+
     try {
-      const projects = await fetchJson('/projects');
-      const matches = (Array.isArray(projects) ? projects : []).filter((project) => {
-        const normalizedClientCode = String(state.clientCode || '').trim().toLowerCase();
-        const normalizedPassword = String(state.password || '').trim();
-        const projectClientCode = String(project.clientCode || '').trim().toLowerCase();
-        const projectPasswords = [project.accessPassword, project.password, project.deliveryPin].map((value) => String(value || '').trim()).filter(Boolean);
-
-        const codeOk = !normalizedClientCode || projectClientCode === normalizedClientCode;
-        const passwordOk = projectPasswords.length === 0 || projectPasswords.includes(normalizedPassword);
-
-        return codeOk && passwordOk && Boolean(project.accessPassword || project.password || project.deliveryPin || project.clientCode);
+      const response = await fetchJson('/client-access/unlock', {
+        method: 'POST',
+        data: { password: normalizedPassword },
       });
 
-      if (matches.length === 0) {
-        setState((prev) => ({ ...prev, loading: false, submitted: true, error: t('clientAccess.noMatches', 'No private projects matched the provided credentials.'), matches: [] }));
+      const matchedProject = response?.project || null;
+      const token = response?.token || '';
+
+      if (!matchedProject || !token) {
+        setHint(t('clientAccess.noMatchHint', 'Sorry, this password didn’t open anything. Please check it and try again.'));
         return;
       }
 
-      setState((prev) => ({
-        ...prev,
-        loading: false,
-        submitted: true,
-        error: '',
-        matches,
-        selectedProjectId: matches[0].id,
-      }));
-    } catch (error) {
-      setState((prev) => ({ ...prev, loading: false, submitted: true, error: error.message || t('clientAccess.validationFailed', 'Failed to validate access.') }));
+      storePassword(normalizedPassword);
+      storeAccessToken(token);
+      setPassword(normalizedPassword);
+      navigate(`/projects/${matchedProject.id}`, {
+        state: {
+          clientAccessToken: token,
+          clientAccessPassword: normalizedPassword,
+        },
+      });
+    } catch (err) {
+      setError(err.message || t('clientAccess.failed', 'Failed to unlock private work.'));
+    } finally {
+      setLoading(false);
     }
   };
 
-  const openProject = () => {
-    if (!selectedProject) return;
-    navigate(`/project/${selectedProject.id}`);
-  };
-
   return (
-    <main className="min-h-screen bg-[#050507] px-6 pb-16 pt-20 text-zinc-100 md:px-10">
-      <NavBar />
-      <section className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <Card className="p-8 md:p-10">
-          <p className="text-[11px] tracking-[0.28em] text-zinc-500">{t('clientAccess.eyebrow', 'CLIENT ACCESS')}</p>
-          <h1 className="mt-4 font-serif text-4xl tracking-[0.08em] text-white md:text-6xl">{t('clientAccess.title', 'Private Project Vault')}</h1>
-          <p className="mt-5 max-w-3xl text-sm leading-7 text-zinc-300 md:text-base">
-            {t('clientAccess.subtitle', '输入客户代码与访问密码，快速定位可访问的私密项目。这里会成为客户查看交付内容、私密文件和项目详情的统一入口。')}
-          </p>
+    <main className="min-h-screen bg-[#f7f6f1] text-[#161616]">
+      <MinimalTopNav />
 
-          <form onSubmit={submit} className="mt-8 grid gap-4">
-            <label className="block">
-              <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">{t('clientAccess.fields.clientCode', 'Client Code')}</p>
-              <Input
-                value={state.clientCode}
-                onChange={(event) => setState((prev) => ({ ...prev, clientCode: event.target.value, error: '' }))}
-                placeholder={t('clientAccess.placeholders.clientCode', 'e.g. ACME-0426')}
-              />
-            </label>
+      <section className="flex min-h-screen items-center justify-center px-6 pt-10 md:pt-0">
+        <div className="flex w-full max-w-[210px] flex-col items-center gap-3">
+          <AccessIcon />
 
-            <label className="block">
-              <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">{t('clientAccess.fields.password', 'Password')}</p>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              unlock(password);
+            }}
+            className="w-full"
+          >
+            <div className="flex h-[40px] items-center border border-[#e6e0d8] bg-white px-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
               <Input
                 type="password"
-                value={state.password}
-                onChange={(event) => setState((prev) => ({ ...prev, password: event.target.value, error: '' }))}
-                placeholder={t('clientAccess.placeholders.password', 'Enter access password')}
+                value={password}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  setError('');
+                  setHint('');
+                }}
+                placeholder={t('clientAccess.placeholders.password', 'Password')}
+                className="h-full flex-1 border-0 bg-transparent px-0 text-[11px] tracking-[0.01em] text-[#161616] shadow-none placeholder:text-[#d0cac0] focus:ring-0"
               />
-            </label>
-
-            {state.error ? <p className="rounded-2xl border border-rose-300/30 bg-rose-300/10 px-4 py-3 text-sm text-rose-200">{state.error}</p> : null}
-            {state.submitted && !state.error ? <p className="text-xs tracking-[0.16em] text-emerald-300">{t('clientAccess.validated', 'Access validated successfully.')}</p> : null}
-
-            <div className="flex flex-wrap gap-3">
-              <Button type="submit" variant="success">
-                {state.loading ? t('clientAccess.checking', 'CHECKING...') : t('clientAccess.enter', 'ENTER PRIVATE PROJECT')}
+              <Button
+                type="submit"
+                variant="subtle"
+                className="ml-1.5 h-auto border-0 bg-transparent p-0 text-[24px] leading-none text-[#ded8cf] hover:bg-transparent hover:text-[#cdc6bb]"
+              >
+                →
               </Button>
-              <Link to="/" className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs tracking-[0.16em] text-zinc-200">
-                {t('clientAccess.backHome', 'BACK HOME')}
-              </Link>
             </div>
           </form>
-        </Card>
 
-        <Card className="p-8 md:p-10">
-          <p className="text-[11px] tracking-[0.28em] text-zinc-500">{t('clientAccess.results', 'RESULTS')}</p>
-          <h2 className="mt-4 text-2xl tracking-[0.08em] text-white">{t('clientAccess.matches', '匹配到的私密项目')}</h2>
-
-          {!state.submitted ? <p className="mt-5 text-sm leading-7 text-zinc-400">{t('clientAccess.waiting', '提交后会在这里显示可访问的项目结果。')}</p> : null}
-
-          {hasMatches ? <p className="mt-4 text-sm text-zinc-500">{t('clientAccess.found', 'Found')} {state.matches.length} {t('clientAccess.accessible', 'accessible project(s).')}</p> : null}
-          {state.submitted && !hasMatches && !state.error ? <p className="mt-4 text-sm text-zinc-500">{t('clientAccess.noResults', 'No projects were returned.')}</p> : null}
-
-          {hasMultiple ? (
-            <div className="mt-6 grid gap-3">
-              <p className="text-xs tracking-[0.16em] text-zinc-400">{t('clientAccess.chooseProject', '检测到多个可访问项目，请选择：')}</p>
-              <Select value={state.selectedProjectId} onChange={(event) => setState((prev) => ({ ...prev, selectedProjectId: event.target.value }))}>
-                {state.matches.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.title}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          ) : null}
-
-          {selectedProject ? (
-            <div className="mt-6 space-y-4">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[11px] tracking-[0.2em] text-zinc-500">{t('clientAccess.project', 'PROJECT')}</p>
-                    <h3 className="mt-2 text-lg tracking-[0.08em] text-white">{selectedProject.title}</h3>
-                  </div>
-                  <Badge tone={selectedProject.isVisible === false ? 'danger' : 'success'}>{selectedProject.isVisible === false ? t('clientAccess.hidden', 'HIDDEN') : t('clientAccess.live', 'LIVE')}</Badge>
-                </div>
-                <p className="mt-3 text-sm leading-7 text-zinc-300">{selectedProject.description || t('clientAccess.noDescription', 'No description yet.')}</p>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <Button type="button" variant="primary" onClick={openProject}>
-                  {t('clientAccess.openSelected', 'OPEN SELECTED PROJECT')}
-                </Button>
-                <Button type="button" variant="subtle" onClick={() => navigate(`/project/${selectedProject.id}`)}>
-                  {t('clientAccess.viewDetails', 'VIEW DETAILS')}
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </Card>
+          <div className="min-h-[26px] text-center">
+            {error ? <p className="text-[10px] leading-5 text-rose-600">{error}</p> : null}
+            {!error && hint ? <p className="text-[10px] leading-5 text-[#161616]/50">{hint}</p> : null}
+            {!error && !hint && canUseStored ? (
+              <button
+                type="button"
+                onClick={() => unlock(readStoredPassword())}
+                className="mt-1 text-[11px] uppercase tracking-[0.12em] text-[#161616]/28 transition hover:text-[#161616]/45"
+              >
+                {t('clientAccess.useStored', 'Use last password')}
+              </button>
+            ) : null}
+          </div>
+        </div>
       </section>
     </main>
   );
