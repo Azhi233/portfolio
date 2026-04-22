@@ -7,6 +7,7 @@ import Button from '../components/Button.jsx';
 import Input from '../components/Input.jsx';
 import Select from '../components/Select.jsx';
 import Badge from '../components/Badge.jsx';
+import NavBar from '../components/NavBar.jsx';
 
 function ClientAccessPage() {
   const { t } = useI18n();
@@ -62,7 +63,8 @@ function ClientAccessPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#050507] px-6 pb-16 pt-24 text-zinc-100 md:px-10">
+    <main className="min-h-screen bg-[#050507] px-6 pb-16 pt-20 text-zinc-100 md:px-10">
+      <NavBar />
       <section className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <Card className="p-8 md:p-10">
           <p className="text-[11px] tracking-[0.28em] text-zinc-500">{t('clientAccess.eyebrow', 'CLIENT ACCESS')}</p>

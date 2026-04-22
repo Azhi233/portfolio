@@ -1,6 +1,4 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
-import LanguageSwitcher from './components/LanguageSwitcher.jsx';
-import { useI18n } from './context/I18nContext.jsx';
 import Home from './pages/Home.jsx';
 import PortfolioHome from './pages/PortfolioHome.jsx';
 import VideosPage from './pages/VideosPage.jsx';
@@ -15,35 +13,24 @@ import StudioNotesPage from './pages/StudioNotesPage.jsx';
 import ConsoleHome from './pages/console/index.jsx';
 
 function App() {
-  const { locale, switchLocale } = useI18n();
-
   return (
-    <>
-      <div className="fixed right-3 top-3 z-[220] md:right-6 md:top-6">
-        <LanguageSwitcher
-          locale={locale}
-          onChange={switchLocale}
-          className="rounded-full border border-white/25 bg-black/55 px-1 text-xs tracking-[0.14em] text-zinc-100 shadow-[0_8px_30px_rgba(0,0,0,0.45)] backdrop-blur-md"
-        />
-      </div>
-
-      <Routes>
-        <Route path="/" element={<PortfolioHome />} />
-        <Route path="/videos" element={<VideosPage />} />
-        <Route path="/oldvideos" element={<OldVideoPage />} />
-        <Route path="/projects" element={<Navigate to="/videos" replace />} />
-        <Route path="/images" element={<ImagesPage />} />
-        <Route path="/oldImages" element={<OldImagesPage />} />
-        <Route path="/images/:id" element={<ImageDetailPage />} />
-        <Route path="/videos/:id" element={<VideoDetailPage />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/client-access" element={<ClientAccessPage />} />
-        <Route path="/studio-notes" element={<StudioNotesPage />} />
-        <Route path="/oldhome" element={<Home />} />
-        <Route path="/console" element={<ConsoleHome />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </>
+    <Routes>
+      <Route path="/" element={<PortfolioHome />} />
+      <Route path="/videos" element={<VideosPage />} />
+      <Route path="/oldvideos" element={<OldVideoPage />} />
+      <Route path="/projects" element={<Navigate to="/videos" replace />} />
+      <Route path="/images" element={<ImagesPage />} />
+      <Route path="/oldImages" element={<OldImagesPage />} />
+      <Route path="/images/:id" element={<ImageDetailPage />} />
+      <Route path="/videos/:id" element={<VideoDetailPage />} />
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/oldabout" element={<Navigate to="/about" replace />} />
+      <Route path="/client-access" element={<ClientAccessPage />} />
+      <Route path="/studio-notes" element={<StudioNotesPage />} />
+      <Route path="/oldhome" element={<Home />} />
+      <Route path="/console" element={<ConsoleHome />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 

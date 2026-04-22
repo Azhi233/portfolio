@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchJson } from '../utils/api.js';
 import { useI18n } from '../context/I18nContext.jsx';
+import MinimalTopNav from '../components/MinimalTopNav.jsx';
 
 function parseImageSources(rawValue) {
   const source = Array.isArray(rawValue) ? rawValue : String(rawValue || '').split('\n');
@@ -84,7 +85,8 @@ function ImagesPage() {
   const images = useMemo(() => state.images, [state.images]);
 
   return (
-    <main className="min-h-screen bg-[#FAF9F6] px-6 pb-20 pt-24 text-[#151515] md:px-12">
+    <main className="min-h-screen bg-[#FAF9F6] px-6 pb-20 pt-20 text-[#151515] md:px-12">
+      <MinimalTopNav />
       <section className="mx-auto w-full max-w-7xl">
         <header className="mx-auto max-w-4xl text-center">
           <p className="text-[11px] uppercase tracking-[0.34em] text-[#151515]/45">Selected Images</p>

@@ -1,6 +1,7 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useI18n } from '../context/I18nContext.jsx';
+import MinimalTopNav from '../components/MinimalTopNav.jsx';
 
 const FEATURED_PROJECTS = [
   {
@@ -25,31 +26,10 @@ const FEATURED_PROJECTS = [
 
 function PortfolioHome() {
   const { t } = useI18n();
-  const navigate = useNavigate();
 
   return (
     <main className="relative min-h-screen bg-[#FAF9F6] text-[#151515]">
-      <header className="fixed left-0 right-0 top-0 z-[80] bg-[#FAF9F6]/90 px-6 py-4 backdrop-blur-[1px] md:px-12">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            className="text-[10px] uppercase tracking-[0.34em] text-[#B28F6B] transition-opacity hover:opacity-75 md:text-[11px]"
-          >
-            MDWANG
-          </button>
-
-          <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[10px] uppercase tracking-[0.24em] text-[#151515]/40 md:gap-x-6 md:text-[11px]">
-            <button type="button" onClick={() => navigate('/images')} className="transition-opacity hover:opacity-70">Images</button>
-            <button type="button" onClick={() => navigate('/videos')} className="transition-opacity hover:opacity-70">Videos</button>
-            <button type="button" onClick={() => navigate('/studio-notes')} className="transition-opacity hover:opacity-70">Studio Notes</button>
-            <button type="button" onClick={() => navigate('/about')} className="transition-opacity hover:opacity-70">About</button>
-            <button type="button" onClick={() => navigate('/client-access')} className="transition-opacity hover:opacity-70">Client Deliverables</button>
-          </nav>
-
-          <div className="w-[72px]" />
-        </div>
-      </header>
+      <MinimalTopNav />
 
       <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 pt-10 md:px-12 md:pt-14">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(0,0,0,0.06),transparent_42%),linear-gradient(180deg,rgba(250,249,246,0.2),rgba(250,249,246,1))]" />

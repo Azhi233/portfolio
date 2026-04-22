@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { fetchJson } from '../../utils/api.js';
 import { useI18n } from '../../context/I18nContext.jsx';
 import MediaPreview from '../../components/MediaPreview.jsx';
+import MinimalTopNav from '../../components/MinimalTopNav.jsx';
 import { normalizeVideoItem, placeholderVideos, pickHeroLayout } from './videoPageData.js';
 
 function HeroMedia({ video, ratioMap, onDetectRatio }) {
@@ -101,15 +102,8 @@ export default function PeterBelangerVideoPage() {
 
   return (
     <main className="min-h-screen bg-[#f7f4ee] text-[#4f463f]">
+      <MinimalTopNav />
       <section className={`mx-auto max-w-[1440px] ${topSpacing}`}>
-        <div className="mb-6 flex items-center justify-between border-b border-[#d8c9b3]/35 pb-4 text-[10px] uppercase tracking-[0.3em] text-[#b58e62]">
-          <Link to="/" className="transition-opacity hover:opacity-60">Home</Link>
-          <div className="flex items-center gap-4">
-            <Link to="/images" className="transition-opacity hover:opacity-60">Images</Link>
-            <Link to="/videos" className="transition-opacity hover:opacity-60">Videos</Link>
-          </div>
-        </div>
-
         <header className="flex flex-col gap-4 border-b border-[#d8c9b3]/55 pb-8 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-[10px] uppercase tracking-[0.42em] text-[#b58e62]">Peter Belanger inspired</p>
