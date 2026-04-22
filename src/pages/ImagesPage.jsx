@@ -97,64 +97,56 @@ function ImagesPage() {
   const images = useMemo(() => state.images, [state.images]);
 
   return (
-    <main className="min-h-screen bg-[#FAF9F6] px-6 pb-20 pt-20 text-[#151515] md:px-12">
+    <main className="min-h-screen bg-[#f6f1e8] text-[#2a221c]">
       <MinimalTopNav />
-      <section className="mx-auto w-full max-w-7xl">
-        <header className="mx-auto max-w-4xl text-center">
-          <p className="text-[11px] uppercase tracking-[0.34em] text-[#151515]/45">Selected Images</p>
-          <h1 className="mt-4 text-4xl font-light tracking-[0.08em] md:text-6xl">{t('images.title', 'Images')}</h1>
-          <p className="mx-auto mt-5 max-w-3xl text-sm leading-7 text-[#151515]/55 md:text-base">
-            {t('images.subtitle', 'A quiet public wall of curated still images.')}
-          </p>
+      <section className="mx-auto w-full max-w-[1500px] px-5 pb-24 pt-20 md:px-10 lg:px-14">
+        <header className="mx-auto flex max-w-6xl flex-col gap-8 border-b border-[#cdbda9]/50 pb-10 pt-2 md:flex-row md:items-end md:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-[10px] uppercase tracking-[0.42em] text-[#8f7a66]">Selected Images</p>
+            <h1 className="mt-4 text-5xl font-light tracking-[0.04em] text-[#6f5947] md:text-7xl">{t('images.title', 'Images')}</h1>
+            <p className="mt-5 max-w-2xl text-sm leading-7 text-[#6e6158] md:text-base">
+              {t('images.subtitle', 'A quiet public wall of curated still images.')}
+            </p>
+          </div>
+          <div className="flex items-center gap-5 text-[10px] uppercase tracking-[0.3em] text-[#8f7a66]">
+            <span>{state.loading ? 'Loading…' : `${images.length} selected`}</span>
+            <button
+              type="button"
+              onClick={load}
+              className="transition-opacity hover:opacity-60"
+            >
+              Refresh
+            </button>
+          </div>
         </header>
 
-        <div className="mt-12 flex items-center justify-between gap-4 border-b border-black/5 pb-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-[#151515]/45">
-            {state.loading ? 'Loading…' : `${images.length} selected`}
-          </p>
-          <button
-            type="button"
-            onClick={load}
-            className="text-[11px] uppercase tracking-[0.2em] text-[#151515]/55 transition-opacity hover:opacity-60"
-          >
-            Refresh
-          </button>
-        </div>
-
-        {state.error ? <p className="mt-6 text-sm text-red-500">{state.error}</p> : null}
+        {state.error ? <p className="mt-6 text-sm text-red-700">{state.error}</p> : null}
 
         {!state.loading && images.length === 0 ? (
-          <div className="mt-12 rounded-[1.5rem] border border-dashed border-black/10 bg-white px-6 py-10 text-center text-sm text-[#151515]/55">
+          <div className="mt-12 rounded-[1.75rem] border border-dashed border-[#cdbda9]/55 bg-white/65 px-6 py-12 text-center text-sm leading-7 text-[#6e6158] shadow-[0_18px_55px_rgba(148,120,82,0.07)]">
             还没有可显示的图片。当前页面会优先读取 <code className="rounded bg-black/5 px-1.5 py-0.5">/projects?page=images&kind=images</code>，并基于后台配置的 <code className="rounded bg-black/5 px-1.5 py-0.5">displayOn</code> / <code className="rounded bg-black/5 px-1.5 py-0.5">mediaType</code> 过滤。如果没有，再读取后台保存的 <code className="rounded bg-black/5 px-1.5 py-0.5">assets</code>、<code className="rounded bg-black/5 px-1.5 py-0.5">featuredImagesText</code>、<code className="rounded bg-black/5 px-1.5 py-0.5">uploadedImagesText</code> 或 <code className="rounded bg-black/5 px-1.5 py-0.5">imagesText</code>。
           </div>
         ) : null}
 
-        <div className="mt-12 grid grid-flow-dense gap-6 md:grid-cols-12 md:gap-7">
-          {images.map((image, index) => {
-            const span = image.size === 'wide' ? 'md:col-span-7' : 'md:col-span-5';
-            const heightClass = image.size === 'wide' ? 'aspect-[16/11]' : 'aspect-[4/5]';
-            return (
-              <article key={image.id} className={`${span} group overflow-hidden bg-white`}>
-                <div className={`${heightClass} overflow-hidden bg-black/5`}>
-                  <img
-                    src={image.url}
-                    alt={image.title}
-                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
-                    loading="lazy"
-                  />
+        <div className="mt-12 columns-1 gap-5 md:columns-2 xl:columns-3 2xl:columns-4 [column-fill:_balance]">
+          {images.map((image, index) => (
+            <article key={image.id} className="mb-5 break-inside-avoid overflow-hidden rounded-[1.5rem] border border-[#d8cab6]/45 bg-white/70 shadow-[0_16px_45px_rgba(148,120,82,0.08)] backdrop-blur-[1px] transition-transform duration-500 hover:-translate-y-0.5 hover:shadow-[0_24px_70px_rgba(148,120,82,0.12)]">
+              <div className="overflow-hidden bg-[#f2ece3]">
+                <img
+                  src={image.url}
+                  alt={image.title}
+                  className="h-auto w-full object-contain"
+                  loading="lazy"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-3 px-4 py-3.5">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.28em] text-[#8f7a66]">Image {String(index + 1).padStart(2, '0')}</p>
+                  <h2 className="mt-1 text-sm font-light tracking-[0.16em] text-[#3b2f27]">{image.title}</h2>
                 </div>
-                <div className="flex items-center justify-between py-3">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.26em] text-[#151515]/38">Image {String(index + 1).padStart(2, '0')}</p>
-                    <h2 className="mt-1 text-sm font-light tracking-[0.16em]">{image.title}</h2>
-                  </div>
-                  <Link to="/oldhome" className="text-[10px] uppercase tracking-[0.22em] text-[#151515]/35 transition-opacity hover:opacity-60">
-                    Old Home
-                  </Link>
-                </div>
-              </article>
-            );
-          })}
+              </div>
+            </article>
+          ))}
         </div>
       </section>
     </main>
