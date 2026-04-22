@@ -82,6 +82,22 @@ function ProjectsPanel({ filterMode = 'all' }) {
   );
 
   const liveCount = state.items.filter((item) => item.isVisible !== false).length;
+  const filtered = useMemo(() => {
+    const query = String(state.query || '').trim().toLowerCase();
+    const items = state.items.filter((item) => {
+      const matchesQuery =
+        !query ||
+        [item.title, item.description, item.category, item.clientAgency, item.clientCode]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(query));
+      const matchesCategory = state.category === 'all' || String(item.category || 'Uncategorized') === state.category;
+      return matchesQuery && matchesCategory;
+    });
+
+    if (filterMode === 'photos') return items.filter((item) => !String(item.videoUrl || item.mainVideoUrl || '').trim());
+    if (filterMode === 'videos') return items.filter((item) => Boolean(String(item.videoUrl || item.mainVideoUrl || '').trim()));
+    return items;
+  }, [state.items, state.query, state.category, filterMode]);
 
   const updateFeaturedOrder = async (nextOrder) => {
     setState((prev) => ({ ...prev, saving: true, error: '', notice: '' }));
