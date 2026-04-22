@@ -7,7 +7,7 @@ import MinimalTopNav from '../components/MinimalTopNav.jsx';
 function normalizeImageItem(item, index) {
   if (!item) return null;
 
-  const url = String(item.coverUrl || item.thumbnailUrl || item.mainImageUrl || item.imageUrl || item.url || '').trim();
+  const url = String(item.coverUrl || item.coverAssetUrl || item.thumbnailUrl || item.mainImageUrl || item.imageUrl || item.url || '').trim();
   if (!url) return null;
 
   return {
@@ -67,7 +67,7 @@ function ImagesPage() {
         ? projectsResponse
         : projectsResponse?.items || projectsResponse?.projects || projectsResponse?.data || [];
       const imagesFromProjects = projectItems
-        .filter((item) => Array.isArray(item?.displayOn) ? item.displayOn.includes('images') : true)
+        .filter((item) => (Array.isArray(item?.displayOn) && item.displayOn.length ? item.displayOn.includes('images') : true))
         .map(normalizeImageItem)
         .filter(Boolean);
       const imagesFromConfig = parseImageSources(config?.featuredImagesText || config?.uploadedImagesText || config?.imagesText);
