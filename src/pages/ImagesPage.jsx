@@ -3,66 +3,77 @@ import { Link } from 'react-router-dom';
 import { fetchJson } from '../utils/api.js';
 import { useI18n } from '../context/I18nContext.jsx';
 
-const PLACEHOLDER_IMAGES = [
-  {
-    id: 'placeholder-1',
-    url: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1400&q=80',
-    title: 'Study 01',
-    size: 'tall',
-  },
-  {
-    id: 'placeholder-2',
-    url: 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=1400&q=80',
-    title: 'Study 02',
-    size: 'wide',
-  },
-  {
-    id: 'placeholder-3',
-    url: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1400&q=80',
-    title: 'Study 03',
-    size: 'tall',
-  },
-  {
-    id: 'placeholder-4',
-    url: 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=1400&q=80',
-    title: 'Study 04',
-    size: 'wide',
-  },
-  {
-    id: 'placeholder-5',
-    url: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=1400&q=80',
-    title: 'Study 05',
-    size: 'tall',
-  },
-  {
-    id: 'placeholder-6',
-    url: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1400&q=80',
-    title: 'Study 06',
-    size: 'wide',
-  },
-];
+function parseImageSources(rawValue) {
+  const source = Array.isArray(rawValue) ? rawValue : String(rawValue || '').split('\n');
+  return source
+    .map((item) => String(item).trim())
+    .filter(Boolean)
+    .map((value, index) => {
+      try {
+        const parsed = JSON.parse(value);
+        const url = typeof parsed === 'string' ? parsed : parsed?.url || parsed?.src || parsed?.imageUrl || '';
+        if (url) {
+          return {
+            id: parsed?.id || `featured-${index + 1}`,
+            url,
+            title: parsed?.title || parsed?.name || `Featured ${String(index + 1).padStart(2, '0')}`,
+            size: parsed?.size === 'wide' ? 'wide' : 'tall',
+          };
+        }
+      } catch {
+        // 继续按普通字符串处理
+      }
+
+      const [url, title, size] = value.split('|').map((part) => part.trim());
+      return {
+        id: `featured-${index + 1}`,
+        url,
+        title: title || `Featured ${String(index + 1).padStart(2, '0')}`,
+        size: size === 'wide' ? 'wide' : 'tall',
+      };
+    })
+    .filter((image) => Boolean(image.url));
+}
+
+function normalizeAssetImage(asset, index) {
+  const url = String(asset?.url || asset?.coverUrl || asset?.thumbnailUrl || '').trim();
+  if (!url) return null;
+  return {
+    id: asset?.id || `asset-${index + 1}`,
+    url,
+    title: asset?.title || asset?.name || asset?.meta?.title || `Uploaded ${String(index + 1).padStart(2, '0')}`,
+    size: asset?.size === 'wide' || asset?.type === 'video' ? 'wide' : index % 3 === 1 ? 'wide' : 'tall',
+  };
+}
 
 function ImagesPage() {
   const { t } = useI18n();
-  const [state, setState] = useState({ loading: true, error: '', images: [], usingFallback: false });
+  const [state, setState] = useState({ loading: true, error: '', images: [] });
 
   const load = async () => {
     setState((prev) => ({ ...prev, loading: true, error: '' }));
     try {
-      const config = await fetchJson('/config');
-      const raw = String(config?.featuredImagesText || '')
-        .split('\n')
-        .map((item) => item.trim())
-        .filter(Boolean);
-      const images = raw.map((url, index) => ({
-        id: `featured-${index + 1}`,
-        url,
-        title: `Featured ${index + 1}`,
-        size: index % 3 === 1 ? 'wide' : 'tall',
+      const [config, mediaAssets] = await Promise.all([
+        fetchJson('/config').catch(() => ({})),
+        fetchJson('/media-assets').catch(() => []),
+      ]);
+
+      const imagesFromConfig = parseImageSources(config?.featuredImagesText || config?.uploadedImagesText || config?.imagesText);
+      const imagesFromConfigAssets = Array.isArray(config?.assets) ? config.assets.map(normalizeAssetImage).filter(Boolean) : [];
+      const imagesFromMediaAssets = Array.isArray(mediaAssets)
+        ? mediaAssets.filter((asset) => String(asset?.kind || 'image') === 'image').map(normalizeAssetImage).filter(Boolean)
+        : [];
+
+      const images = imagesFromConfigAssets.length ? imagesFromConfigAssets : imagesFromMediaAssets.length ? imagesFromMediaAssets : imagesFromConfig;
+
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: '',
+        images,
       }));
-      setState((prev) => ({ ...prev, loading: false, error: '', images: images.length ? images : PLACEHOLDER_IMAGES, usingFallback: images.length === 0 }));
-    } catch {
-      setState((prev) => ({ ...prev, loading: false, error: '', images: PLACEHOLDER_IMAGES, usingFallback: true }));
+    } catch (error) {
+      setState((prev) => ({ ...prev, loading: false, error: error?.message || 'Failed to load images.', images: [] }));
     }
   };
 
@@ -85,7 +96,7 @@ function ImagesPage() {
 
         <div className="mt-12 flex items-center justify-between gap-4 border-b border-black/5 pb-4">
           <p className="text-xs uppercase tracking-[0.2em] text-[#151515]/45">
-            {images.length} selected {state.usingFallback ? '· preview' : ''}
+            {state.loading ? 'Loading…' : `${images.length} selected`}
           </p>
           <button
             type="button"
@@ -95,6 +106,14 @@ function ImagesPage() {
             Refresh
           </button>
         </div>
+
+        {state.error ? <p className="mt-6 text-sm text-red-500">{state.error}</p> : null}
+
+        {!state.loading && images.length === 0 ? (
+          <div className="mt-12 rounded-[1.5rem] border border-dashed border-black/10 bg-white px-6 py-10 text-center text-sm text-[#151515]/55">
+            还没有可显示的图片。当前页面会优先读取后台保存的 <code className="rounded bg-black/5 px-1.5 py-0.5">assets</code>，如果没有，再读取 <code className="rounded bg-black/5 px-1.5 py-0.5">featuredImagesText</code>、<code className="rounded bg-black/5 px-1.5 py-0.5">uploadedImagesText</code> 或 <code className="rounded bg-black/5 px-1.5 py-0.5">imagesText</code>。每行一张，支持 <code className="rounded bg-black/5 px-1.5 py-0.5">url|标题|wide</code> 或 JSON 格式。
+          </div>
+        ) : null}
 
         <div className="mt-12 grid grid-flow-dense gap-6 md:grid-cols-12 md:gap-7">
           {images.map((image, index) => {
@@ -107,6 +126,7 @@ function ImagesPage() {
                     src={image.url}
                     alt={image.title}
                     className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                    loading="lazy"
                   />
                 </div>
                 <div className="flex items-center justify-between py-3">

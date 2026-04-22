@@ -1,7 +1,6 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useI18n } from '../context/I18nContext.jsx';
-
 
 const FEATURED_PROJECTS = [
   {
@@ -26,17 +25,29 @@ const FEATURED_PROJECTS = [
 
 function PortfolioHome() {
   const { t } = useI18n();
+  const navigate = useNavigate();
 
   return (
     <main className="relative min-h-screen bg-[#FAF9F6] text-[#151515]">
-      <header className="relative z-50 border-b border-black/5 bg-[#FAF9F6]">
-        <div className="mx-auto flex max-w-7xl items-center justify-center px-6 py-4 md:px-12">
-          <nav className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-[11px] uppercase tracking-[0.34em] text-[#151515]/55 md:gap-x-12">
-            <a href="/images" className="pointer-events-auto cursor-pointer rounded-full px-2 py-2 transition-colors hover:text-[#151515] hover:bg-black/5">Images</a>
-            <a href="/videos" className="pointer-events-auto cursor-pointer rounded-full px-2 py-2 transition-colors hover:text-[#151515] hover:bg-black/5">Videos</a>
-            <a href="/about" className="pointer-events-auto cursor-pointer rounded-full px-2 py-2 transition-colors hover:text-[#151515] hover:bg-black/5">About</a>
-            <a href="/client-access" className="pointer-events-auto cursor-pointer rounded-full px-2 py-2 transition-colors hover:text-[#151515] hover:bg-black/5">Client Deliverables</a>
+      <header className="fixed left-0 right-0 top-0 z-[80] bg-[#FAF9F6]/90 px-6 py-4 backdrop-blur-[1px] md:px-12">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="text-[10px] uppercase tracking-[0.34em] text-[#B28F6B] transition-opacity hover:opacity-75 md:text-[11px]"
+          >
+            MDWANG
+          </button>
+
+          <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[10px] uppercase tracking-[0.24em] text-[#151515]/40 md:gap-x-6 md:text-[11px]">
+            <button type="button" onClick={() => navigate('/images')} className="transition-opacity hover:opacity-70">Images</button>
+            <button type="button" onClick={() => navigate('/videos')} className="transition-opacity hover:opacity-70">Videos</button>
+            <button type="button" onClick={() => navigate('/studio-notes')} className="transition-opacity hover:opacity-70">Studio Notes</button>
+            <button type="button" onClick={() => navigate('/about')} className="transition-opacity hover:opacity-70">About</button>
+            <button type="button" onClick={() => navigate('/client-access')} className="transition-opacity hover:opacity-70">Client Deliverables</button>
           </nav>
+
+          <div className="w-[72px]" />
         </div>
       </header>
 

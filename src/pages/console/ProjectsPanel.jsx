@@ -22,6 +22,7 @@ const blankDraft = {
   accessPassword: '',
   isVisible: true,
   isFeatured: false,
+  featuredOrder: '',
   visibility: 'Public',
   mainVideoUrl: '',
   videoUrl: '',
@@ -72,16 +73,42 @@ function ProjectsPanel({ filterMode = 'all' }) {
 
   const categories = useMemo(() => ['all', ...new Set(state.items.map((item) => item.category || 'Uncategorized'))], [state.items]);
 
-  const filtered = useMemo(() => {
-    const query = state.query.trim().toLowerCase();
-    return state.items.filter((item) => {
-      const matchesCategory = state.category === 'all' || (item.category || 'Uncategorized') === state.category;
-      const matchesQuery = !query || `${item.title || ''} ${item.description || ''}`.toLowerCase().includes(query);
-      return matchesCategory && matchesQuery;
-    });
-  }, [state.category, state.items, state.query]);
+  const featuredVideos = useMemo(
+    () =>
+      state.items
+        .filter((item) => item.isFeatured)
+        .sort((a, b) => Number(a.featuredOrder || 999) - Number(b.featuredOrder || 999)),
+    [state.items],
+  );
 
   const liveCount = state.items.filter((item) => item.isVisible !== false).length;
+
+  const updateFeaturedOrder = async (nextOrder) => {
+    setState((prev) => ({ ...prev, saving: true, error: '', notice: '' }));
+    try {
+      await Promise.all(
+        nextOrder.map((projectId, index) => {
+          const project = state.items.find((item) => String(item.id) === String(projectId));
+          if (!project) return Promise.resolve();
+          const payload = new FormData();
+          Object.entries(project).forEach(([key, value]) => {
+            if (value === undefined || value === null) return;
+            if (key === 'btsMedia' || key === 'privateFiles' || key === 'outlineTags') {
+              payload.append(key, JSON.stringify(Array.isArray(value) ? value : []));
+              return;
+            }
+            if (typeof value === 'object') return;
+            payload.append(key, String(key === 'featuredOrder' ? index + 1 : value));
+          });
+          return fetchJson(`/projects/${project.id}`, { method: 'PUT', data: payload });
+        }),
+      );
+      await load();
+      setState((prev) => ({ ...prev, saving: false, notice: 'Featured order updated.', noticeTone: 'success' }));
+    } catch (error) {
+      setState((prev) => ({ ...prev, saving: false, error: error.message || 'Failed to reorder featured videos.' }));
+    }
+  };
 
   const openNew = () =>
     setState((prev) => ({
@@ -292,6 +319,39 @@ function ProjectsPanel({ filterMode = 'all' }) {
     }
   };
 
+  const toggleFeatured = async (project) => {
+    if (!project?.id) return;
+    setState((prev) => ({ ...prev, saving: true, error: '', notice: '' }));
+    try {
+      const isEnabling = !project.isFeatured;
+      const nextFeaturedOrder = isEnabling ? featuredVideos.length + 1 : '';
+      const payload = new FormData();
+      Object.entries({ ...project, isFeatured: isEnabling, featuredOrder: nextFeaturedOrder }).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        if (key === 'btsMedia' || key === 'privateFiles' || key === 'outlineTags') {
+          payload.append(key, JSON.stringify(Array.isArray(value) ? value : []));
+          return;
+        }
+        if (typeof value === 'object') return;
+        payload.append(key, String(value));
+      });
+
+      await fetchJson(`/projects/${project.id}`, {
+        method: 'PUT',
+        data: payload,
+      });
+      await load();
+      setState((prev) => ({
+        ...prev,
+        saving: false,
+        notice: project.isFeatured ? 'Removed from featured videos.' : 'Added to featured videos.',
+        noticeTone: 'success',
+      }));
+    } catch (error) {
+      setState((prev) => ({ ...prev, saving: false, error: error.message || 'Failed to update featured status.' }));
+    }
+  };
+
   return (
     <>
       <Card className="p-6 md:p-8">
@@ -304,6 +364,52 @@ function ProjectsPanel({ filterMode = 'all' }) {
           <Badge tone="success">{liveCount} LIVE</Badge>
         </div>
 
+        <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] tracking-[0.2em] text-zinc-500">FEATURED VIDEOS</p>
+              <h3 className="mt-2 text-lg tracking-[0.08em] text-white">精选视频模块</h3>
+              <p className="mt-2 text-sm leading-7 text-zinc-400">在这里把视频单独加入精选区，视频页会优先展示这些条目。</p>
+            </div>
+            <Button type="button" variant="subtle" onClick={load}>REFRESH</Button>
+          </div>
+
+          {featuredVideos.length > 1 ? (
+            <div className="mt-4 grid gap-3">
+              {featuredVideos.map((item, index) => (
+                <div
+                  key={item.id}
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', String(item.id));
+                  }}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    const sourceId = event.dataTransfer.getData('text/plain');
+                    if (!sourceId || sourceId === String(item.id)) return;
+                    const currentIds = featuredVideos.map((video) => String(video.id));
+                    const sourceIndex = currentIds.indexOf(String(sourceId));
+                    const targetIndex = currentIds.indexOf(String(item.id));
+                    if (sourceIndex === -1 || targetIndex === -1) return;
+                    const nextIds = [...currentIds];
+                    const [moved] = nextIds.splice(sourceIndex, 1);
+                    nextIds.splice(targetIndex, 0, moved);
+                    updateFeaturedOrder(nextIds);
+                  }}
+                  className="flex cursor-grab items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 active:cursor-grabbing"
+                >
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">#{index + 1}</p>
+                    <p className="mt-1 text-sm tracking-[0.08em] text-white">{item.title}</p>
+                  </div>
+                  <Badge tone="warning">DRAG</Badge>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button type="button" variant="primary" onClick={openNew}>
@@ -330,12 +436,18 @@ function ProjectsPanel({ filterMode = 'all' }) {
                   <p className="text-[11px] tracking-[0.18em] text-zinc-500">{item.category || 'Uncategorized'}</p>
                   <p className="mt-2 text-sm tracking-[0.08em] text-white">{item.title}</p>
                 </div>
-                <Badge tone={item.isVisible === false ? 'danger' : 'success'}>{item.isVisible === false ? 'HIDDEN' : 'LIVE'}</Badge>
+                <div className="flex flex-col items-end gap-2">
+                  <Badge tone={item.isVisible === false ? 'danger' : 'success'}>{item.isVisible === false ? 'HIDDEN' : 'LIVE'}</Badge>
+                  {item.isFeatured ? <Badge tone="warning">FEATURED</Badge> : null}
+                </div>
               </div>
               <p className="mt-2 text-sm leading-7 text-zinc-400">{item.description || 'No description yet.'}</p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <Button type="button" variant="subtle" onClick={() => openEdit(item)}>
                   EDIT
+                </Button>
+                <Button type="button" variant={item.isFeatured ? 'subtle' : 'primary'} onClick={() => toggleFeatured(item)}>
+                  {item.isFeatured ? 'REMOVE FROM FEATURED' : 'ADD TO FEATURED'}
                 </Button>
                 <Button type="button" variant="danger" onClick={() => remove(item.id)}>
                   DELETE
@@ -419,6 +531,11 @@ function ProjectsPanel({ filterMode = 'all' }) {
                   onPick={(file) => uploadAsset(file, 'video')}
                 />
               </div>
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                <p className="text-[11px] tracking-[0.2em] text-zinc-500">FEATURED VIDEOS</p>
+                <h4 className="mt-2 text-base tracking-[0.08em] text-white">精选视频模块</h4>
+                <p className="mt-2 text-sm leading-7 text-zinc-400">在这里直接管理“精选视频”状态。勾选后，视频页会优先展示这些视频。</p>
+              </div>
               <ProjectMediaUploader
                 items={Array.isArray(state.draft.btsMedia) ? state.draft.btsMedia : []}
                 uploading={state.uploading}
@@ -482,6 +599,14 @@ function ProjectsPanel({ filterMode = 'all' }) {
               <label className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/20 p-4">
                 <input type="checkbox" checked={Boolean(state.draft.isFeatured)} onChange={(event) => setState((prev) => ({ ...prev, draft: { ...prev.draft, isFeatured: event.target.checked } }))} />
                 <span className="text-sm text-zinc-300">Featured</span>
+              </label>
+              <label className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/20 p-4 md:col-span-2">
+                <span className="text-sm text-zinc-300">Featured Order</span>
+                <Input
+                  value={state.draft.featuredOrder || ''}
+                  onChange={(event) => setState((prev) => ({ ...prev, draft: { ...prev.draft, featuredOrder: event.target.value } }))}
+                  placeholder="Auto"
+                />
               </label>
             </section>
           </div>
