@@ -12,6 +12,22 @@ function parseJsonField(value, fallback = []) {
   }
 }
 
+function parseDisplayOn(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim().toLowerCase()).filter(Boolean);
+  return String(value || '')
+    .split(',')
+    .map((item) => String(item).trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function normalizeKind(project = {}) {
+  return String(project.kind || project.mediaType || (project.mainVideoUrl || project.videoUrl ? 'video' : 'image')).toLowerCase();
+}
+
+function normalizeMediaType(project = {}) {
+  return String(project.mediaType || project.kind || (project.mainVideoUrl || project.videoUrl ? 'video' : 'image')).toLowerCase();
+}
+
 function inferVideoAspectRatio(value = '') {
   const text = String(value || '').toLowerCase();
   if (!text) return null;
@@ -30,21 +46,51 @@ function attachVideoAspectRatio(project) {
 export function createProjectsController({ uploadProjectImage, notifyConfigChanged }) {
   async function getProjects(req, res) {
     const kind = String(req.query.kind || 'all').toLowerCase();
+    const page = String(req.query.page || '').toLowerCase();
     const items = await listProjects();
-    const filtered = kind === 'photos'
-      ? items.filter((item) => !(item.mainVideoUrl || item.videoUrl))
-      : kind === 'videos'
-        ? items.filter((item) => Boolean(item.mainVideoUrl || item.videoUrl))
-        : items;
+    const normalized = items.map((item) => ({
+      ...attachVideoAspectRatio(item),
+      kind: normalizeKind(item),
+      mediaType: normalizeMediaType(item),
+      displayOn: parseDisplayOn(item.displayOn || item.content_json?.displayOn || item.content_json?.display_on),
+      visibility: String(item.visibility || 'public').toLowerCase(),
+    }));
 
-    const grouped = filtered.reduce((acc, item) => {
+    const pageFiltered = page
+      ? normalized.filter((item) => (Array.isArray(item.displayOn) && item.displayOn.length ? item.displayOn.includes(page) : true))
+      : normalized;
+
+    const privateGroupIds = new Map();
+    pageFiltered.forEach((item) => {
+      if (item.visibility === 'private' && item.accessPassword) {
+        const key = String(item.accessPassword).trim();
+        if (!privateGroupIds.has(key)) privateGroupIds.set(key, []);
+        privateGroupIds.get(key).push(item);
+      }
+    });
+
+    const filtered = kind === 'photos' || kind === 'images'
+      ? pageFiltered.filter((item) => item.mediaType === 'image' && item.visibility !== 'private')
+      : kind === 'videos'
+        ? pageFiltered.filter((item) => item.mediaType === 'video' && item.visibility !== 'private')
+        : kind === 'private'
+          ? pageFiltered.filter((item) => item.visibility === 'private')
+          : pageFiltered.filter((item) => item.visibility !== 'private');
+
+    const withPrivateGroups = filtered.map((item) => {
+      if (item.visibility !== 'private' || !item.accessPassword) return item;
+      const group = privateGroupIds.get(String(item.accessPassword).trim()) || [];
+      return { ...item, privateGroupSize: group.length };
+    });
+
+    const grouped = withPrivateGroups.reduce((acc, item) => {
       const groupName = String(item.category || 'Uncategorized').trim() || 'Uncategorized';
       if (!acc[groupName]) acc[groupName] = [];
       acc[groupName].push(item);
       return acc;
     }, {});
 
-    res.json({ ok: true, data: filtered.map(attachVideoAspectRatio), groups: grouped });
+    res.json({ ok: true, data: withPrivateGroups, groups: grouped });
   }
 
   async function getProject(req, res) {
@@ -63,6 +109,9 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
       let coverAssetObjectName = String(project.coverAssetObjectName || '').trim();
       let coverAssetFileType = String(project.coverAssetFileType || '').trim();
       let coverAssetIsPrivate = project.coverAssetIsPrivate === 'true' || project.coverAssetIsPrivate === true;
+      const kind = String(project.kind || (project.mainVideoUrl || project.videoUrl ? 'video' : 'image')).toLowerCase();
+      const mediaType = String(project.mediaType || (project.mainVideoUrl || project.videoUrl ? 'video' : 'image')).toLowerCase();
+      const displayOn = parseDisplayOn(project.displayOn || project.display_on);
 
       if (req.file) {
         const uploadResult = await uploadProjectImage(req.file);
@@ -100,7 +149,10 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
         credits: String(project.credits || '').trim() || null,
         isVisible: project.isVisible === 'false' || project.isVisible === false ? 0 : 1,
         publishStatus: String(project.publishStatus || 'Draft').trim(),
-        visibility: String(project.visibility || project.publishStatus || 'Draft').trim(),
+        visibility: String(project.visibility || project.publishStatus || 'public').trim().toLowerCase(),
+        kind,
+        mediaType,
+        displayOn,
         accessPassword: String(project.accessPassword || project.password || '').trim() || null,
         deliveryPin: String(project.deliveryPin || '').trim() || null,
         status: String(project.status || 'draft').trim(),
@@ -115,7 +167,7 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
 
       const created = await createProject(payload);
       notifyConfigChanged('projects');
-      return res.status(201).json({ ok: true, data: created });
+      return res.status(201).json({ ok: true, data: attachVideoAspectRatio(created) });
     } catch (error) {
       console.error('Failed to create project:', error);
       return res.status(500).json({ ok: false, message: 'Failed to create project.', detail: error?.message || '' });
@@ -182,6 +234,9 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
         coverAssetFileType,
         coverAssetIsPrivate,
         thumbnailUrl: String(rest.thumbnailUrl || coverUrl || '').trim() || coverUrl,
+        kind,
+        mediaType,
+        displayOn,
       });
 
       if (shouldCleanOldCover || hasPrivateFilesUpdate || hasBtsMediaUpdate) {
@@ -252,7 +307,7 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
       }
 
       notifyConfigChanged('projects');
-      return res.json({ ok: true, data: updated });
+      return res.json({ ok: true, data: attachVideoAspectRatio(updated) });
     } catch (error) {
       console.error('Failed to update project:', error);
       return res.status(500).json({ ok: false, message: 'Failed to update project.', detail: error?.message || '' });

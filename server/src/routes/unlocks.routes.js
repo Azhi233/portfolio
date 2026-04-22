@@ -7,6 +7,7 @@ export function createUnlocksRouter(controller) {
   router.post('/project-unlocks', controller.postProjectUnlocks);
   router.get('/delivery-unlocks', controller.getDeliveryUnlocks);
   router.post('/delivery-unlocks', controller.postDeliveryUnlocks);
+  router.post('/client-access/unlock', controller.postClientAccessUnlock);
 
   return router;
 }

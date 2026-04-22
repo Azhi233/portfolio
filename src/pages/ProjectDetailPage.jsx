@@ -25,7 +25,8 @@ function ProjectDetailPage() {
 
   const privateAccessCode = String(project?.accessPassword || project?.password || project?.deliveryPin || '').trim();
   const token = String(location.state?.clientAccessToken || '').trim();
-  const hasPrivateAccess = Boolean(privateAccessCode);
+  const isPrivateProject = String(project?.visibility || '').toLowerCase() === 'private';
+  const hasPrivateAccess = Boolean(privateAccessCode || isPrivateProject);
   const canViewPrivate = !hasPrivateAccess || Boolean(token && showAccess);
 
   useEffect(() => {
@@ -68,7 +69,9 @@ function ProjectDetailPage() {
 
   const gallery = useMemo(() => {
     if (!canViewPrivate) return [];
-    return (Array.isArray(project?.btsMedia) ? project.btsMedia : []).filter((item) => item?.url);
+    const mediaItems = Array.isArray(project?.btsMedia) ? project.btsMedia : [];
+    const privateItems = Array.isArray(project?.privateFiles) ? project.privateFiles : [];
+    return [...mediaItems, ...privateItems].filter((item) => item?.url);
   }, [canViewPrivate, project]);
   const files = useMemo(() => {
     if (!canViewPrivate) return [];
@@ -76,7 +79,7 @@ function ProjectDetailPage() {
   }, [canViewPrivate, project]);
   const galleryImages = gallery.filter((item) => !String(item.kind || '').startsWith('video'));
   const galleryVideos = gallery.filter((item) => String(item.kind || '').startsWith('video'));
-  const heroMedia = project?.mainVideoUrl || project?.videoUrl || project?.coverUrl || '';
+  const heroMedia = project?.mainVideoUrl || project?.videoUrl || project?.coverUrl || project?.thumbnailUrl || '';
 
   if (loading) {
     return (
@@ -160,6 +163,10 @@ function ProjectDetailPage() {
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                   <p className="text-[11px] tracking-[0.2em] text-zinc-500">{t('projectDetail.privateAccess', 'PRIVATE ACCESS')}</p>
                   <p className="mt-2">{hasPrivateAccess ? t('projectDetail.protected', 'Protected') : t('projectDetail.open', 'Open')}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="text-[11px] tracking-[0.2em] text-zinc-500">DISPLAY ON</p>
+                  <p className="mt-2">{Array.isArray(project.displayOn) && project.displayOn.length ? project.displayOn.join(', ') : 'home'}</p>
                 </div>
               </div>
             </div>

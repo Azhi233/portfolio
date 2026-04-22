@@ -51,6 +51,11 @@ function normalizeProject(project) {
 
   const password = String(project?.password || project?.accessPassword || '');
   const deliveryPin = String(project?.deliveryPin || '');
+  const kind = String(project?.kind || project?.mediaType || (project?.mainVideoUrl || project?.videoUrl ? 'video' : 'image')).toLowerCase();
+  const mediaType = String(project?.mediaType || project?.kind || (project?.mainVideoUrl || project?.videoUrl ? 'video' : 'image')).toLowerCase();
+  const displayOn = Array.isArray(project?.displayOn)
+    ? project.displayOn.map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+    : String(project?.displayOn || '').split(',').map((value) => String(value || '').trim().toLowerCase()).filter(Boolean);
   const outlineTags = Array.isArray(project?.outlineTags)
     ? project.outlineTags.map((tag) => String(tag || '').trim()).filter(Boolean)
     : [];
@@ -99,6 +104,9 @@ function normalizeProject(project) {
     deliveryPin,
     status,
     password,
+    kind,
+    mediaType,
+    displayOn,
     privateFiles: normalizePrivateFiles(project?.privateFiles),
     outlineTags,
   };

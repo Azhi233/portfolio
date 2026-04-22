@@ -1,4 +1,4 @@
-import { readDeliveryUnlocks, readProjectUnlocks, upsertDeliveryUnlock, upsertProjectUnlock } from '../db.js';
+import { readDeliveryUnlocks, readProjectUnlocks, upsertDeliveryUnlock, upsertProjectUnlock, readProjects } from '../db.js';
 
 export function createUnlocksController() {
   async function getProjectUnlocks(_req, res) {
@@ -29,5 +29,24 @@ export function createUnlocksController() {
     return res.json({ ok: true, data: await readDeliveryUnlocks() });
   }
 
-  return { getProjectUnlocks, postProjectUnlocks, getDeliveryUnlocks, postDeliveryUnlocks };
+  async function postClientAccessUnlock(req, res) {
+    const password = String(req.body?.password || '').trim();
+    if (!password) {
+      return res.status(400).json({ ok: false, message: 'password is required.' });
+    }
+
+    const projects = await readProjects();
+    const match = projects.find((project) => {
+      const nextPassword = String(project.accessPassword || project.password || '').trim();
+      return project.visibility === 'private' && nextPassword === password;
+    });
+
+    if (!match) {
+      return res.status(404).json({ ok: false, message: 'No matching private project found.' });
+    }
+
+    return res.json({ ok: true, data: { project: match, token: `private-${match.id}-${Date.now()}` } });
+  }
+
+  return { getProjectUnlocks, postProjectUnlocks, getDeliveryUnlocks, postDeliveryUnlocks, postClientAccessUnlock };
 }

@@ -1,4 +1,6 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { fetchJson } from '../utils/api.js';
 import { useI18n } from '../context/I18nContext.jsx';
 import Button from '../components/Button.jsx';
 import Card from '../components/Card.jsx';
@@ -7,6 +9,25 @@ import Badge from '../components/Badge.jsx';
 function Home() {
   const { locale, t } = useI18n();
   const highlights = t('home.highlights', {});
+  const [items, setItems] = useState([]);
+
+  useEffect(() => {
+    fetchJson('/projects?page=home')
+      .then((response) => {
+        const list = Array.isArray(response) ? response : response?.items || response?.projects || response?.data || [];
+        setItems(list.filter((item) => item?.isFeatured && String(item?.visibility || '').toLowerCase() !== 'private' && Array.isArray(item?.displayOn) ? item.displayOn.includes('home') : true));
+      })
+      .catch(() => setItems([]));
+  }, []);
+
+  const featuredImages = useMemo(
+    () => items.filter((item) => String(item.mediaType || item.kind || '').toLowerCase() === 'image'),
+    [items],
+  );
+  const featuredVideos = useMemo(
+    () => items.filter((item) => String(item.mediaType || item.kind || '').toLowerCase() === 'video'),
+    [items],
+  );
 
   return (
     <main className="min-h-screen bg-[#050507] px-6 pb-20 pt-20 text-zinc-100 md:px-10 md:pt-24">
@@ -75,6 +96,39 @@ function Home() {
             </Card>
           ))}
         </div>
+
+        <section className="grid gap-4 md:grid-cols-2">
+          <Card className="p-6 md:p-8">
+            <p className="text-[11px] tracking-[0.22em] text-zinc-500">FEATURED IMAGES</p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              {featuredImages.length ? featuredImages.map((item) => (
+                <Link key={item.id} to="/images" className="group overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+                  <div className="aspect-[4/5] overflow-hidden bg-black/30">
+                    <img src={item.coverUrl || item.thumbnailUrl || item.url} alt={item.title} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
+                  </div>
+                  <div className="p-4">
+                    <p className="text-sm tracking-[0.08em] text-white">{item.title}</p>
+                  </div>
+                </Link>
+              )) : <p className="text-sm text-zinc-400">No featured images yet.</p>}
+            </div>
+          </Card>
+          <Card className="p-6 md:p-8">
+            <p className="text-[11px] tracking-[0.22em] text-zinc-500">FEATURED VIDEOS</p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              {featuredVideos.length ? featuredVideos.map((item) => (
+                <Link key={item.id} to="/videos" className="group overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+                  <div className="aspect-video overflow-hidden bg-black/30">
+                    <img src={item.coverUrl || item.thumbnailUrl || item.videoUrl || item.mainVideoUrl} alt={item.title} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
+                  </div>
+                  <div className="p-4">
+                    <p className="text-sm tracking-[0.08em] text-white">{item.title}</p>
+                  </div>
+                </Link>
+              )) : <p className="text-sm text-zinc-400">No featured videos yet.</p>}
+            </div>
+          </Card>
+        </section>
 
         <Card className="p-8 md:p-10">
           <div className="flex flex-wrap items-center justify-between gap-4">

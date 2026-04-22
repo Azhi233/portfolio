@@ -5,7 +5,6 @@ import Card from '../../components/Card.jsx';
 import Badge from '../../components/Badge.jsx';
 import Button from '../../components/Button.jsx';
 import Input from '../../components/Input.jsx';
-import Select from '../../components/Select.jsx';
 import Modal from '../../components/Modal.jsx';
 import Textarea from '../../components/Textarea.jsx';
 import ProjectMediaUploader from '../../components/ProjectMediaUploader.jsx';
@@ -23,7 +22,10 @@ const blankDraft = {
   isVisible: true,
   isFeatured: false,
   featuredOrder: '',
-  visibility: 'Public',
+  visibility: 'public',
+  kind: 'image',
+  mediaType: 'image',
+  displayOn: ['home', 'images'],
   mainVideoUrl: '',
   videoUrl: '',
   btsMedia: [],
@@ -71,12 +73,11 @@ function ProjectsPanel({ filterMode = 'all' }) {
     load();
   }, [filterMode]);
 
-  const categories = useMemo(() => ['all', ...new Set(state.items.map((item) => item.category || 'Uncategorized'))], [state.items]);
 
   const featuredVideos = useMemo(
     () =>
       state.items
-        .filter((item) => item.isFeatured)
+        .filter((item) => item.isFeatured && String(item.mediaType || item.kind || '').toLowerCase() === 'video')
         .sort((a, b) => Number(a.featuredOrder || 999) - Number(b.featuredOrder || 999)),
     [state.items],
   );
@@ -94,8 +95,15 @@ function ProjectsPanel({ filterMode = 'all' }) {
       return matchesQuery && matchesCategory;
     });
 
-    if (filterMode === 'photos') return items.filter((item) => !String(item.videoUrl || item.mainVideoUrl || '').trim());
-    if (filterMode === 'videos') return items.filter((item) => Boolean(String(item.videoUrl || item.mainVideoUrl || '').trim()));
+    const classify = (item) => String(item.mediaType || item.kind || (item.videoUrl || item.mainVideoUrl ? 'video' : 'image')).toLowerCase();
+
+    if (filterMode === 'photos' || filterMode === 'images') {
+      return items.filter((item) => classify(item) === 'image');
+    }
+    if (filterMode === 'videos') {
+      return items.filter((item) => classify(item) === 'video');
+    }
+    if (filterMode === 'private') return items.filter((item) => String(item.visibility || '').toLowerCase() === 'private');
     return items;
   }, [state.items, state.query, state.category, filterMode]);
 
@@ -157,7 +165,7 @@ function ProjectsPanel({ filterMode = 'all' }) {
 
       Object.entries(draft).forEach(([key, value]) => {
         if (value === undefined || value === null) return;
-        if (key === 'btsMedia' || key === 'privateFiles' || key === 'outlineTags') {
+        if (key === 'btsMedia' || key === 'privateFiles' || key === 'outlineTags' || key === 'displayOn') {
           formData.append(key, JSON.stringify(Array.isArray(value) ? value : []));
           return;
         }
@@ -180,7 +188,7 @@ function ProjectsPanel({ filterMode = 'all' }) {
     if (!file) return;
     setState((prev) => ({ ...prev, uploading: true, uploadProgress: 0, uploadStage: 'preparing', uploadStatus: `Preparing ${file.name}...`, error: '', uploadFailureStage: '', notice: '' }));
     try {
-      const { result, file: uploadFileObject, converted } = await uploadMediaAsset(file, {
+      const { result, file: uploadFileObject } = await uploadMediaAsset(file, {
         type: 'public',
         onProgress: ({ stage, progress, fileName }) => {
           setState((prev) => ({
@@ -229,6 +237,9 @@ function ProjectsPanel({ filterMode = 'all' }) {
         draft: {
           ...prev.draft,
           title: meta.title ? String(meta.title).trim() || prev.draft.title : prev.draft.title,
+          kind: kind === 'video' ? 'video' : 'image',
+          mediaType: kind === 'video' ? 'video' : 'image',
+          displayOn: kind === 'video' ? ['home', 'videos'] : ['home', 'images'],
           coverUrl: kind === 'image' ? result?.url : prev.draft.coverUrl,
           coverAssetUrl: kind === 'image' ? result?.url : prev.draft.coverAssetUrl,
           coverAssetObjectName: result?.objectName || prev.draft.coverAssetObjectName,
@@ -292,12 +303,15 @@ function ProjectsPanel({ filterMode = 'all' }) {
         },
       });
 
+      const resolvedKind = meta.kind || kind || (uploadFileObject.type.startsWith('video/') ? 'video' : 'image');
       const nextItem = {
         id: crypto.randomUUID(),
         title: String(meta.title || uploadFileObject.name || '').trim(),
         label: String(meta.title || uploadFileObject.name || '').trim(),
         url: result?.url,
-        kind: meta.kind || kind || (uploadFileObject.type.startsWith('video/') ? 'video' : 'image'),
+        kind: resolvedKind,
+        mediaType: resolvedKind,
+        displayOn: resolvedKind === 'video' ? ['home', 'videos'] : ['home', 'images'],
       };
       setState((prev) => ({
         ...prev,
@@ -548,9 +562,32 @@ function ProjectsPanel({ filterMode = 'all' }) {
                 />
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <p className="text-[11px] tracking-[0.2em] text-zinc-500">FEATURED VIDEOS</p>
-                <h4 className="mt-2 text-base tracking-[0.08em] text-white">精选视频模块</h4>
-                <p className="mt-2 text-sm leading-7 text-zinc-400">在这里直接管理“精选视频”状态。勾选后，视频页会优先展示这些视频。</p>
+                <p className="text-[11px] tracking-[0.2em] text-zinc-500">DISPLAY TARGET</p>
+                <h4 className="mt-2 text-base tracking-[0.08em] text-white">仅在以下页面显示</h4>
+                <p className="mt-2 text-sm leading-7 text-zinc-400">勾选后，这条作品只会在选中的页面出现。</p>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {[
+                    ['home', '主页'],
+                    ['images', '图片页'],
+                    ['videos', '视频页'],
+                    ['private', '私密页'],
+                  ].map(([value, label]) => (
+                    <label key={value} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-200">
+                      <input
+                        type="checkbox"
+                        checked={Array.isArray(state.draft.displayOn) ? state.draft.displayOn.includes(value) : false}
+                        onChange={(event) => {
+                          setState((prev) => {
+                            const current = Array.isArray(prev.draft.displayOn) ? prev.draft.displayOn : [];
+                            const next = event.target.checked ? [...new Set([...current, value])] : current.filter((item) => item !== value);
+                            return { ...prev, draft: { ...prev.draft, displayOn: next } };
+                          });
+                        }}
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <ProjectMediaUploader
                 items={Array.isArray(state.draft.btsMedia) ? state.draft.btsMedia : []}
@@ -585,24 +622,58 @@ function ProjectsPanel({ filterMode = 'all' }) {
             </section>
 
             <section className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                <p className="text-[11px] tracking-[0.2em] text-zinc-500">TYPE</p>
+                <h3 className="mt-2 text-lg tracking-[0.08em] text-white">Content Type</h3>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {[
+                    ['image', '图片'],
+                    ['video', '视频'],
+                    ['private', '私密'],
+                  ].map(([value, label]) => (
+                    <label key={value} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-200">
+                      <input
+                        type="radio"
+                        name="kind"
+                        checked={String(state.draft.kind || state.draft.mediaType) === value}
+                        onChange={() => setState((prev) => ({ ...prev, draft: { ...prev.draft, kind: value, mediaType: value === 'private' ? prev.draft.mediaType || 'image' : value } }))}
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {[
+                    ['home', '主页'],
+                    ['images', '图片页'],
+                    ['videos', '视频页'],
+                    ['private', '私密页'],
+                  ].map(([value, label]) => (
+                    <label key={value} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-200">
+                      <input
+                        type="checkbox"
+                        checked={Array.isArray(state.draft.displayOn) ? state.draft.displayOn.includes(value) : false}
+                        onChange={(event) => {
+                          setState((prev) => {
+                            const current = Array.isArray(prev.draft.displayOn) ? prev.draft.displayOn : [];
+                            const next = event.target.checked ? [...new Set([...current, value])] : current.filter((item) => item !== value);
+                            return { ...prev, draft: { ...prev.draft, displayOn: next } };
+                          });
+                        }}
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
                 <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Cover Preview</p>
                 <div className="aspect-[4/3] overflow-hidden rounded-xl border border-white/10 bg-black/40">
                   <MediaPreview src={state.draft.coverUrl} title="Cover preview" />
                 </div>
-                <label className="mt-3 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 p-3 text-sm text-zinc-200">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(state.draft.isGroupCover)}
-                    onChange={(event) => setState((prev) => ({ ...prev, draft: { ...prev.draft, isGroupCover: event.target.checked } }))}
-                  />
-                  <span>Mark this video as the group cover</span>
-                </label>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Video Preview</p>
-                <div className="aspect-video overflow-hidden rounded-xl border border-white/10 bg-black/40">
-                  <MediaPreview src={state.draft.mainVideoUrl} title="Video preview" />
+                <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-3 text-sm text-zinc-200">
+                  <p>当前内容类型：{state.draft.kind || 'image'}</p>
+                  <p className="mt-1 text-zinc-400">勾选页面后，只有这些页面会显示该作品。</p>
                 </div>
               </div>
             </section>

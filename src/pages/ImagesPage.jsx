@@ -4,6 +4,20 @@ import { fetchJson } from '../utils/api.js';
 import { useI18n } from '../context/I18nContext.jsx';
 import MinimalTopNav from '../components/MinimalTopNav.jsx';
 
+function normalizeImageItem(item, index) {
+  if (!item) return null;
+
+  const url = String(item.coverUrl || item.thumbnailUrl || item.mainImageUrl || item.imageUrl || item.url || '').trim();
+  if (!url) return null;
+
+  return {
+    id: item.id || `image-${index + 1}`,
+    url,
+    title: item.title || item.name || item.subtitle || `Image ${String(index + 1).padStart(2, '0')}`,
+    size: item.size === 'wide' || item.aspectRatio === '16:9' ? 'wide' : index % 3 === 1 ? 'wide' : 'tall',
+  };
+}
+
 function parseImageSources(rawValue) {
   const source = Array.isArray(rawValue) ? rawValue : String(rawValue || '').split('\n');
   return source
@@ -22,7 +36,7 @@ function parseImageSources(rawValue) {
           };
         }
       } catch {
-        // 继续按普通字符串处理
+        // continue with plain string parsing
       }
 
       const [url, title, size] = value.split('|').map((part) => part.trim());
@@ -36,17 +50,6 @@ function parseImageSources(rawValue) {
     .filter((image) => Boolean(image.url));
 }
 
-function normalizeAssetImage(asset, index) {
-  const url = String(asset?.url || asset?.coverUrl || asset?.thumbnailUrl || '').trim();
-  if (!url) return null;
-  return {
-    id: asset?.id || `asset-${index + 1}`,
-    url,
-    title: asset?.title || asset?.name || asset?.meta?.title || `Uploaded ${String(index + 1).padStart(2, '0')}`,
-    size: asset?.size === 'wide' || asset?.type === 'video' ? 'wide' : index % 3 === 1 ? 'wide' : 'tall',
-  };
-}
-
 function ImagesPage() {
   const { t } = useI18n();
   const [state, setState] = useState({ loading: true, error: '', images: [] });
@@ -54,18 +57,27 @@ function ImagesPage() {
   const load = async () => {
     setState((prev) => ({ ...prev, loading: true, error: '' }));
     try {
-      const [config, mediaAssets] = await Promise.all([
+      const [projectsResponse, config, mediaAssets] = await Promise.all([
+        fetchJson('/projects?page=images&kind=images').catch(() => []),
         fetchJson('/config').catch(() => ({})),
         fetchJson('/media-assets').catch(() => []),
       ]);
 
+      const projectItems = Array.isArray(projectsResponse)
+        ? projectsResponse
+        : projectsResponse?.items || projectsResponse?.projects || projectsResponse?.data || [];
+      const imagesFromProjects = projectItems
+        .filter((item) => Array.isArray(item?.displayOn) ? item.displayOn.includes('images') : true)
+        .map(normalizeImageItem)
+        .filter(Boolean);
       const imagesFromConfig = parseImageSources(config?.featuredImagesText || config?.uploadedImagesText || config?.imagesText);
-      const imagesFromConfigAssets = Array.isArray(config?.assets) ? config.assets.map(normalizeAssetImage).filter(Boolean) : [];
+      const imagesFromConfigAssets = Array.isArray(config?.assets) ? config.assets.map(normalizeImageItem).filter(Boolean) : [];
       const imagesFromMediaAssets = Array.isArray(mediaAssets)
-        ? mediaAssets.filter((asset) => String(asset?.kind || 'image') === 'image').map(normalizeAssetImage).filter(Boolean)
+        ? mediaAssets.filter((asset) => String(asset?.kind || 'image') === 'image').map(normalizeImageItem).filter(Boolean)
         : [];
 
-      const images = imagesFromConfigAssets.length ? imagesFromConfigAssets : imagesFromMediaAssets.length ? imagesFromMediaAssets : imagesFromConfig;
+      const images =
+        imagesFromProjects.length ? imagesFromProjects : imagesFromConfigAssets.length ? imagesFromConfigAssets : imagesFromMediaAssets.length ? imagesFromMediaAssets : imagesFromConfig;
 
       setState((prev) => ({
         ...prev,
@@ -113,7 +125,7 @@ function ImagesPage() {
 
         {!state.loading && images.length === 0 ? (
           <div className="mt-12 rounded-[1.5rem] border border-dashed border-black/10 bg-white px-6 py-10 text-center text-sm text-[#151515]/55">
-            还没有可显示的图片。当前页面会优先读取后台保存的 <code className="rounded bg-black/5 px-1.5 py-0.5">assets</code>，如果没有，再读取 <code className="rounded bg-black/5 px-1.5 py-0.5">featuredImagesText</code>、<code className="rounded bg-black/5 px-1.5 py-0.5">uploadedImagesText</code> 或 <code className="rounded bg-black/5 px-1.5 py-0.5">imagesText</code>。每行一张，支持 <code className="rounded bg-black/5 px-1.5 py-0.5">url|标题|wide</code> 或 JSON 格式。
+            还没有可显示的图片。当前页面会优先读取 <code className="rounded bg-black/5 px-1.5 py-0.5">/projects?page=images&kind=images</code>，并基于后台配置的 <code className="rounded bg-black/5 px-1.5 py-0.5">displayOn</code> / <code className="rounded bg-black/5 px-1.5 py-0.5">mediaType</code> 过滤。如果没有，再读取后台保存的 <code className="rounded bg-black/5 px-1.5 py-0.5">assets</code>、<code className="rounded bg-black/5 px-1.5 py-0.5">featuredImagesText</code>、<code className="rounded bg-black/5 px-1.5 py-0.5">uploadedImagesText</code> 或 <code className="rounded bg-black/5 px-1.5 py-0.5">imagesText</code>。
           </div>
         ) : null}
 

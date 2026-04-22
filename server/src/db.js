@@ -164,6 +164,9 @@ function toDateTime(value) {
 function normalizeProjectRow(row) {
   const extra = parseJson(row.content_json, {});
   const normalizedVideoUrl = row.main_video_url || row.video_url || '';
+  const normalizedKind = String(extra.kind || (normalizedVideoUrl ? 'video' : 'image')).toLowerCase();
+  const normalizedMediaType = String(extra.mediaType || extra.media_type || (normalizedVideoUrl ? 'video' : 'image')).toLowerCase();
+  const normalizedVisibility = String(extra.visibility || row.visibility || row.publish_status || 'public').toLowerCase();
 
   return {
     id: row.id,
@@ -171,6 +174,9 @@ function normalizeProjectRow(row) {
     category: row.category,
     role: row.role || '',
     releaseDate: row.release_date || '',
+    kind: normalizedKind,
+    mediaType: normalizedMediaType,
+    displayOn: Array.isArray(extra.displayOn) ? extra.displayOn : Array.isArray(extra.display_on) ? extra.display_on : [],
     coverUrl: row.cover_url || '',
     coverAssetUrl: row.cover_asset_url || row.cover_url || '',
     coverAssetObjectName: row.cover_asset_object_name || '',
@@ -186,9 +192,9 @@ function normalizeProjectRow(row) {
     sortOrder: toInt(row.sort_order, 0),
     description: row.description || '',
     credits: row.credits || '',
-    isVisible: Boolean(toInt(row.is_visible, 1)),
+    isVisible: normalizedVisibility !== 'private' && Boolean(toInt(row.is_visible, 1)),
     publishStatus: row.publish_status || 'Draft',
-    visibility: row.visibility || 'Draft',
+    visibility: normalizedVisibility,
     accessPassword: row.access_password || '',
     deliveryPin: row.delivery_pin || '',
     status: row.status || 'draft',
@@ -207,6 +213,9 @@ function normalizeProjectPayload(project = {}) {
     category,
     role,
     releaseDate,
+    kind,
+    mediaType,
+    displayOn,
     coverUrl,
     coverAssetUrl,
     coverAssetObjectName,
@@ -235,6 +244,16 @@ function normalizeProjectPayload(project = {}) {
     ...extra
   } = project || {};
 
+  const normalizedKind = String(kind || extra.kind || (mainVideoUrl || videoUrl ? 'video' : 'image')).toLowerCase();
+  const normalizedMediaType = String(mediaType || extra.mediaType || extra.media_type || (mainVideoUrl || videoUrl ? 'video' : 'image')).toLowerCase();
+  const normalizedVisibility = String(visibility || extra.visibility || publishStatus || 'public').toLowerCase();
+  const normalizedDisplayOn = Array.isArray(displayOn)
+    ? displayOn
+    : String(extra.displayOn || extra.display_on || '')
+        .split(',')
+        .map((value) => String(value || '').trim())
+        .filter(Boolean);
+
   return {
     id,
     title,
@@ -256,16 +275,16 @@ function normalizeProjectPayload(project = {}) {
     sort_order: Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 0,
     description: description || null,
     credits: credits || null,
-    is_visible: isVisible === false ? 0 : 1,
+    is_visible: normalizedVisibility !== 'private' && isVisible === false ? 0 : 1,
     publish_status: publishStatus || 'Draft',
-    visibility: visibility || publishStatus || 'Draft',
+    visibility: normalizedVisibility,
     access_password: accessPassword || null,
     delivery_pin: deliveryPin || null,
     status: status || 'draft',
     password: password || null,
     private_files_json: JSON.stringify(Array.isArray(privateFiles) ? privateFiles : []),
     outline_tags_json: JSON.stringify(Array.isArray(outlineTags) ? outlineTags : []),
-    content_json: JSON.stringify(extra),
+    content_json: JSON.stringify({ ...extra, kind: normalizedKind, mediaType: normalizedMediaType, displayOn: normalizedDisplayOn }),
     created_at: toDateTime(createdAt),
   };
 }
