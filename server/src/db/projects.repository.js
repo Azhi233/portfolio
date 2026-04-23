@@ -114,3 +114,5 @@ export async function removeProjectById(id) {
   const [result] = await pool.execute('DELETE FROM projects WHERE id = ?', [id]);
   return result.affectedRows > 0;
 }
+
+export const deleteProjectById = removeProjectById;

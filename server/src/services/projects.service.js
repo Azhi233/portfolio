@@ -1,4 +1,10 @@
-import { createProject as insertProject, deleteProjectById as deleteProjectRow, findProjectById, readProjects, updateProject } from '../db/projects.repository.js';
+import {
+  createProject as insertProject,
+  deleteProjectById as deleteProjectRow,
+  editProject as updateProject,
+  findProjectById,
+  readProjects,
+} from '../db/projects.repository.js';
 
 export async function listProjects() {
   return readProjects();

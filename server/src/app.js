@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
 import jwt from 'jsonwebtoken';
-import { pool, readReviewAuditLogs } from './db.js';
+import { pool } from './db.js';
 import { createProjectsController } from './controllers/projects.controller.js';
 import { createConfigController } from './controllers/config.controller.js';
 import { createReviewsController } from './controllers/reviews.controller.js';
