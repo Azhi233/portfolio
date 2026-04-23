@@ -12,7 +12,22 @@ export function parseJsonField(value, fallback = []) {
 
 export function parseDisplayOn(value) {
   if (Array.isArray(value)) return value.map((item) => String(item).trim().toLowerCase()).filter(Boolean);
-  return String(value || '')
+  if (value && typeof value === 'object') {
+    return Object.values(value).map((item) => String(item).trim().toLowerCase()).filter(Boolean);
+  }
+
+  const text = String(value || '').trim();
+  if (!text) return [];
+
+  try {
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) return parsed.map((item) => String(item).trim().toLowerCase()).filter(Boolean);
+    if (parsed && typeof parsed === 'object') return Object.values(parsed).map((item) => String(item).trim().toLowerCase()).filter(Boolean);
+  } catch {
+    // fall through to comma-separated parsing
+  }
+
+  return text
     .split(',')
     .map((item) => String(item).trim().toLowerCase())
     .filter(Boolean);

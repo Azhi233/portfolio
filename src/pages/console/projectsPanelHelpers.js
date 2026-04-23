@@ -28,7 +28,8 @@ export function serializeProjectPayload(project, featuredOrderOverride) {
   Object.entries(project || {}).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
     if (key === 'btsMedia' || key === 'privateFiles' || key === 'outlineTags' || key === 'displayOn') {
-      payload.append(key, JSON.stringify(Array.isArray(value) ? value : []));
+      const normalized = Array.isArray(value) ? value : value && typeof value === 'object' ? Object.values(value) : [];
+      payload.append(key, JSON.stringify(normalized));
       return;
     }
     if (typeof value === 'object') return;

@@ -209,6 +209,16 @@ export function useProjectsPanel(filterMode = 'all') {
       }));
 
       await load();
+      if (state.isOpen && state.draft?.id && String(state.draft.id) === String(project.id)) {
+        setState((prev) => ({
+          ...prev,
+          draft: {
+            ...prev.draft,
+            isFeatured: isEnabling,
+            featuredOrder: nextFeaturedOrder,
+          },
+        }));
+      }
       setState((prev) => ({
         ...prev,
         saving: false,
