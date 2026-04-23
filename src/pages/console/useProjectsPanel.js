@@ -191,9 +191,30 @@ export function useProjectsPanel(filterMode = 'all') {
     try {
       const isEnabling = !project.isFeatured;
       const nextFeaturedOrder = isEnabling ? featuredVideos.length + 1 : '';
-      await fetchJson(`/projects/${project.id}`, { method: 'PUT', data: serializeProjectPayload({ ...project, isFeatured: isEnabling, featuredOrder: nextFeaturedOrder }) });
+      const nextProject = {
+        ...project,
+        isFeatured: isEnabling,
+        featuredOrder: nextFeaturedOrder,
+      };
+
+      await fetchJson(`/projects/${project.id}`, { method: 'PUT', data: serializeProjectPayload(nextProject) });
+
+      setState((prev) => ({
+        ...prev,
+        items: prev.items.map((item) =>
+          String(item.id) === String(project.id)
+            ? { ...item, isFeatured: isEnabling, featuredOrder: nextFeaturedOrder }
+            : item,
+        ),
+      }));
+
       await load();
-      setState((prev) => ({ ...prev, saving: false, notice: project.isFeatured ? 'Removed from featured videos.' : 'Added to featured videos.', noticeTone: 'success' }));
+      setState((prev) => ({
+        ...prev,
+        saving: false,
+        notice: isEnabling ? 'Added to featured videos.' : 'Removed from featured videos.',
+        noticeTone: 'success',
+      }));
     } catch (error) {
       setState((prev) => ({ ...prev, saving: false, error: error.message || 'Failed to update featured status.' }));
     }
