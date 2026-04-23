@@ -1,4 +1,4 @@
-import { readReviews, upsertReview } from '../db.js';
+import { readReviews, upsertReview } from '../db/reviews.repository.js';
 
 export async function listReviews() {
   return readReviews();

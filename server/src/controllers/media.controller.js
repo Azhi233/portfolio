@@ -1,8 +1,8 @@
-import { readMediaAssets, upsertMediaAsset } from '../db.js';
+import { createMediaAsset, listMediaAssets } from '../services/media.service.js';
 
 export function createMediaController() {
   async function getMediaAssets(_req, res) {
-    res.json({ ok: true, data: await readMediaAssets() });
+    res.json({ ok: true, data: await listMediaAssets() });
   }
 
   async function postMediaAsset(req, res) {
@@ -11,7 +11,7 @@ export function createMediaController() {
       return res.status(400).json({ ok: false, message: 'kind and url are required.' });
     }
 
-    const data = await upsertMediaAsset(payload);
+    const data = await createMediaAsset(payload);
     return res.status(201).json({ ok: true, data });
   }
 

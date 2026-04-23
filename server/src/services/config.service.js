@@ -1,4 +1,4 @@
-import { readConfigObject, upsertConfigObject } from '../db.js';
+import { readConfigObject, upsertConfigObject } from '../db/config.repository.js';
 
 export async function getConfig() {
   return readConfigObject();

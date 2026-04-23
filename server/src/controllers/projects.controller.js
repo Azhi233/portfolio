@@ -1,47 +1,16 @@
 import crypto from 'node:crypto';
 import { createProject, editProject, getProjectById, listProjects, removeProject } from '../services/projects.service.js';
-import { PUBLIC_BUCKET, PRIVATE_BUCKET, deleteObject } from '../utils/minio.js';
-
-function parseJsonField(value, fallback = []) {
-  if (value === undefined || value === null || value === '') return fallback;
-  if (Array.isArray(value) || typeof value === 'object') return value;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
-}
-
-function parseDisplayOn(value) {
-  if (Array.isArray(value)) return value.map((item) => String(item).trim().toLowerCase()).filter(Boolean);
-  return String(value || '')
-    .split(',')
-    .map((item) => String(item).trim().toLowerCase())
-    .filter(Boolean);
-}
-
-function normalizeKind(project = {}) {
-  return String(project.kind || project.mediaType || (project.mainVideoUrl || project.videoUrl ? 'video' : 'image')).toLowerCase();
-}
-
-function normalizeMediaType(project = {}) {
-  return String(project.mediaType || project.kind || (project.mainVideoUrl || project.videoUrl ? 'video' : 'image')).toLowerCase();
-}
-
-function inferVideoAspectRatio(value = '') {
-  const text = String(value || '').toLowerCase();
-  if (!text) return null;
-  if (text.includes('9x16') || text.includes('vertical') || text.includes('portrait')) return '9:16';
-  if (text.includes('21x9') || text.includes('ultrawide')) return '21:9';
-  if (text.includes('4x3')) return '4:3';
-  if (text.includes('1x1') || text.includes('square')) return '1:1';
-  return '16:9';
-}
-
-function attachVideoAspectRatio(project) {
-  const ratio = project?.videoAspectRatio || inferVideoAspectRatio(project?.mainVideoUrl || project?.videoUrl || project?.coverUrl || project?.thumbnailUrl || '');
-  return { ...project, videoAspectRatio: ratio };
-}
+import { deleteObject } from '../utils/minio.js';
+import {
+  attachVideoAspectRatio,
+  buildProjectPayload,
+  extractObjectRef,
+  normalizeKind,
+  normalizeMediaType,
+  normalizeRefs,
+  parseDisplayOn,
+  parseJsonField,
+} from './projects.controller.helpers.js';
 
 export function createProjectsController({ uploadProjectImage, notifyConfigChanged }) {
   async function getProjects(req, res) {
@@ -104,43 +73,32 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
   async function postProject(req, res) {
     try {
       const project = req.body || {};
-      let coverUrl = String(project.coverUrl || project.thumbnailUrl || '').trim();
-      let coverAssetUrl = String(project.coverAssetUrl || '').trim();
-      let coverAssetObjectName = String(project.coverAssetObjectName || '').trim();
-      let coverAssetFileType = String(project.coverAssetFileType || '').trim();
-      let coverAssetIsPrivate = project.coverAssetIsPrivate === 'true' || project.coverAssetIsPrivate === true;
-      const kind = String(project.kind || (project.mainVideoUrl || project.videoUrl ? 'video' : 'image')).toLowerCase();
-      const mediaType = String(project.mediaType || (project.mainVideoUrl || project.videoUrl ? 'video' : 'image')).toLowerCase();
+      const kind = normalizeKind(project);
+      const mediaType = normalizeMediaType(project);
       const displayOn = parseDisplayOn(project.displayOn || project.display_on);
+      const payload = buildProjectPayload(project, req.file);
 
       if (req.file) {
         const uploadResult = await uploadProjectImage(req.file);
-        coverUrl = uploadResult.url;
-        coverAssetUrl = uploadResult.url;
-        coverAssetObjectName = uploadResult.objectName || '';
-        coverAssetFileType = req.file.mimetype || 'application/octet-stream';
-        coverAssetIsPrivate = false;
+        payload.coverUrl = uploadResult.url;
+        payload.coverAssetUrl = uploadResult.url;
+        payload.coverAssetObjectName = uploadResult.objectName || '';
+        payload.coverAssetFileType = req.file.mimetype || 'application/octet-stream';
+        payload.coverAssetIsPrivate = false;
       }
 
-      const payload = {
+      const createdPayload = {
         ...project,
         id: String(project.id || crypto.randomUUID()),
         title: String(project.title || '').trim(),
         category: String(project.category || '').trim() || null,
         role: String(project.role || '').trim() || null,
         releaseDate: String(project.releaseDate || '').trim() || null,
-        coverUrl,
-        coverAssetUrl,
-        coverAssetObjectName,
-        coverAssetFileType,
-        coverAssetIsPrivate,
-        thumbnailUrl: String(project.thumbnailUrl || coverUrl || '').trim() || coverUrl,
+        ...payload,
+        thumbnailUrl: String(project.thumbnailUrl || payload.coverUrl || '').trim() || payload.coverUrl,
         videoUrl: String(project.videoUrl || '').trim() || null,
         mainVideoUrl: String(project.mainVideoUrl || project.videoUrl || '').trim() || null,
-        btsMedia: parseJsonField(project.btsMedia, []).map((item) => ({
-          ...(typeof item === 'string' ? { url: item } : item),
-          isGroupCover: Boolean(item?.isGroupCover),
-        })),
+        btsMedia: parseJsonField(project.btsMedia, []).map((item) => ({ ...(typeof item === 'string' ? { url: item } : item), isGroupCover: Boolean(item?.isGroupCover) })),
         clientAgency: String(project.clientAgency || '').trim() || null,
         clientCode: String(project.clientCode || '').trim() || null,
         isFeatured: project.isFeatured === 'true' || project.isFeatured === true,
@@ -161,11 +119,11 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
         outlineTags: parseJsonField(project.outlineTags, []),
       };
 
-      if (!payload.id || !payload.title) {
+      if (!createdPayload.id || !createdPayload.title) {
         return res.status(400).json({ ok: false, message: 'Project id and title are required.' });
       }
 
-      const created = await createProject(payload);
+      const created = await createProject(createdPayload);
       notifyConfigChanged('projects');
       return res.status(201).json({ ok: true, data: attachVideoAspectRatio(created) });
     } catch (error) {
@@ -178,30 +136,10 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
     try {
       const { id } = req.params;
       const existingProject = await getProjectById(id);
-      if (!existingProject) {
-        return res.status(404).json({ ok: false, message: 'Project not found.' });
-      }
+      if (!existingProject) return res.status(404).json({ ok: false, message: 'Project not found.' });
 
       const { title, ...rest } = req.body || {};
-      if (!title) {
-        return res.status(400).json({ ok: false, message: 'Project title is required.' });
-      }
-
-      const extractObjectRef = (url) => {
-        const value = String(url || '').trim();
-        if (!value || !value.includes('/')) return null;
-        try {
-          const parsed = new URL(value);
-          const pathname = parsed.pathname.replace(/^\/+/, '');
-          const publicPrefix = `${PUBLIC_BUCKET}/`;
-          const privatePrefix = `${PRIVATE_BUCKET}/`;
-          if (pathname.startsWith(publicPrefix)) return { bucketName: PUBLIC_BUCKET, objectName: pathname.slice(publicPrefix.length) };
-          if (pathname.startsWith(privatePrefix)) return { bucketName: PRIVATE_BUCKET, objectName: pathname.slice(privatePrefix.length) };
-        } catch {
-          return null;
-        }
-        return null;
-      };
+      if (!title) return res.status(400).json({ ok: false, message: 'Project title is required.' });
 
       const oldCoverRef = extractObjectRef(existingProject.coverAssetUrl || existingProject.coverUrl);
       const oldThumbnailRef = extractObjectRef(existingProject.thumbnailUrl);
@@ -209,34 +147,26 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
       const shouldCleanOldCover = Boolean(req.file) && oldCoverRef;
       const hasPrivateFilesUpdate = Object.prototype.hasOwnProperty.call(req.body || {}, 'privateFiles');
       const hasBtsMediaUpdate = Object.prototype.hasOwnProperty.call(req.body || {}, 'btsMedia');
-
-      let coverUrl = String(rest.coverUrl || rest.thumbnailUrl || '').trim();
-      let coverAssetUrl = String(rest.coverAssetUrl || '').trim();
-      let coverAssetObjectName = String(rest.coverAssetObjectName || '').trim();
-      let coverAssetFileType = String(rest.coverAssetFileType || '').trim();
-      let coverAssetIsPrivate = rest.coverAssetIsPrivate === 'true' || rest.coverAssetIsPrivate === true;
+      const payload = buildProjectPayload(rest, req.file);
 
       if (req.file) {
         const uploadResult = await uploadProjectImage(req.file);
-        coverUrl = uploadResult.url;
-        coverAssetUrl = uploadResult.url;
-        coverAssetObjectName = uploadResult.objectName || '';
-        coverAssetFileType = req.file.mimetype || 'application/octet-stream';
-        coverAssetIsPrivate = false;
+        payload.coverUrl = uploadResult.url;
+        payload.coverAssetUrl = uploadResult.url;
+        payload.coverAssetObjectName = uploadResult.objectName || '';
+        payload.coverAssetFileType = req.file.mimetype || 'application/octet-stream';
+        payload.coverAssetIsPrivate = false;
       }
 
       const updated = await editProject(id, {
         ...rest,
         title,
-        coverUrl,
-        coverAssetUrl: coverAssetUrl || coverUrl,
-        coverAssetObjectName,
-        coverAssetFileType,
-        coverAssetIsPrivate,
-        thumbnailUrl: String(rest.thumbnailUrl || coverUrl || '').trim() || coverUrl,
-        kind,
-        mediaType,
-        displayOn,
+        ...payload,
+        coverAssetUrl: payload.coverAssetUrl || payload.coverUrl,
+        thumbnailUrl: String(rest.thumbnailUrl || payload.coverUrl || '').trim() || payload.coverUrl,
+        kind: normalizeKind(rest),
+        mediaType: normalizeMediaType(rest),
+        displayOn: parseDisplayOn(rest.displayOn || rest.display_on),
       });
 
       if (shouldCleanOldCover || hasPrivateFilesUpdate || hasBtsMediaUpdate) {
@@ -247,39 +177,17 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
 
         if (shouldCleanOldCover) {
           [oldCoverRef, oldThumbnailRef].forEach((ref) => {
-            if (ref && ![newCoverRef, newThumbnailRef].some((nextRef) => nextRef?.bucketName === ref.bucketName && nextRef?.objectName === ref.objectName)) {
-              refsToDelete.push(ref);
-            }
+            if (ref && ![newCoverRef, newThumbnailRef].some((nextRef) => nextRef?.bucketName === ref.bucketName && nextRef?.objectName === ref.objectName)) refsToDelete.push(ref);
           });
         }
 
-        if (oldVideoRef && ![newVideoRef].some((nextRef) => nextRef?.bucketName === oldVideoRef.bucketName && nextRef?.objectName === oldVideoRef.objectName)) {
-          refsToDelete.push(oldVideoRef);
-        }
-
-        const normalizeRefs = (items) => {
-          const refs = [];
-          for (const item of Array.isArray(items) ? items : []) {
-            if (typeof item === 'string') {
-              const ref = extractObjectRef(item);
-              if (ref) refs.push(ref);
-              continue;
-            }
-            [item?.url, item?.coverUrl, ...(item?.variants && typeof item.variants === 'object' ? Object.values(item.variants) : [])].forEach((value) => {
-              const ref = extractObjectRef(value);
-              if (ref) refs.push(ref);
-            });
-          }
-          return refs;
-        };
+        if (oldVideoRef && ![newVideoRef].some((nextRef) => nextRef?.bucketName === oldVideoRef.bucketName && nextRef?.objectName === oldVideoRef.objectName)) refsToDelete.push(oldVideoRef);
 
         if (hasPrivateFilesUpdate) {
           const oldRefs = normalizeRefs(existingProject.privateFiles);
           const nextRefs = normalizeRefs(updated.privateFiles);
           oldRefs.forEach((ref) => {
-            if (!nextRefs.some((nextRef) => nextRef.bucketName === ref.bucketName && nextRef.objectName === ref.objectName)) {
-              refsToDelete.push(ref);
-            }
+            if (!nextRefs.some((nextRef) => nextRef.bucketName === ref.bucketName && nextRef.objectName === ref.objectName)) refsToDelete.push(ref);
           });
         }
 
@@ -287,9 +195,7 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
           const oldRefs = normalizeRefs(existingProject.btsMedia);
           const nextRefs = normalizeRefs(updated.btsMedia);
           oldRefs.forEach((ref) => {
-            if (!nextRefs.some((nextRef) => nextRef.bucketName === ref.bucketName && nextRef.objectName === ref.objectName)) {
-              refsToDelete.push(ref);
-            }
+            if (!nextRefs.some((nextRef) => nextRef.bucketName === ref.bucketName && nextRef.objectName === ref.objectName)) refsToDelete.push(ref);
           });
         }
 
@@ -321,45 +227,19 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
     }
 
     const objectNamesToDelete = new Map();
-
-    const addObjectNameFromUrl = (url) => {
-      const value = String(url || '').trim();
-      if (!value || !value.includes('/')) return;
-      try {
-        const parsed = new URL(value);
-        const pathname = parsed.pathname.replace(/^\/+/, '');
-        const publicPrefix = `${PUBLIC_BUCKET}/`;
-        const privatePrefix = `${PRIVATE_BUCKET}/`;
-        if (pathname.startsWith(publicPrefix)) {
-          const objectName = pathname.slice(publicPrefix.length);
-          objectNamesToDelete.set(`${PUBLIC_BUCKET}:${objectName}`, { bucketName: PUBLIC_BUCKET, objectName });
-        } else if (pathname.startsWith(privatePrefix)) {
-          const objectName = pathname.slice(privatePrefix.length);
-          objectNamesToDelete.set(`${PRIVATE_BUCKET}:${objectName}`, { bucketName: PRIVATE_BUCKET, objectName });
-        }
-      } catch {
-        return;
-      }
-    };
-
-    addObjectNameFromUrl(project.coverAssetUrl || project.coverUrl);
-    addObjectNameFromUrl(project.thumbnailUrl);
-    addObjectNameFromUrl(project.mainVideoUrl || project.videoUrl);
+    [project.coverAssetUrl || project.coverUrl, project.thumbnailUrl, project.mainVideoUrl || project.videoUrl].forEach((url) => {
+      const ref = extractObjectRef(url);
+      if (ref) objectNamesToDelete.set(`${ref.bucketName}:${ref.objectName}`, ref);
+    });
 
     for (const item of Array.isArray(project.privateFiles) ? project.privateFiles : []) {
-      addObjectNameFromUrl(item?.url);
+      const refs = normalizeRefs([item]);
+      refs.forEach((ref) => objectNamesToDelete.set(`${ref.bucketName}:${ref.objectName}`, ref));
     }
 
     for (const asset of Array.isArray(project.btsMedia) ? project.btsMedia : []) {
-      if (typeof asset === 'string') {
-        addObjectNameFromUrl(asset);
-        continue;
-      }
-      addObjectNameFromUrl(asset?.url);
-      addObjectNameFromUrl(asset?.coverUrl);
-      if (asset?.variants && typeof asset.variants === 'object') {
-        Object.values(asset.variants).forEach(addObjectNameFromUrl);
-      }
+      const refs = normalizeRefs([asset]);
+      refs.forEach((ref) => objectNamesToDelete.set(`${ref.bucketName}:${ref.objectName}`, ref));
     }
 
     for (const entry of objectNamesToDelete) {
