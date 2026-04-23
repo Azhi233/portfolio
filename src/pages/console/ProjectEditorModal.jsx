@@ -1,4 +1,5 @@
 import Modal from '../../components/Modal.jsx';
+import Button from '../../components/Button.jsx';
 import { ProjectBasicInfoSection, ProjectFlagsSection, ProjectMediaSection, ProjectTypeSection } from './ProjectEditorSections.jsx';
 
 export default function ProjectEditorModal({
