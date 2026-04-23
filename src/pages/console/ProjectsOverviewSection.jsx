@@ -17,6 +17,9 @@ function getMosaicSpan(index) {
 
 function ProjectMosaicCard({ item, index, onEdit, onToggleFeatured, onDelete }) {
   const isCompact = index % 6 === 1 || index % 6 === 2 || index % 6 === 3 || index % 6 === 5;
+  const mediaSrc = item.coverImage || item.image || item.thumbnail || item.thumbnailUrl || item.coverUrl;
+  const mediaType = String(item.mediaType || item.kind || '').toLowerCase() === 'video' ? 'video' : 'image';
+  const aspectRatio = item.aspectRatio || (mediaType === 'video' ? '16 / 9' : '4 / 3');
 
   return (
     <article
@@ -26,12 +29,19 @@ function ProjectMosaicCard({ item, index, onEdit, onToggleFeatured, onDelete }) 
       <div className={`relative h-full ${isCompact ? 'grid grid-rows-[1fr_auto]' : 'grid grid-rows-[minmax(180px,1fr)_auto]'}`}>
         <div className="relative overflow-hidden bg-[#e8dfd0]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.55),transparent_32%),radial-gradient(circle_at_80%_0%,rgba(255,255,255,0.32),transparent_22%)]" />
-          {item.coverImage || item.image || item.thumbnail ? (
-            <img
-              src={item.coverImage || item.image || item.thumbnail}
-              alt={item.title}
-              className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
-            />
+          {mediaSrc ? (
+            <div className="h-full w-full">
+              <MediaFrame
+                src={mediaSrc}
+                alt={item.title}
+                type={mediaType}
+                aspectRatio={aspectRatio}
+                cropX={item.cropX || 50}
+                cropY={item.cropY || 50}
+                scale={item.scale || 1}
+                className="h-full w-full"
+              />
+            </div>
           ) : (
             <div className="flex h-full items-center justify-center px-6 text-center">
               <div>

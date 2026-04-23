@@ -6,6 +6,7 @@ import Modal from '../../components/Modal.jsx';
 import Input from '../../components/Input.jsx';
 import Textarea from '../../components/Textarea.jsx';
 import { fetchJson } from '../../utils/api.js';
+import ResizableMediaFrame from '../../components/ResizableMediaFrame.jsx';
 import { applySlotPatch, buildEditorLayoutPayload, createEditorLayoutFromPayload, createInitialEditorState, editorMediaSlots, normalizeMediaItem } from './editorData.js';
 
 const aspectOptions = ['16 / 9', '9 / 16', '4 / 3', '3 / 4', '1 / 1', '5 / 4'];
@@ -29,26 +30,34 @@ function MediaTile({ slot, value, selected, editMode, onSelect, onEditText }) {
         <Badge tone={hasMedia ? 'success' : 'warning'}>{hasMedia ? 'ASSIGNED' : 'EMPTY'}</Badge>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-white/10 bg-black/30" style={{ aspectRatio: ratio }}>
+      <div className="mt-4 rounded-[1.25rem] border border-white/10 bg-black/30" style={{ aspectRatio: ratio }}>
         {hasMedia ? (
-          value.mediaType === 'video' ? (
-            <video
-              src={value.mediaUrl}
-              className="h-full w-full object-cover"
-              style={{ objectPosition: `${value.cropX || 50}% ${value.cropY || 50}%`, filter: selected ? 'none' : 'contrast(0.98)' }}
-              muted
-              playsInline
-              loop
-              autoPlay
-            />
-          ) : (
-            <img
-              src={value.mediaUrl}
-              alt={value.title}
-              className="h-full w-full object-cover"
-              style={{ objectPosition: `${value.cropX || 50}% ${value.cropY || 50}%`, transform: `scale(${value.scale || 1})` }}
-            />
-          )
+          <ResizableMediaFrame
+            editMode={editMode}
+            frame={{
+              src: value.mediaUrl,
+              alt: value.title,
+              type: value.mediaType,
+              aspectRatio: ratio,
+              cropX: value.cropX || 50,
+              cropY: value.cropY || 50,
+              scale: value.scale || 1,
+              width: value.width || 100,
+              height: value.height || 100,
+              x: value.x || 0,
+              y: value.y || 0,
+            }}
+            onFrameChange={(nextFrame) => onEditText({
+              cropX: nextFrame.cropX,
+              cropY: nextFrame.cropY,
+              scale: nextFrame.scale,
+              width: nextFrame.width,
+              height: nextFrame.height,
+              x: nextFrame.x,
+              y: nextFrame.y,
+            })}
+            className="h-full w-full"
+          />
         ) : (
           <div className="flex h-full items-center justify-center border border-dashed border-white/10 text-sm text-zinc-500">
             Click to assign media

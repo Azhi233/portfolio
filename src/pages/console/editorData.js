@@ -1,10 +1,10 @@
 export const editorMediaSlots = [
-  { id: 'hero-left', label: 'Hero Left', type: 'image', aspectRatio: '4 / 5' },
-  { id: 'hero-right', label: 'Hero Right', type: 'image', aspectRatio: '3 / 4' },
-  { id: 'feature-video', label: 'Featured Video', type: 'video', aspectRatio: '16 / 9' },
-  { id: 'gallery-1', label: 'Gallery 01', type: 'image', aspectRatio: '1 / 1' },
-  { id: 'gallery-2', label: 'Gallery 02', type: 'image', aspectRatio: '4 / 3' },
-  { id: 'gallery-3', label: 'Gallery 03', type: 'video', aspectRatio: '9 / 16' },
+  { id: 'hero-title', label: 'Hero Title', type: 'image', aspectRatio: '4 / 5' },
+  { id: 'hero-background', label: 'Hero Background', type: 'image', aspectRatio: '16 / 9' },
+  { id: 'hero-secondary', label: 'Hero Secondary', type: 'image', aspectRatio: '3 / 4' },
+  { id: 'work-1', label: 'Work 01', type: 'image', aspectRatio: '4 / 5' },
+  { id: 'work-2', label: 'Work 02', type: 'image', aspectRatio: '4 / 5' },
+  { id: 'work-3', label: 'Work 03', type: 'video', aspectRatio: '16 / 9' },
 ];
 
 export function createInitialEditorState() {
@@ -17,6 +17,10 @@ export function createInitialEditorState() {
       cropX: 50,
       cropY: 50,
       scale: 1,
+      width: 100,
+      height: 100,
+      x: 0,
+      y: 0,
       title: slot.label,
       text: slot.label,
     };
@@ -53,6 +57,10 @@ export function buildEditorLayoutPayload(slots) {
         cropX: Number.isFinite(Number(value.cropX)) ? Number(value.cropX) : 50,
         cropY: Number.isFinite(Number(value.cropY)) ? Number(value.cropY) : 50,
         scale: Number.isFinite(Number(value.scale)) ? Number(value.scale) : 1,
+        width: Number.isFinite(Number(value.width)) ? Number(value.width) : 100,
+        height: Number.isFinite(Number(value.height)) ? Number(value.height) : 100,
+        x: Number.isFinite(Number(value.x)) ? Number(value.x) : 0,
+        y: Number.isFinite(Number(value.y)) ? Number(value.y) : 0,
         title: String(value.title || slot.label),
         text: String(value.text || slot.label),
       };
