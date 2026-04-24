@@ -1,6 +1,7 @@
 import Card from '../../components/Card.jsx';
 import Badge from '../../components/Badge.jsx';
 import Button from '../../components/Button.jsx';
+import MediaFrame from '../../components/MediaFrame.jsx';
 
 function getMosaicSpan(index) {
   const pattern = [
