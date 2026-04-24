@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const fallbackBaseURL = '';
+const fallbackBaseURL = '/api';
 
 function normalizeApiBaseUrl(rawValue) {
   const value = String(rawValue || '').trim();
@@ -72,7 +72,7 @@ export async function uploadFile(file, type = 'public', onUploadProgress) {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('type', type);
-  return fetchJson('/api/uploads', {
+  return fetchJson('/uploads', {
     method: 'POST',
     data: formData,
     headers: { 'Content-Type': 'multipart/form-data' },
