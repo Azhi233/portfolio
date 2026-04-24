@@ -13,6 +13,7 @@ import DraggableSlotCard from '../../components/DraggableSlotCard.jsx';
 import DragHint from '../../components/DragHint.jsx';
 import { applySlotPatch, buildEditorLayoutPayload, createEditorLayoutFromPayload, createInitialEditorState, editorMediaSlots, normalizeMediaItem } from './editorData.js';
 
+
 const aspectOptions = ['16 / 9', '9 / 16', '4 / 3', '3 / 4', '1 / 1', '5 / 4'];
 
 function groupSlots(slots) {
@@ -209,14 +210,12 @@ export default function EditorModePage() {
         if (mounted) setAssets(normalized);
       } catch {
         if (mounted) {
-          setAssets([
-            normalizeMediaItem({ id: 'demo-1', title: 'Demo Image 1', url: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80', type: 'image' }),
-            normalizeMediaItem({ id: 'demo-2', title: 'Demo Image 2', url: 'https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=1200&q=80', type: 'image' }),
-            normalizeMediaItem({ id: 'demo-3', title: 'Demo Video', url: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4', type: 'video' }),
-          ]);
+          setAssets([]);
         }
       } finally {
-        if (mounted) setLoadingAssets(false);
+        if (mounted) {
+          setLoadingAssets(false);
+        }
       }
     };
 
@@ -228,7 +227,9 @@ export default function EditorModePage() {
           showNotice('Loaded saved editor layout.');
         }
       } catch {
-        // keep defaults when backend is offline or endpoint is missing
+        if (mounted) {
+          setSlots(createInitialEditorState());
+        }
       }
     };
 
