@@ -1,3 +1,5 @@
+import { resolveResourceUrl } from '../utils/api.js';
+
 function isVideoUrl(url = '') {
   const value = String(url).toLowerCase();
   return /\.(mp4|webm|ogg|mov)(\?|#|$)/.test(value) || value.includes('video');
@@ -9,7 +11,8 @@ function isImageUrl(url = '') {
 }
 
 export default function MediaPreview({ src = '', title = '', className = '', muted = false, autoPlay = false, kind = '', onVideoMetadata = () => {} }) {
-  if (!src) {
+  const resolvedSrc = resolveResourceUrl(src);
+  if (!resolvedSrc) {
     return (
       <div className={`flex h-full min-h-[220px] items-center justify-center text-sm text-zinc-500 ${className}`.trim()}>
         No media assigned yet.
@@ -17,11 +20,11 @@ export default function MediaPreview({ src = '', title = '', className = '', mut
     );
   }
 
-  if (String(kind).startsWith('video') || isVideoUrl(src)) {
+  if (String(kind).startsWith('video') || isVideoUrl(resolvedSrc)) {
     return (
       <video
         className={`h-full w-full object-cover ${className}`.trim()}
-        src={src}
+        src={resolvedSrc}
         controls
         playsInline
         muted={muted}
@@ -34,14 +37,14 @@ export default function MediaPreview({ src = '', title = '', className = '', mut
     );
   }
 
-  if (isImageUrl(src)) {
-    return <img className={`h-full w-full object-cover ${className}`.trim()} src={src} alt={title || 'Media preview'} />;
+  if (isImageUrl(resolvedSrc)) {
+    return <img className={`h-full w-full object-cover ${className}`.trim()} src={resolvedSrc} alt={title || 'Media preview'} />;
   }
 
   return (
     <iframe
       title={title || 'Media preview'}
-      src={src}
+      src={resolvedSrc}
       className={`h-full w-full ${className}`.trim()}
       allow="autoplay; fullscreen; picture-in-picture"
     />

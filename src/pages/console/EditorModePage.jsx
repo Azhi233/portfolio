@@ -5,7 +5,7 @@ import Badge from '../../components/Badge.jsx';
 import Modal from '../../components/Modal.jsx';
 import Input from '../../components/Input.jsx';
 import Textarea from '../../components/Textarea.jsx';
-import { fetchJson } from '../../utils/api.js';
+import { fetchJson, resolveResourceUrl } from '../../utils/api.js';
 import ResizableMediaFrame from '../../components/ResizableMediaFrame.jsx';
 import SlotNavigator from '../../components/SlotNavigator.jsx';
 import SortableSection from '../../components/SortableSection.jsx';
@@ -125,9 +125,9 @@ function MediaLibraryDrawer({ open, assets, currentSlot, onClose, onPickAsset, o
             >
               <div className="aspect-[4/3] overflow-hidden rounded-xl bg-black/40">
                 {asset.type === 'video' ? (
-                  <video src={asset.url} className="h-full w-full object-cover" muted playsInline />
+                  <video src={resolveResourceUrl(asset.url)} className="h-full w-full object-cover" muted playsInline />
                 ) : (
-                  <img src={asset.url} alt={asset.title} className="h-full w-full object-cover" />
+                  <img src={resolveResourceUrl(asset.url)} alt={asset.title} className="h-full w-full object-cover" />
                 )}
               </div>
               <div className="mt-3 flex items-center justify-between gap-2">
@@ -275,7 +275,7 @@ export default function EditorModePage() {
   const onPickAsset = (asset) => {
     updateSlot(activeSlotId, {
       mediaId: asset.id,
-      mediaUrl: asset.url,
+      mediaUrl: resolveResourceUrl(asset.url),
       mediaType: asset.type,
       title: asset.title,
       text: asset.title,

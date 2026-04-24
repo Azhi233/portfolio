@@ -13,7 +13,31 @@ function normalizeApiBaseUrl(rawValue) {
   }
 }
 
+function getWindowOrigin() {
+  try {
+    return window.location.origin;
+  } catch {
+    return '';
+  }
+}
+
 export const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || fallbackBaseURL);
+const API_ORIGIN = API_BASE_URL.startsWith('/') ? getWindowOrigin() : (() => {
+  try {
+    return new URL(API_BASE_URL).origin;
+  } catch {
+    return getWindowOrigin();
+  }
+})();
+
+export function resolveResourceUrl(url) {
+  const value = String(url || '').trim();
+  if (!value) return '';
+  if (/^(?:[a-z]+:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) return value;
+  if (value.startsWith('/api/')) return value;
+  if (value.startsWith('/')) return `${API_ORIGIN}${value}`;
+  return `${API_ORIGIN}/${value}`;
+}
 
 const ACCESS_TOKEN_KEY = 'client-access-token';
 
