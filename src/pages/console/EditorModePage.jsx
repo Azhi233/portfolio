@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Card from '../../components/Card.jsx';
 import Button from '../../components/Button.jsx';
 import Badge from '../../components/Badge.jsx';
@@ -7,9 +7,22 @@ import Input from '../../components/Input.jsx';
 import Textarea from '../../components/Textarea.jsx';
 import { fetchJson } from '../../utils/api.js';
 import ResizableMediaFrame from '../../components/ResizableMediaFrame.jsx';
+import SlotNavigator from '../../components/SlotNavigator.jsx';
+import SortableSection from '../../components/SortableSection.jsx';
+import DraggableSlotCard from '../../components/DraggableSlotCard.jsx';
+import DragHint from '../../components/DragHint.jsx';
 import { applySlotPatch, buildEditorLayoutPayload, createEditorLayoutFromPayload, createInitialEditorState, editorMediaSlots, normalizeMediaItem } from './editorData.js';
 
 const aspectOptions = ['16 / 9', '9 / 16', '4 / 3', '3 / 4', '1 / 1', '5 / 4'];
+
+function groupSlots(slots) {
+  return slots.reduce((acc, slot) => {
+    const group = slot.group || 'Other';
+    if (!acc[group]) acc[group] = [];
+    acc[group].push(slot);
+    return acc;
+  }, {});
+}
 
 function MediaTile({ slot, value, selected, editMode, onSelect, onEditText }) {
   const frameClasses = editMode ? 'border-dashed border-white/35 bg-white/[0.03]' : 'border-white/10 bg-black/20';
@@ -22,10 +35,11 @@ function MediaTile({ slot, value, selected, editMode, onSelect, onEditText }) {
       onClick={onSelect}
       className={`group relative overflow-hidden rounded-[1.75rem] border p-3 text-left transition ${frameClasses} ${selected ? 'ring-2 ring-cyan-300/80' : 'hover:border-white/20'}`}
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.24em] text-zinc-500">{slot.type}</p>
-          <h3 className="mt-1 text-base tracking-[0.08em] text-white">{value?.title || slot.label}</h3>
+          <p className="text-[10px] uppercase tracking-[0.24em] text-zinc-500">{slot.position}</p>
+          <h3 className="mt-1 text-base tracking-[0.08em] text-white">{slot.label}</h3>
+          <p className="mt-2 text-xs leading-6 text-zinc-400">{slot.description}</p>
         </div>
         <Badge tone={hasMedia ? 'success' : 'warning'}>{hasMedia ? 'ASSIGNED' : 'EMPTY'}</Badge>
       </div>
@@ -126,7 +140,11 @@ function MediaLibraryDrawer({ open, assets, currentSlot, onClose, onPickAsset, o
         <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
           <p className="text-[11px] tracking-[0.22em] text-zinc-500">EDIT SLOT</p>
           <h3 className="mt-2 text-xl tracking-[0.08em] text-white">{local?.label || 'No slot selected'}</h3>
-          <p className="mt-2 text-sm leading-7 text-zinc-400">选择素材后可以继续调整裁切位置、比例和文字，再统一保存。</p>
+          <p className="mt-2 text-sm leading-7 text-zinc-400">{local?.description || '选择素材后可以继续调整裁切位置、比例和文字，再统一保存。'}</p>
+          <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 p-3 text-xs leading-6 text-zinc-400">
+            <p className="text-zinc-300">页面位置说明</p>
+            <p className="mt-1">{local?.position || '未绑定页面位置'}</p>
+          </div>
 
           {local ? (
             <div className="mt-4 grid gap-3">
@@ -174,6 +192,12 @@ export default function EditorModePage() {
   const [assets, setAssets] = useState([]);
   const [loadingAssets, setLoadingAssets] = useState(false);
   const [notice, setNotice] = useState('');
+  const [noticeVisible, setNoticeVisible] = useState(false);
+  const [draggedSlotId, setDraggedSlotId] = useState('');
+  const [dragOverGroup, setDragOverGroup] = useState('');
+  const [pendingSave, setPendingSave] = useState(false);
+  const [unsavedCount, setUnsavedCount] = useState(0);
+  const sectionsRef = useRef({});
 
   useEffect(() => {
     let mounted = true;
@@ -201,7 +225,7 @@ export default function EditorModePage() {
         const layout = await fetchJson('/config/editor-layout');
         if (mounted && layout) {
           setSlots(createEditorLayoutFromPayload(layout));
-          setNotice('Loaded saved editor layout.');
+          showNotice('Loaded saved editor layout.');
         }
       } catch {
         // keep defaults when backend is offline or endpoint is missing
@@ -215,12 +239,26 @@ export default function EditorModePage() {
     };
   }, []);
 
+  const groupedSlots = useMemo(() => groupSlots(editorMediaSlots), []);
   const activeSlot = useMemo(() => editorMediaSlots.find((slot) => slot.id === activeSlotId) || editorMediaSlots[0], [activeSlotId]);
   const activeValue = slots[activeSlotId];
 
+  const markDirty = () => {
+    setPendingSave(true);
+    setUnsavedCount((count) => count + 1);
+  };
+
+  const showNotice = (message) => {
+    setNotice(message);
+    setNoticeVisible(true);
+    window.clearTimeout(showNotice._timer);
+    showNotice._timer = window.setTimeout(() => setNoticeVisible(false), 2400);
+  };
+
   const updateSlot = (slotId, patch) => {
     setSlots((prev) => ({ ...prev, [slotId]: applySlotPatch(prev[slotId], patch) }));
-    setNotice(`Updated ${slotId}`);
+    showNotice(`Updated ${slotId}`);
+    markDirty();
   };
 
   const onPickAsset = (asset) => {
@@ -234,16 +272,85 @@ export default function EditorModePage() {
   };
 
   const batchSave = async () => {
+    if (pendingSave) return;
+    setPendingSave(true);
     try {
       const payload = buildEditorLayoutPayload(slots);
       await fetchJson('/config/editor-layout', {
         method: 'PUT',
         data: payload,
       });
-      setNotice('Editor layout saved to backend.');
+      showNotice('Editor layout saved to backend.');
+      setUnsavedCount(0);
     } catch (error) {
-      setNotice(error.message || 'Failed to save editor layout.');
+      showNotice(error.message || 'Failed to save editor layout.');
+    } finally {
+      setPendingSave(false);
     }
+  };
+
+  const jumpToSlot = (slotId) => {
+    const node = sectionsRef.current[slotId];
+    node?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    setActiveSlotId(slotId);
+  };
+
+  const moveSlot = (slotId, direction) => {
+    const currentIndex = editorMediaSlots.findIndex((slot) => slot.id === slotId);
+    const nextIndex = currentIndex + direction;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= editorMediaSlots.length) return;
+    const currentSlot = editorMediaSlots[currentIndex];
+    const targetSlot = editorMediaSlots[nextIndex];
+    const currentValue = slots[currentSlot.id];
+    const targetValue = slots[targetSlot.id];
+    setSlots((prev) => {
+      const next = { ...prev };
+      next[currentSlot.id] = targetValue;
+      next[targetSlot.id] = currentValue;
+      return next;
+    });
+    showNotice('Swapped slot order locally.');
+  };
+
+  const handleSlotDrop = (sourceId, targetId) => {
+    if (sourceId === targetId) return;
+    const sourceIndex = editorMediaSlots.findIndex((slot) => slot.id === sourceId);
+    const targetIndex = editorMediaSlots.findIndex((slot) => slot.id === targetId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+    const sourceSlot = editorMediaSlots[sourceIndex];
+    const targetSlot = editorMediaSlots[targetIndex];
+    if (sourceSlot.group !== targetSlot.group) {
+      showNotice('只能在同组内拖拽排序。');
+      return;
+    }
+    const sourceValue = slots[sourceSlot.id];
+    const targetValue = slots[targetSlot.id];
+    setSlots((prev) => {
+      const next = { ...prev };
+      next[sourceSlot.id] = targetValue;
+      next[targetSlot.id] = sourceValue;
+      return next;
+    });
+    showNotice(`Reordered ${sourceSlot.label} and ${targetSlot.label}.`);
+    markDirty();
+  };
+
+  const copySlot = (slotId) => {
+    const source = slots[slotId];
+    const cloneId = `${slotId}-copy`;
+    setSlots((prev) => ({
+      ...prev,
+      [cloneId]: { ...source, title: `${source.title || activeSlot.label} Copy`, text: source.text || activeSlot.description, enabled: source.enabled },
+    }));
+    setActiveSlotId(cloneId);
+    showNotice('Copied slot settings locally.');
+    markDirty();
+  };
+
+  const resetSlot = (slotId) => {
+    const base = createInitialEditorState()[slotId];
+    setSlots((prev) => ({ ...prev, [slotId]: base }));
+    showNotice('Slot reset to default.');
   };
 
   return (
@@ -252,47 +359,97 @@ export default function EditorModePage() {
         <Card className="border-[#1b171420] bg-[#f8f4ee] p-6 shadow-[0_12px_40px_rgba(30,20,10,0.08)] md:p-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-[11px] tracking-[0.3em] text-[#8b7768]">EDITOR MODE</p>
+              <p className="text-[11px] tracking-[0.3em] text-[#8b7768]">CONTENT MANAGER</p>
               <h1 className="mt-2 font-serif text-4xl tracking-[0.04em] text-[#16110d] md:text-6xl">Visual content editor</h1>
               <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5e5248] md:text-base">
-                点击虚线框选择后台素材，文本可直接改，裁切位置和视频比例也能在这里统一调整。
+                像管理内容一样管理首页区块：每个 slot 都明确对应一个页面位置，选图、改字、调构图、保存发布都在这里完成。
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant={editMode ? 'primary' : 'subtle'} onClick={() => setEditMode((v) => !v)}>EDIT MODE</Button>
-              <Button type="button" variant="subtle" onClick={() => setDrawerOpen(true)}>SELECT MEDIA</Button>
-              <Button type="button" variant="subtle" onClick={batchSave}>SAVE ALL</Button>
+              <Button type="button" variant={editMode ? 'editor' : 'subtle'} onClick={() => setEditMode((v) => !v)}>
+                {editMode ? 'EDITING ON' : 'EDIT MODE'}
+              </Button>
+              <Button type="button" variant="editor" onClick={() => setDrawerOpen(true)}>SELECT MEDIA</Button>
+              <Button type="button" variant="editor" onClick={batchSave}>{pendingSave ? 'SAVE CHANGES' : 'SAVE ALL'}</Button>
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <Badge tone={loadingAssets ? 'warning' : 'success'}>{loadingAssets ? 'LOADING LIBRARY' : `${assets.length} MEDIA ITEMS`}</Badge>
-            {notice ? <Badge tone="warning">{notice}</Badge> : null}
+            {pendingSave ? <Badge tone="warning">{unsavedCount} UNSAVED CHANGES</Badge> : null}
+            {noticeVisible && notice ? <Badge tone="warning">{notice}</Badge> : null}
           </div>
         </Card>
 
-        <div className="grid gap-5 xl:grid-cols-[1.4fr_0.9fr]">
-          <div className="grid gap-5 md:grid-cols-2">
-            {editorMediaSlots.map((slot) => (
-              <MediaTile
-                key={slot.id}
-                slot={slot}
-                value={slots[slot.id]}
-                selected={slot.id === activeSlotId}
-                editMode={editMode}
-                onSelect={() => {
-                  setActiveSlotId(slot.id);
-                  setDrawerOpen(true);
-                }}
-                onEditText={(patch) => updateSlot(slot.id, patch)}
-              />
+        <div className="grid gap-5 xl:grid-cols-[240px_minmax(0,1fr)_320px]">
+          <SlotNavigator groups={groupedSlots} activeId={activeSlotId} onJump={jumpToSlot} />
+
+          <div className="grid gap-5">
+            {Object.entries(groupedSlots).map(([group, groupSlotsList]) => (
+              <SortableSection
+                key={group}
+                title={group === 'Hero' ? '首屏管理' : '作品管理'}
+                count={groupSlotsList.length}
+              >
+                <div className="grid gap-5 md:grid-cols-2">
+                  {groupSlotsList.map((slot, index) => (
+                    <div key={slot.id} ref={(el) => { if (el) sectionsRef.current[slot.id] = el; }}>
+                      <DraggableSlotCard
+                        isDragging={draggedSlotId === slot.id}
+                        onDragStart={() => setDraggedSlotId(slot.id)}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          setDragOverGroup(group);
+                        }}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          handleSlotDrop(draggedSlotId, slot.id);
+                          setDraggedSlotId('');
+                          setDragOverGroup('');
+                        }}
+                      >
+                        <div className={`mb-2 flex items-center justify-between text-[11px] tracking-[0.12em] text-[#8b7768] ${dragOverGroup === group ? 'opacity-100' : ''}`}>
+                          <span className="flex items-center gap-2">
+                            #{String(index + 1).padStart(2, '0')}
+                            <DragHint active={draggedSlotId === slot.id} />
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <button type="button" onClick={() => moveSlot(slot.id, -1)} className="rounded-full border border-[#1b17141f] bg-white px-2 py-1 text-[#1b1714]">↑</button>
+                            <button type="button" onClick={() => moveSlot(slot.id, 1)} className="rounded-full border border-[#1b17141f] bg-white px-2 py-1 text-[#1b1714]">↓</button>
+                            <button type="button" onClick={() => copySlot(slot.id)} className="rounded-full border border-[#1b17141f] bg-white px-2 py-1 text-[#1b1714]">Copy</button>
+                            <button type="button" onClick={() => resetSlot(slot.id)} className="rounded-full border border-[#1b17141f] bg-white px-2 py-1 text-[#1b1714]">Reset</button>
+                          </div>
+                        </div>
+                        <MediaTile
+                          slot={slot}
+                          value={slots[slot.id]}
+                          selected={slot.id === activeSlotId}
+                          editMode={editMode}
+                          onSelect={() => {
+                            setActiveSlotId(slot.id);
+                            setDrawerOpen(true);
+                          }}
+                          onEditText={(patch) => updateSlot(slot.id, patch)}
+                        />
+                      </DraggableSlotCard>
+                    </div>
+                  ))}
+                </div>
+              </SortableSection>
             ))}
           </div>
 
           <Card className="border-[#1b171420] bg-[#f8f4ee] p-6 shadow-[0_12px_40px_rgba(30,20,10,0.08)]">
             <p className="text-[11px] tracking-[0.28em] text-[#8b7768]">ACTIVE SLOT</p>
             <h2 className="mt-2 text-2xl tracking-[0.06em] text-[#16110d]">{activeSlot.label}</h2>
-            <p className="mt-3 text-sm leading-7 text-[#5e5248]">这里是当前编辑中的区块。选图、文字、裁切、比例都走统一的数据流，后面接后端保存也容易。</p>
-
+            <p className="mt-3 text-sm leading-7 text-[#5e5248]">{activeSlot.description}</p>
+            <div className="mt-3 rounded-2xl border border-[#1b17141f] bg-white px-4 py-3 text-xs leading-6 text-[#5e5248]">
+              <p className="font-medium text-[#16110d]">页面位置说明</p>
+              <p className="mt-1">{activeSlot.position}</p>
+            </div>
+            <label className="mt-4 flex items-center justify-between rounded-2xl border border-[#1b17141f] bg-white px-4 py-3 text-sm text-[#5e5248]">
+              <span>启用该区块</span>
+              <input type="checkbox" checked={activeValue?.enabled !== false} onChange={(event) => updateSlot(activeSlotId, { enabled: event.target.checked })} />
+            </label>
             <div className="mt-5 grid gap-4">
               <label className="grid gap-2 text-sm text-[#5e5248]">
                 Title
@@ -332,7 +489,7 @@ export default function EditorModePage() {
       <MediaLibraryDrawer
         open={drawerOpen}
         assets={assets}
-        currentSlot={{ id: activeSlotId, label: activeSlot.label, ...activeValue }}
+        currentSlot={{ id: activeSlotId, label: activeSlot.label, ...activeValue, description: activeSlot.description, position: activeSlot.position }}
         onClose={() => setDrawerOpen(false)}
         onPickAsset={onPickAsset}
         onUpdateSlot={(slotId, patch) => {
@@ -341,6 +498,11 @@ export default function EditorModePage() {
         }}
         onBatchSave={batchSave}
       />
+      {pendingSave ? (
+        <button type="button" disabled={pendingSave} onClick={batchSave} className="fixed bottom-6 right-6 rounded-full border border-emerald-300/40 bg-emerald-500 px-4 py-3 text-sm text-white shadow-lg transition hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70">
+          {pendingSave ? 'Saving...' : `Save ${unsavedCount} changes`}
+        </button>
+      ) : null}
     </main>
   );
 }
