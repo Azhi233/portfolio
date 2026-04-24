@@ -205,8 +205,18 @@ export default function EditorModePage() {
     const loadAssets = async () => {
       setLoadingAssets(true);
       try {
-        const response = await fetchJson('/uploads');
-        const normalized = Array.isArray(response) ? response.map(normalizeMediaItem).filter((item) => item.url) : [];
+        const response = await fetchJson('/api/media-assets');
+        const normalized = Array.isArray(response)
+          ? response
+              .map((asset) => normalizeMediaItem({
+                id: asset.id,
+                title: asset.meta?.fileName || asset.id,
+                url: asset.url,
+                type: asset.kind || 'image',
+                meta: asset.meta,
+              }))
+              .filter((item) => item.url)
+          : [];
         if (mounted) setAssets(normalized);
       } catch {
         if (mounted) {

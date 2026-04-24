@@ -2,10 +2,20 @@ import multer from 'multer';
 import { createVideoTranscodeTask, getVideoTranscodeTaskByTaskId, updateVideoTranscodeTask } from '../db/videoTranscode.repository.js';
 import { createTaskId, isVideoFile, processVideoTask } from './upload.helpers.js';
 import { uploadFile } from '../utils/minio.js';
+import { createMediaAsset, listMediaAssets } from '../services/media.service.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20480 * 1024 * 1024 } });
 
 export function createUploadController() {
+  async function getUploads(_req, res, next) {
+    try {
+      const items = await listMediaAssets();
+      return res.json({ ok: true, data: items });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
   async function postUpload(req, res, next) {
     try {
       const file = req.file;
@@ -43,6 +53,19 @@ export function createUploadController() {
       const uploadName = file.originalname;
       const uploadMime = file.mimetype || 'application/octet-stream';
       const result = await uploadFile(uploadBuffer, uploadName, isPrivate, uploadMime, { baseUrl: publicBaseUrl || proxyBaseUrl || baseUrl });
+      const mediaKind = uploadMime.startsWith('video/') ? 'video' : 'image';
+      await createMediaAsset({
+        id: result.id || `asset-${Date.now()}`,
+        kind: mediaKind,
+        url: result.url || '',
+        meta: {
+          fileName: uploadName,
+          size: uploadBuffer.length,
+          mimeType: uploadMime,
+          path: result.path || '',
+          convertedFrom: '',
+        },
+      });
 
       return res.status(201).json({ ok: true, data: { ...result, fileType: uploadMime, fileName: uploadName, size: uploadBuffer.length, convertedFrom: '' } });
     } catch (error) {
@@ -56,5 +79,5 @@ export function createUploadController() {
     return res.json({ ok: true, data: task });
   }
 
-  return { upload, postUpload, getUploadStatus };
+  return { upload, getUploads, postUpload, getUploadStatus };
 }

@@ -106,7 +106,7 @@ async function waitForTaskCompletion(taskId, { timeoutMs = UPLOAD_TIMEOUT_MS } =
 }
 
 async function refreshSignedUrl(path) {
-  const response = await fetch(`${LOCAL_API_BASE}/uploads/sign`, {
+  const response = await fetch(`${LOCAL_API_BASE}/uploads`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path }),
