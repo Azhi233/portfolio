@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { createProject, editProject, getProjectById, listProjects, removeProject } from '../services/projects.service.js';
 import { deleteObject } from '../utils/minio.js';
+import { createMediaAsset } from '../services/media.service.js';
 import {
   attachVideoAspectRatio,
   buildProjectPayload,
@@ -124,6 +125,43 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
       }
 
       const created = await createProject(createdPayload);
+      const mediaEntries = [];
+      const pushEntry = (entry) => {
+        if (!entry?.url) return;
+        mediaEntries.push(entry);
+      };
+
+      pushEntry({
+        id: `${created.id}-cover`,
+        kind: 'image',
+        url: created.coverAssetUrl || created.coverUrl || '',
+        meta: { projectId: created.id, projectTitle: created.title, role: 'cover', source: 'project-save' },
+      });
+      pushEntry({
+        id: `${created.id}-thumbnail`,
+        kind: 'image',
+        url: created.thumbnailUrl || '',
+        meta: { projectId: created.id, projectTitle: created.title, role: 'thumbnail', source: 'project-save' },
+      });
+      pushEntry({
+        id: `${created.id}-video`,
+        kind: 'video',
+        url: created.mainVideoUrl || created.videoUrl || '',
+        meta: { projectId: created.id, projectTitle: created.title, role: 'video', source: 'project-save' },
+      });
+      for (const [index, item] of Array.isArray(created.btsMedia) ? created.btsMedia.entries() : []) {
+        const media = typeof item === 'string' ? { url: item } : item || {};
+        pushEntry({
+          id: `${created.id}-bts-${index}`,
+          kind: String(media.kind || media.mediaType || 'image').toLowerCase(),
+          url: media.url || '',
+          meta: { projectId: created.id, projectTitle: created.title, role: 'bts', index, isGroupCover: Boolean(media.isGroupCover), source: 'project-save' },
+        });
+      }
+      await Promise.all(mediaEntries.map((entry) => createMediaAsset(entry).catch((error) => {
+        console.warn('Failed to sync project media asset:', entry.id, error?.message || error);
+      })));
+
       notifyConfigChanged('projects');
       return res.status(201).json({ ok: true, data: attachVideoAspectRatio(created) });
     } catch (error) {
@@ -211,6 +249,43 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
           }
         }
       }
+
+      const mediaEntries = [];
+      const pushEntry = (entry) => {
+        if (!entry?.url) return;
+        mediaEntries.push(entry);
+      };
+
+      pushEntry({
+        id: `${updated.id}-cover`,
+        kind: 'image',
+        url: updated.coverAssetUrl || updated.coverUrl || '',
+        meta: { projectId: updated.id, projectTitle: updated.title, role: 'cover', source: 'project-save' },
+      });
+      pushEntry({
+        id: `${updated.id}-thumbnail`,
+        kind: 'image',
+        url: updated.thumbnailUrl || '',
+        meta: { projectId: updated.id, projectTitle: updated.title, role: 'thumbnail', source: 'project-save' },
+      });
+      pushEntry({
+        id: `${updated.id}-video`,
+        kind: 'video',
+        url: updated.mainVideoUrl || updated.videoUrl || '',
+        meta: { projectId: updated.id, projectTitle: updated.title, role: 'video', source: 'project-save' },
+      });
+      for (const [index, item] of Array.isArray(updated.btsMedia) ? updated.btsMedia.entries() : []) {
+        const media = typeof item === 'string' ? { url: item } : item || {};
+        pushEntry({
+          id: `${updated.id}-bts-${index}`,
+          kind: String(media.kind || media.mediaType || 'image').toLowerCase(),
+          url: media.url || '',
+          meta: { projectId: updated.id, projectTitle: updated.title, role: 'bts', index, isGroupCover: Boolean(media.isGroupCover), source: 'project-save' },
+        });
+      }
+      await Promise.all(mediaEntries.map((entry) => createMediaAsset(entry).catch((error) => {
+        console.warn('Failed to sync project media asset:', entry.id, error?.message || error);
+      })));
 
       notifyConfigChanged('projects');
       return res.json({ ok: true, data: attachVideoAspectRatio(updated) });
