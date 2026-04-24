@@ -10,6 +10,50 @@ export async function loadPortfolioLayout() {
   }
 }
 
+export function subscribePortfolioLayoutUpdates(onUpdate) {
+  let eventSource = null;
+  try {
+    eventSource = new EventSource('/api/events');
+  } catch {
+    return () => {};
+  }
+
+  const handleLayoutUpdate = async () => {
+    try {
+      const next = await loadPortfolioLayout();
+      onUpdate?.(next);
+    } catch {
+      // ignore refresh failures
+    }
+  };
+
+  const handleMessage = (event) => {
+    if (!event?.data) return;
+    try {
+      const payload = JSON.parse(event.data);
+      const eventName = String(payload?.event || payload?.type || '').toLowerCase();
+      if (eventName.includes('config') || eventName.includes('editor') || eventName.includes('layout')) {
+        void handleLayoutUpdate();
+      }
+    } catch {
+      // ignore malformed events
+    }
+  };
+
+  eventSource.addEventListener('message', handleMessage);
+  eventSource.addEventListener('config', handleLayoutUpdate);
+  eventSource.addEventListener('editorLayout', handleLayoutUpdate);
+  eventSource.addEventListener('layout', handleLayoutUpdate);
+
+  return () => {
+    eventSource?.removeEventListener('message', handleMessage);
+    eventSource?.removeEventListener('config', handleLayoutUpdate);
+    eventSource?.removeEventListener('editorLayout', handleLayoutUpdate);
+    eventSource?.removeEventListener('layout', handleLayoutUpdate);
+    eventSource?.close?.();
+  };
+}
+
 export function getSlotMedia(slot, fallback) {
   const value = slot || {};
   return {

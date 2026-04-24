@@ -4,7 +4,7 @@ function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-export function createConfigController({ notifyConfigChanged, authMiddleware }) {
+export function createConfigController({ notifyConfigChanged, broadcastEvent, authMiddleware }) {
   async function getConfigHandler(_req, res) {
     res.json({ ok: true, data: await getConfig() });
   }
@@ -17,6 +17,7 @@ export function createConfigController({ notifyConfigChanged, authMiddleware }) 
 
     const data = await saveConfig(payload);
     notifyConfigChanged('config');
+    broadcastEvent?.('config-updated', { scope: 'config' });
     return res.json({ ok: true, data });
   }
 
@@ -33,6 +34,7 @@ export function createConfigController({ notifyConfigChanged, authMiddleware }) 
 
     const config = await saveConfig({ editorLayout: payload });
     notifyConfigChanged('editorLayout');
+    broadcastEvent?.('editor-layout-updated', { scope: 'editorLayout' });
     return res.json({ ok: true, data: config.editorLayout || payload });
   }
 

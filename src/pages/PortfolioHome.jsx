@@ -3,7 +3,7 @@ import { useI18n } from '../context/I18nContext.jsx';
 import MinimalTopNav from '../components/MinimalTopNav.jsx';
 import MediaFrame from '../components/MediaFrame.jsx';
 import { PortfolioFooter, PortfolioHero } from './PortfolioHomeSections.jsx';
-import { loadPortfolioLayout } from './portfolioLayout.js';
+import { loadPortfolioLayout, subscribePortfolioLayoutUpdates } from './portfolioLayout.js';
 
 const FEATURED_PROJECTS = [
   { id: 'atelier-no-03', title: 'Atelier No. 03', subtitle: 'Editorial motion / product stills', image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1400&q=80' },
@@ -57,8 +57,14 @@ function PortfolioHome() {
     loadPortfolioLayout().then((next) => {
       if (mounted) setLayout(next);
     });
+
+    const unsubscribe = subscribePortfolioLayoutUpdates((next) => {
+      if (mounted) setLayout(next);
+    });
+
     return () => {
       mounted = false;
+      unsubscribe?.();
     };
   }, []);
 

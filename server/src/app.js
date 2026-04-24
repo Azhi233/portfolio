@@ -61,8 +61,7 @@ export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged,
     }
   };
 
-  const eventsController = createEventsController({ sseClients, uploadEvents });
-  eventsController.attachUploadEvents((eventName, payload) => {
+  const broadcastEvent = (eventName, payload) => {
     for (const client of sseClients) {
       try {
         client.write(`event: ${eventName}\n`);
@@ -71,7 +70,10 @@ export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged,
         sseClients.delete(client);
       }
     }
-  });
+  };
+
+  const eventsController = createEventsController({ sseClients, uploadEvents });
+  eventsController.attachUploadEvents(broadcastEvent);
 
   app.get('/api/health', async (_req, res) => {
     res.json({ ok: true, service: 'oss-policy-api-sts', databaseReady: true });
@@ -83,7 +85,7 @@ export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged,
 
   app.use('/api/events', createEventsRouter(eventsController));
   app.use('/api', createAuthRouter(createAuthController({ pool, jwtSecret: JWT_SECRET })));
-  app.use('/api/config', createConfigRouter(createConfigController({ notifyConfigChanged, authMiddleware })));
+  app.use('/api/config', createConfigRouter(createConfigController({ notifyConfigChanged, broadcastEvent, authMiddleware })));
   app.use('/api/reviews', createReviewsRouter(createReviewsController()));
   app.use('/api/projects', createProjectsRouter(createProjectsController({ uploadProjectImage, notifyConfigChanged, pool }), upload));
   app.use('/api', createUnlocksRouter(createUnlocksController()));

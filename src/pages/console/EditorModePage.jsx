@@ -198,7 +198,7 @@ export default function EditorModePage() {
 
     const loadLayout = async () => {
       try {
-        const layout = await fetchJson('/editor/layout');
+        const layout = await fetchJson('/config/editor-layout');
         if (mounted && layout) {
           setSlots(createEditorLayoutFromPayload(layout));
           setNotice('Loaded saved editor layout.');
@@ -236,7 +236,7 @@ export default function EditorModePage() {
   const batchSave = async () => {
     try {
       const payload = buildEditorLayoutPayload(slots);
-      await fetchJson('/editor/layout', {
+      await fetchJson('/config/editor-layout', {
         method: 'PUT',
         data: payload,
       });
