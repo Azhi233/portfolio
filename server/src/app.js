@@ -24,6 +24,7 @@ import { createTranslationReviewController } from './controllers/translation-rev
 import { createTranslationReviewRouter } from './routes/translation-review.routes.js';
 import { createUploadRouter } from './routes/upload.routes.js';
 import { createHealthcheckRouter } from './routes/healthcheck.routes.js';
+import { readProjects } from './db/projects.repository.js';
 
 export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged, uploadEvents, sseClients }) {
   const app = express();
@@ -90,6 +91,11 @@ export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged,
   app.use('/api/projects', createProjectsRouter(createProjectsController({ uploadProjectImage, notifyConfigChanged, pool }), upload));
   app.use('/api', createUnlocksRouter(createUnlocksController()));
   app.use('/api/media-assets', createMediaRouter(createMediaController()));
+  app.get('/api/clients', async (_req, res) => {
+    const projects = await readProjects();
+    const clients = projects.filter((project) => project.visibility === 'private');
+    res.json({ ok: true, data: clients });
+  });
   app.use('/api/review-audit-logs', createReviewAuditRouter(createReviewAuditController()));
   app.use('/api/translation-review-items', createTranslationReviewRouter(createTranslationReviewController()));
   const uploadController = createUploadController();
