@@ -59,10 +59,6 @@ export function PortfolioHero({ t, layout }) {
 export function PortfolioWorkSection({ projects, layout }) {
   const slots = Array.isArray(layout?.slots) ? layout.slots : [];
   const featuredProjects = [...projects].filter((project) => Boolean(project?.isFeatured));
-  const workSlots = featuredProjects.map((project) => {
-    const slot = slots.find((item) => item.id === project.id || item.id === project.slotId || item.projectId === project.id);
-    return slot || null;
-  });
   const sortedProjects = featuredProjects.sort((a, b) => {
     const aOrder = Number.isFinite(Number(a?.featuredOrder)) ? Number(a.featuredOrder) : Number.POSITIVE_INFINITY;
     const bOrder = Number.isFinite(Number(b?.featuredOrder)) ? Number(b.featuredOrder) : Number.POSITIVE_INFINITY;
@@ -86,18 +82,15 @@ export function PortfolioWorkSection({ projects, layout }) {
           </div>
         ) : (
           <div className="grid gap-8 md:grid-cols-2">
-            {sortedProjects.map((project, index) => {
-              const slot = workSlots[index];
-              const media = slot?.mediaUrl
-                ? slot
-                : {
-                    mediaUrl: project.coverUrl || project.thumbnailUrl || project.mainVideoUrl || project.videoUrl || '',
-                    mediaType: project.mainVideoUrl || project.videoUrl ? 'video' : 'image',
-                    aspectRatio: '4 / 5',
-                    cropX: 50,
-                    cropY: 50,
-                    scale: 1,
-                  };
+            {sortedProjects.map((project) => {
+              const media = {
+                mediaUrl: project.coverUrl || project.thumbnailUrl || project.mainVideoUrl || project.videoUrl || '',
+                mediaType: project.mainVideoUrl || project.videoUrl ? 'video' : 'image',
+                aspectRatio: '4 / 5',
+                cropX: 50,
+                cropY: 50,
+                scale: 1,
+              };
               if (!media.mediaUrl) return null;
               return (
                 <a key={project.id} href="/" className="pointer-events-auto group overflow-hidden rounded-3xl border border-black/5 bg-white shadow-[0_30px_80px_rgba(0,0,0,0.05)] transition-transform duration-300 hover:-translate-y-1">
