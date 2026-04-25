@@ -131,27 +131,22 @@ function ImagesPage() {
         <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6 xl:gap-7">
           {images.map((image, index) => {
             const wide = image.size === 'wide';
-            const ratio = wide ? '16 / 9' : '4 / 5';
             return (
               <article
                 key={image.id}
-                className={`overflow-hidden rounded-[1.5rem] border border-[#d8cab6]/45 bg-white/70 shadow-[0_16px_45px_rgba(148,120,82,0.08)] backdrop-blur-[1px] transition-transform duration-500 hover:-translate-y-0.5 hover:shadow-[0_24px_70px_rgba(148,120,82,0.12)] ${wide ? 'md:col-span-2' : ''}`}
+                className={`overflow-hidden rounded-[1.5rem] transition-transform duration-500 hover:-translate-y-0.5 ${wide ? 'md:col-span-2' : ''}`}
               >
-                <div className="overflow-hidden bg-[#f2ece3] p-1.5 md:p-2">
-                  <div className="w-full overflow-hidden rounded-[1.1rem] bg-[#f2ece3]" style={{ aspectRatio: ratio }}>
-                    <img
-                      src={image.url}
-                      alt={image.title}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  </div>
+                <div className="overflow-hidden bg-transparent">
+                  <img
+                    src={image.url}
+                    alt={image.title}
+                    className="h-auto w-full object-contain"
+                    loading="lazy"
+                  />
                 </div>
-                <div className="flex items-center justify-between gap-3 px-4 py-3.5">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.28em] text-[#8f7a66]">Image {String(index + 1).padStart(2, '0')}</p>
-                    <h2 className="mt-1 text-sm font-light tracking-[0.16em] text-[#3b2f27]">{image.title}</h2>
-                  </div>
+                <div className="pt-3">
+                  <p className="text-[10px] uppercase tracking-[0.28em] text-[#8f7a66]">Image {String(index + 1).padStart(2, '0')}</p>
+                  <h2 className="mt-1 text-sm font-light tracking-[0.16em] text-[#3b2f27]">{image.title}</h2>
                 </div>
               </article>
             );
