@@ -34,10 +34,11 @@ export const placeholderVideos = [
 export function normalizeVideoItem(item, index = 0) {
   const videoUrl = String(item?.videoUrl || item?.mainVideoUrl || item?.url || item?.src || '').trim();
   const poster = String(item?.posterUrl || item?.thumbnailUrl || item?.coverUrl || item?.previewUrl || '').trim();
+  const fallbackTitle = `Video ${String(index + 1).padStart(2, '0')}`;
 
   return {
     id: item?.id || `video-${index + 1}`,
-    title: item?.title || item?.name || `Video ${String(index + 1).padStart(2, '0')}`,
+    title: item?.title || item?.name || fallbackTitle,
     description: item?.description || item?.subtitle || item?.summary || 'No description available yet.',
     category: item?.category || item?.kind || 'Video',
     year: item?.year || item?.releaseYear || '',

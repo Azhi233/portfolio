@@ -14,15 +14,7 @@ export default function VideosPage() {
     fetchJson('/projects?page=videos&kind=videos')
       .then((response) => {
         const list = Array.isArray(response) ? response : response?.items || response?.projects || response?.data || [];
-        const normalized = list
-          .filter((item) => {
-            const displayOn = Array.isArray(item?.displayOn) ? item.displayOn : [];
-            const mediaType = String(item?.mediaType || item?.kind || '').toLowerCase();
-            const hasVideoUrl = Boolean(String(item?.videoUrl || item?.mainVideoUrl || item?.url || item?.src || '').trim());
-            return (displayOn.length ? displayOn.includes('videos') : true) && (mediaType ? mediaType === 'video' : hasVideoUrl);
-          })
-          .map(normalizeVideoItem)
-          .filter(Boolean);
+        const normalized = list.map(normalizeVideoItem).filter((item) => Boolean(item?.videoUrl));
 
         setItems(normalized);
       })
