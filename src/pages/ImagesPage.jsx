@@ -128,17 +128,21 @@ function ImagesPage() {
           </div>
         ) : null}
 
-        <div className="mt-12 columns-1 gap-5 md:columns-2 xl:columns-3 2xl:columns-4 [column-fill:_balance]">
+        <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6 xl:gap-7">
           {images.map((image, index) => {
-            const ratio = image.size === 'wide' ? '16 / 9' : '3 / 4';
+            const wide = image.size === 'wide';
+            const ratio = wide ? '16 / 9' : '4 / 5';
             return (
-              <article key={image.id} className="mb-5 break-inside-avoid overflow-hidden rounded-[1.5rem] border border-[#d8cab6]/45 bg-white/70 shadow-[0_16px_45px_rgba(148,120,82,0.08)] backdrop-blur-[1px] transition-transform duration-500 hover:-translate-y-0.5 hover:shadow-[0_24px_70px_rgba(148,120,82,0.12)]">
-                <div className="overflow-hidden bg-[#f2ece3] p-1.5">
+              <article
+                key={image.id}
+                className={`overflow-hidden rounded-[1.5rem] border border-[#d8cab6]/45 bg-white/70 shadow-[0_16px_45px_rgba(148,120,82,0.08)] backdrop-blur-[1px] transition-transform duration-500 hover:-translate-y-0.5 hover:shadow-[0_24px_70px_rgba(148,120,82,0.12)] ${wide ? 'md:col-span-2' : ''}`}
+              >
+                <div className="overflow-hidden bg-[#f2ece3] p-1.5 md:p-2">
                   <div className="w-full overflow-hidden rounded-[1.1rem] bg-[#f2ece3]" style={{ aspectRatio: ratio }}>
                     <img
                       src={image.url}
                       alt={image.title}
-                      className="h-full w-full object-contain"
+                      className="h-full w-full object-cover"
                       loading="lazy"
                     />
                   </div>

@@ -29,8 +29,8 @@ export default function VideosPage() {
           <p className="text-[10px] uppercase tracking-[0.5em] text-[#b58e62]">Video archive</p>
           <div className="mt-5 grid gap-6 lg:grid-cols-[1.08fr_0.92fr] lg:items-end">
             <div>
-              <h1 className="text-[3.35rem] font-light leading-none tracking-[0.08em] text-[#a97a4c] md:text-[5.25rem]">{t('videos.title', 'Video')}</h1>
-              <p className="mt-5 max-w-2xl text-sm leading-8 text-[#7a6b5b]">A calm, editorial video archive inspired by Peter Belanger’s layout rhythm.</p>
+              <h1 className="max-w-xl text-[2.85rem] font-light leading-[0.94] tracking-[0.1em] text-[#a97a4c] md:text-[4.65rem]">{t('videos.title', 'Video')}</h1>
+              <p className="mt-5 max-w-lg text-sm leading-8 text-[#7a6b5b]">A calm, editorial video archive inspired by Peter Belanger’s layout rhythm.</p>
             </div>
             <div className="lg:justify-self-end">
               <p className="text-[10px] uppercase tracking-[0.42em] text-[#b08c62]">{items.length} works</p>
@@ -41,18 +41,22 @@ export default function VideosPage() {
         <div className="mx-auto mt-24 max-w-5xl">
           <div className="border-t border-[#d8c9b3]/45 pt-12">
             <p className="text-[10px] uppercase tracking-[0.42em] text-[#b58e62]">All videos</p>
-            <div className="mt-10 space-y-24">
+            <div className="mt-12 space-y-32">
               {items.map((video, index) => {
                 const reverse = index % 2 === 1;
+                const wide = video.aspectRatio === 'wide';
+                const frameRatio = wide ? '21 / 9' : video.aspectRatio === 'portrait' ? '9 / 16' : video.aspectRatio === 'square' ? '1 / 1' : '16 / 9';
                 return (
-                  <article key={video.id} className={`grid items-start gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:gap-16 ${reverse ? 'lg:[&>*:first-child]:order-2' : ''}`}>
-                    <div className={`pt-2 ${reverse ? 'lg:pl-6' : 'lg:pr-6'}`}>
-                      <h3 className="max-w-sm text-[2.7rem] font-light leading-[0.96] tracking-[0.04em] text-[#a97a4c] md:text-[3.4rem]">{video.title}</h3>
-                      <p className="mt-6 max-w-md text-sm leading-8 text-[#7a6b5b]">{video.description}</p>
+                  <article key={video.id} className={`grid items-start gap-12 lg:grid-cols-[0.86fr_1.14fr] lg:gap-20 ${reverse ? 'lg:[&>*:first-child]:order-2' : ''}`}>
+                    <div className={`pt-1 ${reverse ? 'lg:pl-10' : 'lg:pr-10'}`}>
+                      <h3 className="max-w-xs text-[2.15rem] font-light leading-[0.96] tracking-[0.04em] text-[#a97a4c] md:text-[2.9rem]">{video.title}</h3>
+                      <p className="mt-6 max-w-sm text-sm leading-8 text-[#7a6b5b]">{video.description}</p>
                     </div>
-                    <Link to={`/videos/${video.id}`} className="group block overflow-hidden rounded-[1.9rem] bg-white shadow-[0_18px_55px_rgba(148,120,82,0.08)]">
-                      <div className="overflow-hidden rounded-[1.35rem] bg-[#f6f1e8] p-1 md:p-2 lg:p-3">
-                        <MediaPreview src={video.videoUrl || video.coverUrl} title={video.title} kind="video" autoPlay={false} muted className="h-auto w-full object-contain" />
+                    <Link to={`/videos/${video.id}`} className={`group block overflow-hidden rounded-[1.9rem] bg-white shadow-[0_18px_55px_rgba(148,120,82,0.08)] ${reverse ? 'lg:justify-self-start' : 'lg:justify-self-end'}`}>
+                      <div className="overflow-hidden rounded-[1.35rem] bg-[#f6f1e8] px-3 py-3 md:px-4 md:py-4 lg:px-5 lg:py-5">
+                        <div className="overflow-hidden rounded-[1.1rem] bg-black" style={{ aspectRatio: frameRatio }}>
+                          <MediaPreview src={video.videoUrl || video.coverUrl} title={video.title} kind="video" autoPlay={false} muted className="h-full w-full object-contain" />
+                        </div>
                       </div>
                     </Link>
                   </article>
