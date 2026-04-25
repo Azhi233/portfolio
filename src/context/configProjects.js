@@ -56,6 +56,7 @@ export function createProjectActions({
       clientAgency: projectInput.clientAgency?.trim() || '',
       clientCode: projectInput.clientCode?.trim() || '',
       isFeatured: Boolean(projectInput.isFeatured),
+      featuredOrder: projectInput.featuredOrder,
       sortOrder: projectInput.sortOrder,
       description: projectInput.description?.trim() || '',
       credits: projectInput.credits?.trim() || '',

@@ -76,6 +76,7 @@ function normalizeProject(project) {
     clientAgency: String(project?.clientAgency || ''),
     clientCode: String(project?.clientCode || ''),
     isFeatured: Boolean(project?.isFeatured),
+    featuredOrder: normalizeSortOrder(project?.featuredOrder),
     sortOrder: normalizeSortOrder(project?.sortOrder),
     description: String(project?.description || ''),
     credits: String(project?.credits || ''),

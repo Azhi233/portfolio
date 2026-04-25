@@ -58,7 +58,17 @@ export function PortfolioHero({ t, layout }) {
 
 export function PortfolioWorkSection({ projects, layout }) {
   const slots = Array.isArray(layout?.slots) ? layout.slots : [];
-  const workSlots = ['work-1', 'work-2', 'work-3'].map((id) => slots.find((slot) => slot.id === id) || null);
+  const featuredProjects = [...projects].filter((project) => Boolean(project?.isFeatured));
+  const workSlots = featuredProjects.map((project) => {
+    const slot = slots.find((item) => item.id === project.id || item.id === project.slotId || item.projectId === project.id);
+    return slot || null;
+  });
+  const sortedProjects = featuredProjects.sort((a, b) => {
+    const aOrder = Number.isFinite(Number(a?.featuredOrder)) ? Number(a.featuredOrder) : Number.POSITIVE_INFINITY;
+    const bOrder = Number.isFinite(Number(b?.featuredOrder)) ? Number(b.featuredOrder) : Number.POSITIVE_INFINITY;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return String(a?.title || '').localeCompare(String(b?.title || ''));
+  });
 
   return (
     <section id="work" className="bg-[#FAF9F6] px-6 py-24 md:px-12 md:py-32">
@@ -68,29 +78,45 @@ export function PortfolioWorkSection({ projects, layout }) {
             <p className="text-[11px] uppercase tracking-[0.28em] text-[#151515]/45">Selected Work</p>
             <h2 className="mt-3 text-2xl font-light tracking-[0.08em] md:text-4xl">Projects</h2>
           </div>
-          <p className="max-w-xl text-sm leading-7 text-[#151515]/55">Placeholder visuals are used while the backend is offline, so you can review the layout and pacing now.</p>
+          <p className="max-w-xl text-sm leading-7 text-[#151515]/55">Only featured projects appear here. Unfeatured projects stay out of this section.</p>
         </div>
-        <div className="grid gap-8 md:grid-cols-2">
-          {projects.map((project, index) => {
-            const slot = workSlots[index];
-            const media = slot?.mediaUrl ? slot : { mediaUrl: project.image, mediaType: 'image', aspectRatio: '4 / 5', cropX: 50, cropY: 50, scale: 1 };
-            return (
-              <a key={project.id} href="/" className="pointer-events-auto group overflow-hidden rounded-3xl border border-black/5 bg-white shadow-[0_30px_80px_rgba(0,0,0,0.05)] transition-transform duration-300 hover:-translate-y-1">
-                <MediaFrame
-                  src={media.mediaUrl}
-                  alt={project.title}
-                  type={media.mediaType}
-                  aspectRatio={media.aspectRatio}
-                  cropX={media.cropX}
-                  cropY={media.cropY}
-                  scale={media.scale}
-                  className="bg-black/5"
-                />
-                <div className="p-6 md:p-8"><h3 className="text-xl font-light tracking-[0.08em] md:text-2xl">{project.title}</h3><p className="mt-2 text-sm leading-7 text-[#151515]/55">{project.subtitle}</p></div>
-              </a>
-            );
-          })}
-        </div>
+        {sortedProjects.length === 0 ? (
+          <div className="rounded-3xl border border-black/5 bg-white p-8 text-sm text-[#151515]/55 shadow-[0_30px_80px_rgba(0,0,0,0.05)]">
+            No featured projects yet.
+          </div>
+        ) : (
+          <div className="grid gap-8 md:grid-cols-2">
+            {sortedProjects.map((project, index) => {
+              const slot = workSlots[index];
+              const media = slot?.mediaUrl
+                ? slot
+                : {
+                    mediaUrl: project.coverUrl || project.thumbnailUrl || project.mainVideoUrl || project.videoUrl || '',
+                    mediaType: project.mainVideoUrl || project.videoUrl ? 'video' : 'image',
+                    aspectRatio: '4 / 5',
+                    cropX: 50,
+                    cropY: 50,
+                    scale: 1,
+                  };
+              if (!media.mediaUrl) return null;
+              return (
+                <a key={project.id} href="/" className="pointer-events-auto group overflow-hidden rounded-3xl border border-black/5 bg-white shadow-[0_30px_80px_rgba(0,0,0,0.05)] transition-transform duration-300 hover:-translate-y-1">
+                  <MediaFrame
+                    src={media.mediaUrl}
+                    alt={project.title}
+                    type={media.mediaType}
+                    aspectRatio={media.aspectRatio}
+                    cropX={media.cropX}
+                    cropY={media.cropY}
+                    scale={media.scale}
+                    className="bg-black/5"
+                  />
+                  <div className="p-6 md:p-8"><h3 className="text-xl font-light tracking-[0.08em] md:text-2xl">{project.title}</h3><p className="mt-2 text-sm leading-7 text-[#151515]/55">{project.subtitle}</p></div>
+                </a>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );
