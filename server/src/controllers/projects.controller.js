@@ -179,6 +179,12 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
       const { title, ...rest } = req.body || {};
       if (!title) return res.status(400).json({ ok: false, message: 'Project title is required.' });
 
+      const normalizedRest = {
+        ...rest,
+        isFeatured: rest.isFeatured === 'true' || rest.isFeatured === true,
+        isVisible: rest.isVisible === 'false' || rest.isVisible === false ? false : rest.isVisible,
+      };
+
       const oldCoverRef = extractObjectRef(existingProject.coverAssetUrl || existingProject.coverUrl);
       const oldThumbnailRef = extractObjectRef(existingProject.thumbnailUrl);
       const oldVideoRef = extractObjectRef(existingProject.mainVideoUrl || existingProject.videoUrl);
@@ -197,14 +203,15 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
       }
 
       const updated = await editProject(id, {
-        ...rest,
+        ...normalizedRest,
         title,
         ...payload,
         coverAssetUrl: payload.coverAssetUrl || payload.coverUrl,
-        thumbnailUrl: String(rest.thumbnailUrl || payload.coverUrl || '').trim() || payload.coverUrl,
-        kind: normalizeKind(rest),
-        mediaType: normalizeMediaType(rest),
-        displayOn: parseDisplayOn(rest.displayOn || rest.display_on),
+        thumbnailUrl: String(normalizedRest.thumbnailUrl || payload.coverUrl || '').trim() || payload.coverUrl,
+        kind: normalizeKind(normalizedRest),
+        mediaType: normalizeMediaType(normalizedRest),
+        displayOn: parseDisplayOn(normalizedRest.displayOn || normalizedRest.display_on),
+        featuredOrder: normalizedRest.isFeatured ? normalizedRest.featuredOrder : null,
       });
 
       if (shouldCleanOldCover || hasPrivateFilesUpdate || hasBtsMediaUpdate) {

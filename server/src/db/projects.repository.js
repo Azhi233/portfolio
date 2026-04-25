@@ -7,7 +7,7 @@ function normalizeProjectRow(row) {
   const normalizedKind = String(extra.kind || (normalizedVideoUrl ? 'video' : 'image')).toLowerCase();
   const normalizedMediaType = String(extra.mediaType || extra.media_type || (normalizedVideoUrl ? 'video' : 'image')).toLowerCase();
   const normalizedVisibility = String(extra.visibility || row.visibility || row.publish_status || 'public').toLowerCase();
-  const normalizedFeaturedOrder = extra.featuredOrder ?? extra.featured_order ?? row.sort_order ?? '';
+  const normalizedFeaturedOrder = row.is_featured ? extra.featuredOrder ?? extra.featured_order ?? row.sort_order ?? '' : '';
 
   return {
     id: row.id,
