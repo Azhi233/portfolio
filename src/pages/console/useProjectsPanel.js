@@ -191,7 +191,7 @@ export function useProjectsPanel(filterMode = 'all') {
     setState((prev) => ({ ...prev, saving: true, error: '', notice: '' }));
     try {
       const isEnabling = !project.isFeatured;
-      const nextFeaturedOrder = isEnabling ? featuredVideos.length + 1 : '';
+      const nextFeaturedOrder = isEnabling ? featuredVideos.length + 1 : null;
       const nextProject = {
         ...project,
         isFeatured: isEnabling,

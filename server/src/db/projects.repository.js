@@ -7,6 +7,7 @@ function normalizeProjectRow(row) {
   const normalizedKind = String(extra.kind || (normalizedVideoUrl ? 'video' : 'image')).toLowerCase();
   const normalizedMediaType = String(extra.mediaType || extra.media_type || (normalizedVideoUrl ? 'video' : 'image')).toLowerCase();
   const normalizedVisibility = String(extra.visibility || row.visibility || row.publish_status || 'public').toLowerCase();
+  const normalizedFeaturedOrder = extra.featuredOrder ?? extra.featured_order ?? row.sort_order ?? '';
 
   return {
     id: row.id,
@@ -30,6 +31,7 @@ function normalizeProjectRow(row) {
     clientCode: row.client_code || '',
     isFeatured: Boolean(toInt(row.is_featured, 0)),
     sortOrder: toInt(row.sort_order, 0),
+    featuredOrder: normalizedFeaturedOrder === '' ? '' : Number.isFinite(Number(normalizedFeaturedOrder)) ? Number(normalizedFeaturedOrder) : normalizedFeaturedOrder,
     description: row.description || '',
     credits: row.credits || '',
     isVisible: normalizedVisibility !== 'private' && Boolean(toInt(row.is_visible, 1)),
@@ -47,7 +49,7 @@ function normalizeProjectRow(row) {
 }
 
 function normalizeProjectPayload(project = {}) {
-  const { id, title, category, role, releaseDate, kind, mediaType, displayOn, coverUrl, coverAssetUrl, coverAssetObjectName, coverAssetFileType, coverAssetIsPrivate, thumbnailUrl, videoUrl, mainVideoUrl, btsMedia, clientAgency, clientCode, isFeatured, sortOrder, description, credits, isVisible, publishStatus, visibility, accessPassword, deliveryPin, status, password, privateFiles, outlineTags, createdAt, ...extra } = project || {};
+  const { id, title, category, role, releaseDate, kind, mediaType, displayOn, coverUrl, coverAssetUrl, coverAssetObjectName, coverAssetFileType, coverAssetIsPrivate, thumbnailUrl, videoUrl, mainVideoUrl, btsMedia, clientAgency, clientCode, isFeatured, featuredOrder, sortOrder, description, credits, isVisible, publishStatus, visibility, accessPassword, deliveryPin, status, password, privateFiles, outlineTags, createdAt, ...extra } = project || {};
   const normalizedKind = String(kind || extra.kind || (mainVideoUrl || videoUrl ? 'video' : 'image')).toLowerCase();
   const normalizedMediaType = String(mediaType || extra.mediaType || extra.media_type || (mainVideoUrl || videoUrl ? 'video' : 'image')).toLowerCase();
   const normalizedVisibility = String(visibility || extra.visibility || publishStatus || 'public').toLowerCase();
@@ -71,7 +73,7 @@ function normalizeProjectPayload(project = {}) {
     client_agency: clientAgency || null,
     client_code: clientCode || null,
     is_featured: isFeatured ? 1 : 0,
-    sort_order: Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 0,
+    sort_order: Number.isFinite(Number(featuredOrder)) ? Number(featuredOrder) : Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 0,
     description: description || null,
     credits: credits || null,
     is_visible: normalizedVisibility !== 'private' && isVisible === false ? 0 : 1,

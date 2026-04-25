@@ -32,7 +32,7 @@ export function cloneDraft(project) {
 export function serializeProjectPayload(project, featuredOrderOverride) {
   const payload = new FormData();
   Object.entries(project || {}).forEach(([key, value]) => {
-    if (value === undefined || value === null) return;
+    if (value === undefined) return;
     if (key === 'btsMedia' || key === 'privateFiles' || key === 'outlineTags' || key === 'displayOn') {
       const normalized = Array.isArray(value) ? value : value && typeof value === 'object' ? Object.values(value) : [];
       payload.append(key, JSON.stringify(normalized));
