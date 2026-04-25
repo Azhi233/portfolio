@@ -21,8 +21,6 @@ export default function VideosPage() {
       .catch(() => setItems([]));
   }, []);
 
-  const featured = useMemo(() => items.filter((item) => item.isFeatured), [items]);
-
   return (
     <main className="min-h-screen bg-[#f6f1e8] text-[#4f463f]">
       <MinimalTopNav />
@@ -40,30 +38,6 @@ export default function VideosPage() {
           </div>
         </header>
 
-        {featured.length ? (
-          <div className="mx-auto mt-18 max-w-5xl space-y-24">
-            {featured.map((video, index) => {
-              const reverse = index % 2 === 1;
-              return (
-                <article key={video.id} className={`grid items-start gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:gap-16 ${reverse ? 'lg:[&>*:first-child]:order-2' : ''}`}>
-                  <div className={`pt-2 ${reverse ? 'lg:pl-6' : 'lg:pr-6'}`}>
-                    <p className="text-[10px] uppercase tracking-[0.4em] text-[#b58e62]">Featured</p>
-                    <h2 className="mt-4 max-w-sm text-[2.7rem] font-light leading-[0.96] tracking-[0.04em] text-[#a97a4c] md:text-[3.4rem]">{video.title}</h2>
-                    <p className="mt-6 max-w-md text-sm leading-8 text-[#7a6b5b]">{video.description}</p>
-                  </div>
-                  <Link to={`/videos/${video.id}`} className="group block overflow-hidden rounded-[1.9rem] bg-white shadow-[0_18px_55px_rgba(148,120,82,0.08)]">
-                    <div className="flex items-center justify-center bg-black p-1 md:p-2 lg:p-3">
-                      <div className="w-full overflow-hidden rounded-[1.25rem] bg-black" style={{ aspectRatio: video.aspectRatio === 'portrait' ? '9 / 16' : video.aspectRatio === 'square' ? '1 / 1' : video.aspectRatio === 'wide' ? '21 / 9' : '16 / 9' }}>
-                        <MediaPreview src={video.videoUrl || video.coverUrl} title={video.title} kind="video" autoPlay={false} muted className="h-full w-full object-contain" />
-                      </div>
-                    </div>
-                  </Link>
-                </article>
-              );
-            })}
-          </div>
-        ) : null}
-
         <div className="mx-auto mt-24 max-w-5xl">
           <div className="border-t border-[#d8c9b3]/45 pt-12">
             <p className="text-[10px] uppercase tracking-[0.42em] text-[#b58e62]">All videos</p>
@@ -77,10 +51,8 @@ export default function VideosPage() {
                       <p className="mt-6 max-w-md text-sm leading-8 text-[#7a6b5b]">{video.description}</p>
                     </div>
                     <Link to={`/videos/${video.id}`} className="group block overflow-hidden rounded-[1.9rem] bg-white shadow-[0_18px_55px_rgba(148,120,82,0.08)]">
-                      <div className="flex items-center justify-center bg-black p-1 md:p-2 lg:p-3">
-                        <div className="w-full overflow-hidden rounded-[1.25rem] bg-black" style={{ aspectRatio: video.aspectRatio === 'portrait' ? '9 / 16' : video.aspectRatio === 'square' ? '1 / 1' : video.aspectRatio === 'wide' ? '21 / 9' : '16 / 9' }}>
-                          <MediaPreview src={video.videoUrl || video.coverUrl} title={video.title} kind="video" autoPlay={false} muted className="h-full w-full object-contain" />
-                        </div>
+                      <div className="overflow-hidden rounded-[1.35rem] bg-[#f6f1e8] p-1 md:p-2 lg:p-3">
+                        <MediaPreview src={video.videoUrl || video.coverUrl} title={video.title} kind="video" autoPlay={false} muted className="h-auto w-full object-contain" />
                       </div>
                     </Link>
                   </article>
