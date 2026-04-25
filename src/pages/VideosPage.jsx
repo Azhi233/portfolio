@@ -4,33 +4,7 @@ import { fetchJson } from '../utils/api.js';
 import { useI18n } from '../context/I18nContext.jsx';
 import MinimalTopNav from '../components/MinimalTopNav.jsx';
 import MediaPreview from '../components/MediaPreview.jsx';
-
-function normalizeVideoItem(item, index) {
-  const videoUrl = String(
-    item?.mainVideoUrl ||
-      item?.videoUrl ||
-      item?.url ||
-      item?.src ||
-      item?.video ||
-      item?.mediaUrl ||
-      item?.coverUrl ||
-      item?.coverAssetUrl ||
-      item?.thumbnailUrl ||
-      item?.posterUrl ||
-      ''
-  ).trim();
-
-  const coverUrl = String(item?.coverUrl || item?.coverAssetUrl || item?.thumbnailUrl || item?.posterUrl || '').trim();
-  if (!videoUrl && !coverUrl) return null;
-
-  return {
-    id: item?.id || `video-${index + 1}`,
-    title: item?.title || item?.name || `Video ${String(index + 1).padStart(2, '0')}`,
-    url: videoUrl || coverUrl,
-    coverUrl,
-    isFeatured: Boolean(item?.isFeatured),
-  };
-}
+import { normalizeVideoItem } from './videos/videoPageData.js';
 
 export default function VideosPage() {
   const { t } = useI18n();
@@ -44,7 +18,8 @@ export default function VideosPage() {
           .filter((item) => {
             const displayOn = Array.isArray(item?.displayOn) ? item.displayOn : [];
             const mediaType = String(item?.mediaType || item?.kind || '').toLowerCase();
-            return (displayOn.length ? displayOn.includes('videos') : true) && (mediaType ? mediaType === 'video' : true);
+            const hasVideoUrl = Boolean(String(item?.videoUrl || item?.mainVideoUrl || item?.url || item?.src || '').trim());
+            return (displayOn.length ? displayOn.includes('videos') : true) && (mediaType ? mediaType === 'video' : hasVideoUrl);
           })
           .map(normalizeVideoItem)
           .filter(Boolean);
