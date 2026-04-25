@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchJson } from '../../utils/api.js';
-import Card from '../../components/Card.jsx';
 import Button from '../../components/Button.jsx';
 import Input from '../../components/Input.jsx';
 import Textarea from '../../components/Textarea.jsx';
 import Modal from '../../components/Modal.jsx';
 import ReviewNotice from '../../components/ReviewNotice.jsx';
+import ConsolePanelShell from './ConsolePanelShell.jsx';
 
 const editableKeys = ['siteTitle', 'siteSubtitle', 'homeHeadline', 'homeDescription', 'contactEmail', 'contactWeChat', 'featuredImagesTitle', 'featuredImagesSubtitle', 'featuredImagesText'];
 const configLabels = {
@@ -49,21 +49,13 @@ function ConfigPanel() {
     load();
   }, []);
 
-  const previewRows = useMemo(() => {
-    return editableKeys.map((key) => [key, state.draft?.[key] || '']);
-  }, [state.draft]);
-
-  const updateDraft = (key, value) => {
-    setState((prev) => ({ ...prev, draft: { ...(prev.draft || {}), [key]: value } }));
-  };
+  const previewRows = useMemo(() => editableKeys.map((key) => [key, state.draft?.[key] || '']), [state.draft]);
+  const updateDraft = (key, value) => setState((prev) => ({ ...prev, draft: { ...(prev.draft || {}), [key]: value } }));
 
   const save = async () => {
     setState((prev) => ({ ...prev, saving: true, error: '' }));
     try {
-      await fetchJson('/config', {
-        method: 'POST',
-        body: JSON.stringify(state.draft || {}),
-      });
+      await fetchJson('/config', { method: 'POST', body: JSON.stringify(state.draft || {}) });
       await load();
       setState((prev) => ({ ...prev, isOpen: false, saving: false }));
     } catch (error) {
@@ -73,19 +65,22 @@ function ConfigPanel() {
 
   return (
     <>
-      <Card className="p-6 md:p-8">
-        <div>
-          <p className="text-[11px] tracking-[0.2em] text-zinc-500">MODULE</p>
-          <h2 className="mt-2 text-xl tracking-[0.08em] text-white">Config</h2>
-          <p className="mt-2 text-sm leading-7 text-zinc-400">全局配置与首页文案的读取与编辑入口。</p>
-        </div>
-
-        {state.loading ? <p className="mt-4 text-sm text-zinc-400">Loading config...</p> : null}
-        {state.error ? <p className="mt-4 rounded-2xl border border-rose-300/30 bg-rose-300/10 px-4 py-3 text-sm text-rose-200">{state.error}</p> : null}
-
-        <ReviewNotice className="mt-4" />
-
-        <div className="mt-4 grid gap-3">
+      <ConsolePanelShell
+        eyebrow="SYSTEM"
+        title="Config"
+        description="全局配置与首页文案的读取与编辑入口。"
+        badge={{ label: 'SITE WIDE', tone: 'default' }}
+        footer={(
+          <div className="flex gap-3">
+            <Button type="button" variant="subtle" onClick={load}>REFRESH</Button>
+            <Button type="button" variant="default" onClick={() => setState((prev) => ({ ...prev, isOpen: true }))}>EDIT CONFIG</Button>
+          </div>
+        )}
+      >
+        {state.loading ? <p className="text-sm text-zinc-400">Loading config...</p> : null}
+        {state.error ? <p className="rounded-2xl border border-rose-300/30 bg-rose-300/10 px-4 py-3 text-sm text-rose-200">{state.error}</p> : null}
+        <ReviewNotice className="my-4" />
+        <div className="grid gap-3">
           {previewRows.map(([key, value]) => (
             <div key={key} className="rounded-2xl border border-white/10 bg-black/20 p-4">
               <p className="text-[11px] tracking-[0.18em] text-zinc-500">{configLabels[key] || key}</p>
@@ -93,16 +88,7 @@ function ConfigPanel() {
             </div>
           ))}
         </div>
-
-        <div className="mt-5 flex gap-3">
-          <Button type="button" variant="subtle" onClick={load}>
-            REFRESH
-          </Button>
-          <Button type="button" variant="default" onClick={() => setState((prev) => ({ ...prev, isOpen: true }))}>
-            EDIT CONFIG
-          </Button>
-        </div>
-      </Card>
+      </ConsolePanelShell>
 
       <Modal open={state.isOpen} title="Edit Config" onClose={() => setState((prev) => ({ ...prev, isOpen: false }))}>
         <div className="grid gap-4">
@@ -119,12 +105,8 @@ function ConfigPanel() {
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
-          <Button type="button" variant="subtle" onClick={() => setState((prev) => ({ ...prev, isOpen: false }))}>
-            CANCEL
-          </Button>
-          <Button type="button" variant="primary" onClick={save}>
-            {state.saving ? 'SAVING...' : 'SAVE CONFIG'}
-          </Button>
+          <Button type="button" variant="subtle" onClick={() => setState((prev) => ({ ...prev, isOpen: false }))}>CANCEL</Button>
+          <Button type="button" variant="primary" onClick={save}>{state.saving ? 'SAVING...' : 'SAVE CONFIG'}</Button>
         </div>
       </Modal>
     </>

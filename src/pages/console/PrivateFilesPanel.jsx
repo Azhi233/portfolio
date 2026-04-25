@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchJson, uploadFile } from '../../utils/api.js';
-import Card from '../../components/Card.jsx';
 import Badge from '../../components/Badge.jsx';
 import Button from '../../components/Button.jsx';
 import Modal from '../../components/Modal.jsx';
 import Input from '../../components/Input.jsx';
 import MediaPicker from '../../components/MediaPicker.jsx';
+import ConsolePanelShell from './ConsolePanelShell.jsx';
 
 function PrivateFilesPanel() {
   const [state, setState] = useState({ loading: true, saving: false, uploading: false, error: '', items: [], selectedProject: null, isOpen: false, draft: { label: '', name: '', url: '', type: 'zip', enabled: true, sortOrder: 0 } });
@@ -24,24 +24,11 @@ function PrivateFilesPanel() {
     load();
   }, []);
 
-  const rows = useMemo(() => {
-    return state.items
-      .map((project) => ({
-        id: project.id,
-        title: project.title,
-        count: Array.isArray(project.privateFiles) ? project.privateFiles.filter((item) => item?.enabled !== false).length : 0,
-      }))
-      .filter((item) => item.count > 0);
-  }, [state.items]);
+  const rows = useMemo(() => state.items.map((project) => ({ id: project.id, title: project.title, count: Array.isArray(project.privateFiles) ? project.privateFiles.filter((item) => item?.enabled !== false).length : 0 })).filter((item) => item.count > 0), [state.items]);
   const totalFiles = rows.reduce((sum, item) => sum + item.count, 0);
 
   const openEditor = (project) => {
-    setState((prev) => ({
-      ...prev,
-      selectedProject: project,
-      isOpen: true,
-      draft: { label: '', name: '', url: '', type: 'zip', enabled: true, sortOrder: 0 },
-    }));
+    setState((prev) => ({ ...prev, selectedProject: project, isOpen: true, draft: { label: '', name: '', url: '', type: 'zip', enabled: true, sortOrder: 0 } }));
   };
 
   const addFile = async () => {
@@ -50,10 +37,7 @@ function PrivateFilesPanel() {
     try {
       const currentFiles = Array.isArray(state.selectedProject.privateFiles) ? state.selectedProject.privateFiles : [];
       const nextFiles = [...currentFiles, { id: crypto.randomUUID(), ...state.draft }];
-      await fetchJson(`/projects/${state.selectedProject.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ ...state.selectedProject, privateFiles: nextFiles }),
-      });
+      await fetchJson(`/projects/${state.selectedProject.id}`, { method: 'PUT', body: JSON.stringify({ ...state.selectedProject, privateFiles: nextFiles }) });
       await load();
       setState((prev) => ({ ...prev, saving: false, isOpen: false, selectedProject: null }));
     } catch (error) {
@@ -74,20 +58,15 @@ function PrivateFilesPanel() {
 
   return (
     <>
-      <Card className="p-6 md:p-8">
-        <div className="flex items-start justify-between gap-4">
+      <ConsolePanelShell eyebrow="DELIVERY" title="Private Files" description="私密交付文件的项目分布。" badge={{ label: 'DELIVERY', tone: 'success' }}>
+        <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-[11px] tracking-[0.2em] text-zinc-500">MODULE</p>
-            <h2 className="mt-2 text-xl tracking-[0.08em] text-white">Private Files</h2>
-            <p className="mt-2 text-sm leading-7 text-zinc-400">私密交付文件的项目分布。</p>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <Badge tone="success">DELIVERY</Badge>
             <p className="text-xs tracking-[0.16em] text-zinc-500">{rows.length} PROJECT(S) / {totalFiles} FILE(S)</p>
+            {state.loading ? <p className="mt-2 text-sm text-zinc-400">Loading private files...</p> : null}
           </div>
+          <Button type="button" variant="subtle" onClick={load}>REFRESH</Button>
         </div>
 
-        {state.loading ? <p className="mt-4 text-sm text-zinc-400">Loading private files...</p> : null}
         {state.error ? <p className="mt-4 rounded-2xl border border-rose-300/30 bg-rose-300/10 px-4 py-3 text-sm text-rose-200">{state.error}</p> : null}
 
         <div className="mt-4 grid gap-3">
@@ -99,20 +78,12 @@ function PrivateFilesPanel() {
                   <p className="text-sm tracking-[0.08em] text-white">{item.title}</p>
                   <p className="mt-2 text-sm text-zinc-400">{item.count} private files</p>
                 </div>
-                <Button type="button" variant="subtle" onClick={() => openEditor(state.items.find((project) => project.id === item.id))}>
-                  ADD FILE
-                </Button>
+                <Button type="button" variant="subtle" onClick={() => openEditor(state.items.find((project) => project.id === item.id))}>ADD FILE</Button>
               </div>
             </div>
           ))}
         </div>
-
-        <div className="mt-5 flex gap-3">
-          <Button type="button" variant="subtle" onClick={load}>
-            REFRESH
-          </Button>
-        </div>
-      </Card>
+      </ConsolePanelShell>
 
       <Modal open={state.isOpen} title="Add Private File" onClose={() => setState((prev) => ({ ...prev, isOpen: false, selectedProject: null }))}>
         <div className="grid gap-4">
@@ -124,14 +95,7 @@ function PrivateFilesPanel() {
             <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Name</p>
             <Input value={state.draft.name} onChange={(event) => setState((prev) => ({ ...prev, draft: { ...prev.draft, name: event.target.value } }))} />
           </label>
-          <MediaPicker
-            label="Upload File"
-            accept="*/*"
-            value={state.draft.url}
-            uploading={state.uploading}
-            helperText="Uploads to MinIO and stores the returned URL."
-            onPick={(file) => uploadPrivateFile(file)}
-          />
+          <MediaPicker label="Upload File" accept="*/*" value={state.draft.url} uploading={state.uploading} helperText="Uploads to MinIO and stores the returned URL." onPick={(file) => uploadPrivateFile(file)} />
           <label className="block">
             <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">URL</p>
             <Input value={state.draft.url} onChange={(event) => setState((prev) => ({ ...prev, draft: { ...prev.draft, url: event.target.value } }))} />
@@ -139,12 +103,8 @@ function PrivateFilesPanel() {
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
-          <Button type="button" variant="subtle" onClick={() => setState((prev) => ({ ...prev, isOpen: false, selectedProject: null }))}>
-            CANCEL
-          </Button>
-          <Button type="button" variant="primary" onClick={addFile}>
-            {state.saving ? 'SAVING...' : 'SAVE FILE'}
-          </Button>
+          <Button type="button" variant="subtle" onClick={() => setState((prev) => ({ ...prev, isOpen: false, selectedProject: null }))}>CANCEL</Button>
+          <Button type="button" variant="primary" onClick={addFile}>{state.saving ? 'SAVING...' : 'SAVE FILE'}</Button>
         </div>
       </Modal>
     </>

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { fetchJson } from '../../utils/api.js';
-import Card from '../../components/Card.jsx';
 import Badge from '../../components/Badge.jsx';
 import Button from '../../components/Button.jsx';
 import Modal from '../../components/Modal.jsx';
 import Input from '../../components/Input.jsx';
 import Textarea from '../../components/Textarea.jsx';
+import ConsolePanelShell from './ConsolePanelShell.jsx';
 
 function TestimonialsPanel() {
   const [state, setState] = useState({ loading: true, saving: false, error: '', items: [], isOpen: false, draft: { projectName: '', content: '', status: 'approved' } });
@@ -31,10 +31,7 @@ function TestimonialsPanel() {
   const save = async () => {
     setState((prev) => ({ ...prev, saving: true, error: '' }));
     try {
-      await fetchJson('/reviews', {
-        method: 'POST',
-        body: JSON.stringify(state.draft),
-      });
+      await fetchJson('/reviews', { method: 'POST', body: JSON.stringify(state.draft) });
       await load();
       setState((prev) => ({ ...prev, saving: false, isOpen: false }));
     } catch (error) {
@@ -57,20 +54,18 @@ function TestimonialsPanel() {
 
   return (
     <>
-      <Card className="p-6 md:p-8">
-        <div className="flex items-start justify-between gap-4">
+      <ConsolePanelShell eyebrow="REVIEWS" title="Testimonials" description="评论与推荐的后台读取入口。" badge={{ label: 'REVIEWS', tone: 'default' }}>
+        <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-[11px] tracking-[0.2em] text-zinc-500">MODULE</p>
-            <h2 className="mt-2 text-xl tracking-[0.08em] text-white">Testimonials</h2>
-            <p className="mt-2 text-sm leading-7 text-zinc-400">评论与推荐的后台读取入口。</p>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <Badge tone="default">REVIEWS</Badge>
             <p className="text-xs tracking-[0.16em] text-zinc-500">{reviewCount} ITEM(S) / {approvedCount} APPROVED</p>
+            {state.loading ? <p className="mt-2 text-sm text-zinc-400">Loading testimonials...</p> : null}
+          </div>
+          <div className="flex gap-3">
+            <Button type="button" variant="default" onClick={openNew}>NEW REVIEW</Button>
+            <Button type="button" variant="subtle" onClick={load}>REFRESH</Button>
           </div>
         </div>
 
-        {state.loading ? <p className="mt-4 text-sm text-zinc-400">Loading testimonials...</p> : null}
         {state.error ? <p className="mt-4 rounded-2xl border border-rose-300/30 bg-rose-300/10 px-4 py-3 text-sm text-rose-200">{state.error}</p> : null}
 
         <div className="mt-4 grid gap-3">
@@ -85,23 +80,12 @@ function TestimonialsPanel() {
                 <Badge tone={item.status === 'approved' ? 'success' : item.status === 'rejected' ? 'danger' : 'warning'}>{item.status || 'pending'}</Badge>
               </div>
               <div className="mt-4 flex flex-wrap gap-3">
-                <Button type="button" variant="default" onClick={() => remove(item.id)}>
-                  DELETE
-                </Button>
+                <Button type="button" variant="default" onClick={() => remove(item.id)}>DELETE</Button>
               </div>
             </div>
           ))}
         </div>
-
-        <div className="mt-5 flex gap-3">
-          <Button type="button" variant="default" onClick={openNew}>
-            NEW REVIEW
-          </Button>
-          <Button type="button" variant="subtle" onClick={load}>
-            REFRESH
-          </Button>
-        </div>
-      </Card>
+      </ConsolePanelShell>
 
       <Modal open={state.isOpen} title="New Testimonial" onClose={() => setState((prev) => ({ ...prev, isOpen: false }))}>
         <div className="grid gap-4">
@@ -120,12 +104,8 @@ function TestimonialsPanel() {
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
-          <Button type="button" variant="subtle" onClick={() => setState((prev) => ({ ...prev, isOpen: false }))}>
-            CANCEL
-          </Button>
-          <Button type="button" variant="primary" onClick={save}>
-            {state.saving ? 'SAVING...' : 'SAVE REVIEW'}
-          </Button>
+          <Button type="button" variant="subtle" onClick={() => setState((prev) => ({ ...prev, isOpen: false }))}>CANCEL</Button>
+          <Button type="button" variant="primary" onClick={save}>{state.saving ? 'SAVING...' : 'SAVE REVIEW'}</Button>
         </div>
       </Modal>
     </>
