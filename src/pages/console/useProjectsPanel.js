@@ -1,7 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchJson } from '../../utils/api.js';
 import { uploadMediaAsset } from '../../utils/projectVideoUpload.js';
-import { blankDraft, cloneDraft, serializeProjectPayload, upsertDraftMedia } from './projectsPanelHelpers.js';
+import {
+  blankDraft,
+  cloneDraft,
+  serializeProjectPayload,
+  upsertDraftMedia,
+  createNoticePatch,
+  swapBtsItems,
+  buildUploadedDraft,
+  patchFeaturedProject,
+  applyProjectDeletionNotice,
+  applyProjectSaveNotice,
+  applyProjectUploadNotice,
+  applyFeaturedNotice,
+  updateProjectListFeatured,
+} from './projectsPanelHelpers.js';
 
 export function useProjectsPanel(filterMode = 'all') {
   const [state, setState] = useState({
@@ -24,6 +38,7 @@ export function useProjectsPanel(filterMode = 'all') {
     uploadTarget: 'auto',
     notice: '',
     noticeTone: 'success',
+    noticeId: 0,
   });
 
   const load = async () => {
@@ -73,7 +88,7 @@ export function useProjectsPanel(filterMode = 'all') {
         }),
       );
       await load();
-      setState((prev) => ({ ...prev, saving: false, notice: 'Featured order updated.', noticeTone: 'success' }));
+      setState((prev) => ({ ...prev, saving: false, ...createNoticePatch('Featured order updated.') }));
     } catch (error) {
       setState((prev) => ({ ...prev, saving: false, error: error.message || 'Failed to reorder featured videos.' }));
     }
@@ -89,7 +104,7 @@ export function useProjectsPanel(filterMode = 'all') {
       const method = state.mode === 'edit' ? 'PUT' : 'POST';
       await fetchJson(endpoint, { method, data: serializeProjectPayload(draft) });
       await load();
-      setState((prev) => ({ ...prev, saving: false, isOpen: false, draft: { ...blankDraft }, notice: 'Project saved successfully.' }));
+      setState((prev) => ({ ...prev, saving: false, isOpen: false, draft: { ...blankDraft }, ...applyProjectSaveNotice() }));
     } catch (error) {
       setState((prev) => ({ ...prev, saving: false, error: error.message || 'Failed to save project.' }));
     }
@@ -121,22 +136,8 @@ export function useProjectsPanel(filterMode = 'all') {
         uploadStage: 'done',
         uploadProgress: 100,
         uploadStatus: `Upload succeeded: ${result?.url || uploadFileObject?.name || 'file ready'}`,
-        notice: 'Media uploaded successfully.',
-        noticeTone: 'success',
-        draft: {
-          ...prev.draft,
-          title: meta.title ? String(meta.title).trim() || prev.draft.title : prev.draft.title,
-          kind: kind === 'video' ? 'video' : 'image',
-          mediaType: kind === 'video' ? 'video' : 'image',
-          displayOn: kind === 'video' ? ['home', 'videos'] : ['home', 'images'],
-          coverUrl: kind === 'image' ? result?.url : prev.draft.coverUrl,
-          coverAssetUrl: kind === 'image' ? result?.url : prev.draft.coverAssetUrl,
-          coverAssetObjectName: result?.objectName || prev.draft.coverAssetObjectName,
-          coverAssetFileType: uploadFileObject?.type || prev.draft.coverAssetFileType || 'application/octet-stream',
-          thumbnailUrl: kind === 'image' ? result?.url : prev.draft.thumbnailUrl,
-          videoUrl: kind === 'video' ? result?.url : prev.draft.videoUrl,
-          mainVideoUrl: kind === 'video' ? result?.url : prev.draft.mainVideoUrl,
-        },
+        ...applyProjectUploadNotice(kind === 'video' ? 'video' : 'image'),
+        draft: buildUploadedDraft(prev.draft, { kind, result, uploadFileObject, meta }),
       }));
     } catch (error) {
       setState((prev) => ({ ...prev, uploading: false, uploadStage: 'error', uploadFailureStage: 'transcoding', uploadProgress: 0, uploadStatus: `Upload failed: ${error.message || 'Unknown error'}`, error: error.message || 'Failed to upload file.' }));
@@ -154,7 +155,7 @@ export function useProjectsPanel(filterMode = 'all') {
     });
   };
 
-  const updateBtsMedia = (items) => setState((prev) => ({ ...prev, draft: { ...prev.draft, btsMedia: items } }));
+  const updateBtsMedia = (items) => setState((prev) => ({ ...prev, draft: upsertDraftMedia(prev.draft, { btsMedia: items }) }));
   const addBtsItem = async (file, kind = 'image', meta = {}) => {
     if (!file) return;
     setState((prev) => ({ ...prev, uploading: true, uploadProgress: 0, uploadStage: 'preparing', uploadStatus: `Preparing ${file.name}...`, error: '', uploadFailureStage: '' }));
@@ -166,7 +167,7 @@ export function useProjectsPanel(filterMode = 'all') {
       });
       const resolvedKind = meta.kind || kind || (uploadFileObject.type.startsWith('video/') ? 'video' : 'image');
       const nextItem = { id: crypto.randomUUID(), title: String(meta.title || uploadFileObject.name || '').trim(), label: String(meta.title || uploadFileObject.name || '').trim(), url: result?.url, kind: resolvedKind, mediaType: resolvedKind, displayOn: resolvedKind === 'video' ? ['home', 'videos'] : ['home', 'images'] };
-      setState((prev) => ({ ...prev, uploading: false, uploadStage: 'done', uploadProgress: 100, uploadStatus: `Upload succeeded: ${result?.url || file.name}`, notice: 'BTS media uploaded successfully.', noticeTone: 'success', draft: { ...prev.draft, btsMedia: [...(Array.isArray(prev.draft.btsMedia) ? prev.draft.btsMedia : []), nextItem] } }));
+      setState((prev) => ({ ...prev, uploading: false, uploadStage: 'done', uploadProgress: 100, uploadStatus: `Upload succeeded: ${result?.url || file.name}`, ...applyProjectUploadNotice('bts'), draft: { ...prev.draft, btsMedia: [...(Array.isArray(prev.draft.btsMedia) ? prev.draft.btsMedia : []), nextItem] } }));
     } catch (error) {
       setState((prev) => ({ ...prev, uploading: false, uploadStage: 'error', uploadFailureStage: 'transcoding', uploadProgress: 0, uploadStatus: `Upload failed: ${error.message || 'Unknown error'}`, error: error.message || 'Failed to upload BTS media.' }));
     }
@@ -179,9 +180,9 @@ export function useProjectsPanel(filterMode = 'all') {
     try {
       await fetchJson(`/projects/${projectId}`, { method: 'DELETE' });
       await load();
-      setState((prev) => ({ ...prev, deleting: false, deleteStatus: 'Project and linked files removed.', notice: 'Project deleted successfully.', noticeTone: 'success' }));
+      setState((prev) => ({ ...prev, deleting: false, deleteStatus: 'Project and linked files removed.', ...applyProjectDeletionNotice(true) }));
     } catch (error) {
-      setState((prev) => ({ ...prev, deleting: false, deleteStatus: '', error: error.message || 'Failed to delete project.', notice: 'Project deletion failed.', noticeTone: 'danger' }));
+      setState((prev) => ({ ...prev, deleting: false, deleteStatus: '', error: error.message || 'Failed to delete project.', ...applyProjectDeletionNotice(false) }));
     }
   };
 
@@ -201,29 +202,18 @@ export function useProjectsPanel(filterMode = 'all') {
 
       setState((prev) => ({
         ...prev,
-        items: prev.items.map((item) =>
-          String(item.id) === String(project.id)
-            ? { ...item, isFeatured: isEnabling, featuredOrder: nextFeaturedOrder }
-            : item,
-        ),
+        items: updateProjectListFeatured(prev.items, project.id, isEnabling, nextFeaturedOrder),
+        draft:
+          prev.isOpen && prev.draft?.id && String(prev.draft.id) === String(project.id)
+            ? { ...prev.draft, isFeatured: isEnabling, featuredOrder: nextFeaturedOrder }
+            : prev.draft,
       }));
 
       await load();
-      if (state.isOpen && state.draft?.id && String(state.draft.id) === String(project.id)) {
-        setState((prev) => ({
-          ...prev,
-          draft: {
-            ...prev.draft,
-            isFeatured: isEnabling,
-            featuredOrder: nextFeaturedOrder,
-          },
-        }));
-      }
       setState((prev) => ({
         ...prev,
         saving: false,
-        notice: isEnabling ? 'Added to featured videos.' : 'Removed from featured videos.',
-        noticeTone: 'success',
+        ...applyFeaturedNotice(isEnabling),
       }));
     } catch (error) {
       setState((prev) => ({ ...prev, saving: false, error: error.message || 'Failed to update featured status.' }));

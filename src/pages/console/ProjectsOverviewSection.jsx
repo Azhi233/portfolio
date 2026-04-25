@@ -17,11 +17,11 @@ function getMosaicSpan(index) {
 
 function StarIcon({ filled = false }) {
   return filled ? (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current">
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current text-[#8a6a2b]">
       <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
     </svg>
   ) : (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-none stroke-current stroke-2">
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-none stroke-current stroke-2 text-zinc-400">
       <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
     </svg>
   );
@@ -51,25 +51,25 @@ function EditIcon() {
 function ProjectTableRow({ item, index, onEdit, onToggleFeatured, onDelete }) {
   return (
     <tr className="border-b border-white/10 text-sm text-zinc-900 last:border-b-0">
-      <td className="w-16 py-4 pr-3 text-[11px] text-zinc-500">{String(index + 1).padStart(2, '0')}</td>
-      <td className="py-4 pr-4">
+      <td className="w-14 py-3 pr-3 text-[11px] text-zinc-500">{String(index + 1).padStart(2, '0')}</td>
+      <td className="py-3 pr-4">
         <div className="min-w-0">
-          <p className="truncate text-base font-medium tracking-[0.02em] text-zinc-900">{item.title}</p>
-          <p className="mt-1 truncate text-xs text-zinc-500">{item.category || 'Uncategorized'}</p>
+          <p className="truncate text-sm font-medium tracking-[0.02em] text-zinc-900">{item.title}</p>
+          <p className="mt-1 truncate text-[11px] text-zinc-500">{item.category || 'Uncategorized'}</p>
         </div>
       </td>
-      <td className="w-32 py-4 pr-3 text-zinc-600">{item.isVisible === false ? 'Hidden' : 'Live'}</td>
-      <td className="w-28 py-4 pr-3">
+      <td className="w-28 py-3 pr-3 text-zinc-600">{item.isVisible === false ? 'Hidden' : 'Live'}</td>
+      <td className="w-24 py-3 pr-3">
         <button type="button" onClick={() => onToggleFeatured(item)} className="inline-flex items-center justify-center text-zinc-900 transition hover:opacity-70" aria-label={item.isFeatured ? 'Unfeature project' : 'Feature project'}>
           <StarIcon filled={Boolean(item.isFeatured)} />
         </button>
       </td>
-      <td className="w-28 py-4 pr-3">
+      <td className="w-24 py-3 pr-3">
         <button type="button" onClick={() => onEdit(item)} className="inline-flex items-center justify-center text-zinc-900 transition hover:opacity-70" aria-label="Edit project">
           <EditIcon />
         </button>
       </td>
-      <td className="w-28 py-4 text-right">
+      <td className="w-24 py-3 text-right">
         <button type="button" onClick={() => onDelete(item.id)} className="inline-flex items-center justify-center text-zinc-900 transition hover:opacity-70" aria-label="Delete project">
           <TrashIcon />
         </button>
@@ -145,7 +145,7 @@ function ProjectFilterPanel({ query, category, onQueryChange, onCategoryChange, 
         </label>
       </div>
 
-      <div className="mt-4 grid gap-3 text-sm">
+      <div className="mt-4 grid gap-2 text-sm">
         {loading ? <p className="text-zinc-600">Loading projects...</p> : null}
         {notice ? <p className={noticeTone === 'danger' ? 'text-rose-800' : 'text-emerald-800'}>{notice}</p> : null}
         {error ? <p className="text-rose-800">{error}</p> : null}
@@ -200,7 +200,7 @@ export default function ProjectsOverviewSection({ liveCount, featuredVideos, onR
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+      <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
         <FeaturedQueuePanel featuredVideos={featuredVideos} onReorderFeatured={onReorderFeatured} />
         <ProjectFilterPanel query={query} category={category} onQueryChange={onQueryChange} onCategoryChange={onCategoryChange} loading={loading} notice={notice} noticeTone={noticeTone} error={error} deleting={deleting} deleteStatus={deleteStatus} />
       </div>

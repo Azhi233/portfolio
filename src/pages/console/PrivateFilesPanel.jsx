@@ -100,7 +100,7 @@ function PrivateFilesPanel() {
           </label>
         </div>
 
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="mt-6 flex items-center justify-end gap-3">
           <Button type="button" variant="subtle" onClick={() => setState((prev) => ({ ...prev, isOpen: false, selectedProject: null }))}>CANCEL</Button>
           <Button type="button" variant="primary" onClick={addFile}>{state.saving ? 'SAVING...' : 'SAVE FILE'}</Button>
         </div>

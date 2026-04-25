@@ -101,7 +101,7 @@ function TestimonialsPanel() {
           </label>
         </div>
 
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="mt-6 flex items-center justify-end gap-3">
           <Button type="button" variant="subtle" onClick={() => setState((prev) => ({ ...prev, isOpen: false }))}>CANCEL</Button>
           <Button type="button" variant="primary" onClick={save}>{state.saving ? 'SAVING...' : 'SAVE REVIEW'}</Button>
         </div>

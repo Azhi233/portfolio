@@ -1,9 +1,20 @@
+import { useEffect, useState } from 'react';
 import ProjectEditorModal from './ProjectEditorModal.jsx';
 import ProjectsOverviewSection from './ProjectsOverviewSection.jsx';
+import FloatingNotice from './FloatingNotice.jsx';
 import { useProjectsPanel } from './useProjectsPanel.js';
 
 function ProjectsPanel({ filterMode = 'all' }) {
   const { state, featuredVideos, liveCount, filtered, load, openNew, openEdit, toggleDisplayOn, updateFeaturedOrder, save, uploadAsset, addBtsItem, updateBtsMedia, remove, toggleFeatured, setState, updateDraft } = useProjectsPanel(filterMode);
+  const [toast, setToast] = useState({ open: false, tone: 'success', message: '' });
+
+  useEffect(() => {
+    if (!state.notice) return;
+    const tone = state.noticeTone === 'danger' ? 'danger' : state.noticeTone === 'info' ? 'info' : 'success';
+    setToast({ open: true, tone, message: state.notice });
+    const timer = setTimeout(() => setToast((prev) => ({ ...prev, open: false })), 2200);
+    return () => clearTimeout(timer);
+  }, [state.noticeId, state.notice, state.noticeTone]);
 
   return (
     <>
@@ -28,6 +39,8 @@ function ProjectsPanel({ filterMode = 'all' }) {
         onDelete={remove}
         onReorderFeatured={updateFeaturedOrder}
       />
+
+      <FloatingNotice open={toast.open} tone={toast.tone}>{toast.message}</FloatingNotice>
 
       <ProjectEditorModal
         open={state.isOpen}

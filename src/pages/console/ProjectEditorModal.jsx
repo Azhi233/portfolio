@@ -68,7 +68,7 @@ export default function ProjectEditorModal({
         </div>
       </div>
 
-      <div className="mt-6 flex justify-end gap-3 border-t border-white/10 pt-4">
+      <div className="mt-6 flex items-center justify-end gap-3 border-t border-white/10 pt-4">
         <Button type="button" variant="subtle" onClick={onClose}>CANCEL</Button>
         <Button type="button" variant="primary" onClick={onSave}>{saving ? 'SAVING...' : 'SAVE PROJECT'}</Button>
       </div>
