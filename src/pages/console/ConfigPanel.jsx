@@ -78,29 +78,24 @@ function ConfigPanel() {
         )}
       >
         {state.loading ? <p className="text-sm text-zinc-400">Loading config...</p> : null}
-        {state.error ? <p className="rounded-2xl border border-rose-300/30 bg-rose-300/10 px-4 py-3 text-sm text-rose-200">{state.error}</p> : null}
-        <ReviewNotice className="my-4" />
-        <div className="grid gap-3">
-          {previewRows.map(([key, value]) => (
-            <div key={key} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-[11px] tracking-[0.18em] text-zinc-500">{configLabels[key] || key}</p>
-              <p className="mt-2 text-sm leading-7 text-zinc-300">{String(value || '—')}</p>
-            </div>
-          ))}
-        </div>
+        {state.error ? <p className="text-sm text-rose-300">{state.error}</p> : null}
+        {!state.loading && !state.error ? <p className="text-sm text-zinc-500">Current site text and homepage copy are stored in the backend.</p> : null}
       </ConsolePanelShell>
 
       <Modal open={state.isOpen} title="Edit Config" onClose={() => setState((prev) => ({ ...prev, isOpen: false }))}>
-        <div className="grid gap-4">
-          {editableKeys.map((key) => (
-            <label key={key} className="block">
-              <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">{configLabels[key] || key}</p>
-              {key.includes('Description') || key.includes('Subtitle') ? (
-                <Textarea value={state.draft?.[key] || ''} onChange={(event) => updateDraft(key, event.target.value)} />
-              ) : (
-                <Input value={state.draft?.[key] || ''} onChange={(event) => updateDraft(key, event.target.value)} />
-              )}
-            </label>
+        <div className="grid gap-5">
+          <ReviewNotice />
+          {previewRows.map(([key, value]) => (
+            <div key={key} className="border-b border-white/10 pb-4">
+              <label className="block">
+                <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">{configLabels[key] || key}</p>
+                {key.includes('Description') || key.includes('Subtitle') ? (
+                  <Textarea value={value} onChange={(event) => updateDraft(key, event.target.value)} />
+                ) : (
+                  <Input value={value} onChange={(event) => updateDraft(key, event.target.value)} />
+                )}
+              </label>
+            </div>
           ))}
         </div>
 

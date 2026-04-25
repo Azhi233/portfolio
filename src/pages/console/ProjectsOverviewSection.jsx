@@ -15,64 +15,66 @@ function getMosaicSpan(index) {
   return pattern[index % pattern.length];
 }
 
-function ProjectStatusBadges({ item }) {
-  return (
-    <div className="flex shrink-0 flex-col items-end gap-2">
-      <Badge tone={item.isVisible === false ? 'danger' : 'success'}>{item.isVisible === false ? 'HIDDEN' : 'LIVE'}</Badge>
-      {item.isFeatured ? <Badge tone="warning">FEATURED</Badge> : null}
-    </div>
+function StarIcon({ filled = false }) {
+  return filled ? (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current">
+      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-none stroke-current stroke-2">
+      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+    </svg>
   );
 }
 
-function ProjectCardActions({ item, onEdit, onToggleFeatured, onDelete }) {
+function TrashIcon() {
   return (
-    <div className="flex items-center gap-2">
-      <Button type="button" variant="subtle" onClick={() => onEdit(item)}>VIEW</Button>
-      <Button type="button" variant={item.isFeatured ? 'subtle' : 'primary'} onClick={() => onToggleFeatured(item)}>{item.isFeatured ? 'UNFEATURE' : 'FEATURE'}</Button>
-      <Button type="button" variant="danger" onClick={() => onDelete(item.id)}>DEL</Button>
-    </div>
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-none stroke-current stroke-2">
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M6 6l1 14h10l1-14" />
+      <path d="M10 11v5" />
+      <path d="M14 11v5" />
+    </svg>
   );
 }
 
-function ProjectMosaicCard({ item, index, onEdit, onToggleFeatured, onDelete }) {
-  const isCompact = index % 6 === 1 || index % 6 === 2 || index % 6 === 3 || index % 6 === 5;
-  const mediaSrc = item.coverImage || item.image || item.thumbnail || item.thumbnailUrl || item.coverUrl;
-  const mediaType = String(item.mediaType || item.kind || '').toLowerCase() === 'video' ? 'video' : 'image';
-  const aspectRatio = item.aspectRatio || (mediaType === 'video' ? '16 / 9' : '4 / 3');
-
+function EditIcon() {
   return (
-    <article className={`group relative overflow-hidden rounded-[1.9rem] border border-white/10 bg-[#f4efe4] text-zinc-900 shadow-[0_16px_50px_rgba(0,0,0,0.12)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(0,0,0,0.18)] ${getMosaicSpan(index)} min-h-[240px]`}>
-      <div className="absolute inset-0 bg-gradient-to-t from-black/12 via-transparent to-transparent opacity-0 transition duration-300 group-hover:opacity-100" />
-      <div className={`relative h-full ${isCompact ? 'grid grid-rows-[1fr_auto]' : 'grid grid-rows-[minmax(180px,1fr)_auto]'}`}>
-        <div className="relative overflow-hidden bg-[#e8dfd0]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.55),transparent_32%),radial-gradient(circle_at_80%_0%,rgba(255,255,255,0.32),transparent_22%)]" />
-          {mediaSrc ? (
-            <MediaFrame src={mediaSrc} alt={item.title} type={mediaType} aspectRatio={aspectRatio} cropX={item.cropX || 50} cropY={item.cropY || 50} scale={item.scale || 1} className="h-full w-full" />
-          ) : (
-            <div className="flex h-full items-center justify-center px-6 text-center">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.28em] text-zinc-500">Portfolio</p>
-                <h3 className="mt-3 text-2xl font-medium tracking-[0.02em] text-zinc-900">{item.title}</h3>
-              </div>
-            </div>
-          )}
-        </div>
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-none stroke-current stroke-2">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+    </svg>
+  );
+}
 
-        <div className="flex items-end justify-between gap-4 border-t border-black/5 bg-[#f4efe4] px-4 py-4 sm:px-5">
-          <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-zinc-500">{item.category || 'Uncategorized'}</p>
-            <h3 className="mt-2 truncate text-lg font-medium tracking-[0.02em] text-zinc-900">{item.title}</h3>
-            <p className="mt-2 line-clamp-2 text-sm leading-6 text-zinc-600">{item.description || 'No description yet.'}</p>
-          </div>
-          <ProjectStatusBadges item={item} />
+function ProjectTableRow({ item, index, onEdit, onToggleFeatured, onDelete }) {
+  return (
+    <tr className="border-b border-white/10 text-sm text-zinc-900 last:border-b-0">
+      <td className="w-16 py-4 pr-3 text-[11px] text-zinc-500">{String(index + 1).padStart(2, '0')}</td>
+      <td className="py-4 pr-4">
+        <div className="min-w-0">
+          <p className="truncate text-base font-medium tracking-[0.02em] text-zinc-900">{item.title}</p>
+          <p className="mt-1 truncate text-xs text-zinc-500">{item.category || 'Uncategorized'}</p>
         </div>
-      </div>
-
-      <div className="absolute inset-x-0 bottom-0 flex translate-y-4 items-center justify-between gap-2 border-t border-black/5 bg-[#f4efe4]/96 px-4 py-3 opacity-0 backdrop-blur-sm transition duration-300 group-hover:translate-y-0 group-hover:opacity-100 sm:px-5">
-        <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">{String(index + 1).padStart(2, '0')}</p>
-        <ProjectCardActions item={item} onEdit={onEdit} onToggleFeatured={onToggleFeatured} onDelete={onDelete} />
-      </div>
-    </article>
+      </td>
+      <td className="w-32 py-4 pr-3 text-zinc-600">{item.isVisible === false ? 'Hidden' : 'Live'}</td>
+      <td className="w-28 py-4 pr-3">
+        <button type="button" onClick={() => onToggleFeatured(item)} className="inline-flex items-center justify-center text-zinc-900 transition hover:opacity-70" aria-label={item.isFeatured ? 'Unfeature project' : 'Feature project'}>
+          <StarIcon filled={Boolean(item.isFeatured)} />
+        </button>
+      </td>
+      <td className="w-28 py-4 pr-3">
+        <button type="button" onClick={() => onEdit(item)} className="inline-flex items-center justify-center text-zinc-900 transition hover:opacity-70" aria-label="Edit project">
+          <EditIcon />
+        </button>
+      </td>
+      <td className="w-28 py-4 text-right">
+        <button type="button" onClick={() => onDelete(item.id)} className="inline-flex items-center justify-center text-zinc-900 transition hover:opacity-70" aria-label="Delete project">
+          <TrashIcon />
+        </button>
+      </td>
+    </tr>
   );
 }
 
@@ -154,13 +156,30 @@ function ProjectFilterPanel({ query, category, onQueryChange, onCategoryChange, 
   );
 }
 
-function ProjectGrid({ filtered, onEdit, onToggleFeatured, onDelete }) {
+function ProjectTable({ filtered, onEdit, onToggleFeatured, onDelete }) {
   return (
-    <div className="grid gap-3">
-      {filtered.length === 0 ? <p className="py-2 text-sm text-zinc-600">No matching projects.</p> : null}
-      {filtered.slice(0, 12).map((item, index) => (
-        <ProjectMosaicCard key={item.id} item={item} index={index} onEdit={onEdit} onToggleFeatured={onToggleFeatured} onDelete={onDelete} />
-      ))}
+    <div className="overflow-hidden border-b border-white/10">
+      <table className="w-full border-collapse text-left">
+        <thead>
+          <tr className="border-b border-white/10 text-[10px] uppercase tracking-[0.24em] text-zinc-500">
+            <th className="w-16 py-3 pr-3 font-normal">#</th>
+            <th className="py-3 pr-4 font-normal">Project</th>
+            <th className="w-32 py-3 pr-3 font-normal">Status</th>
+            <th className="w-28 py-3 pr-3 font-normal">Featured</th>
+            <th className="w-28 py-3 pr-3 font-normal">Edit</th>
+            <th className="w-28 py-3 text-right font-normal">Delete</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filtered.length === 0 ? (
+            <tr>
+              <td colSpan="6" className="py-6 text-sm text-zinc-600">No matching projects.</td>
+            </tr>
+          ) : filtered.slice(0, 12).map((item, index) => (
+            <ProjectTableRow key={item.id} item={item} index={index} onEdit={onEdit} onToggleFeatured={onToggleFeatured} onDelete={onDelete} />
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -186,7 +205,7 @@ export default function ProjectsOverviewSection({ liveCount, featuredVideos, onR
         <ProjectFilterPanel query={query} category={category} onQueryChange={onQueryChange} onCategoryChange={onCategoryChange} loading={loading} notice={notice} noticeTone={noticeTone} error={error} deleting={deleting} deleteStatus={deleteStatus} />
       </div>
 
-      <ProjectGrid filtered={filtered} onEdit={onEdit} onToggleFeatured={onToggleFeatured} onDelete={onDelete} />
+      <ProjectTable filtered={filtered} onEdit={onEdit} onToggleFeatured={onToggleFeatured} onDelete={onDelete} />
     </section>
   );
 }

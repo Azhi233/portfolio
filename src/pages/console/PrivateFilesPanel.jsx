@@ -67,19 +67,17 @@ function PrivateFilesPanel() {
           <Button type="button" variant="subtle" onClick={load}>REFRESH</Button>
         </div>
 
-        {state.error ? <p className="mt-4 rounded-2xl border border-rose-300/30 bg-rose-300/10 px-4 py-3 text-sm text-rose-200">{state.error}</p> : null}
+        {state.error ? <p className="py-2 text-sm text-rose-300">{state.error}</p> : null}
 
-        <div className="mt-4 grid gap-3">
+        <div className="mt-4 grid gap-2">
           {rows.length === 0 ? <p className="text-sm text-zinc-500">No private files yet.</p> : null}
           {rows.slice(0, 4).map((item) => (
-            <div key={item.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm tracking-[0.08em] text-white">{item.title}</p>
-                  <p className="mt-2 text-sm text-zinc-400">{item.count} private files</p>
-                </div>
-                <Button type="button" variant="subtle" onClick={() => openEditor(state.items.find((project) => project.id === item.id))}>ADD FILE</Button>
+            <div key={item.id} className="flex items-center justify-between gap-3 border-b border-white/10 py-3">
+              <div>
+                <p className="text-sm tracking-[0.08em] text-white">{item.title}</p>
+                <p className="mt-1 text-sm text-zinc-400">{item.count} private files</p>
               </div>
+              <Button type="button" variant="subtle" onClick={() => openEditor(state.items.find((project) => project.id === item.id))}>ADD FILE</Button>
             </div>
           ))}
         </div>

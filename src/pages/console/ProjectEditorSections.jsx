@@ -14,11 +14,13 @@ const displayTargets = [
 
 function SectionShell({ eyebrow, title, subtitle, children, className = '' }) {
   return (
-    <section className={`border-b border-white/10 py-4 ${className}`.trim()}>
-      <div className="mb-3">
-        <p className="text-[10px] tracking-[0.2em] text-zinc-500">{eyebrow}</p>
-        <h3 className="mt-1 text-base tracking-[0.08em] text-white md:text-lg">{title}</h3>
-        {subtitle ? <p className="mt-2 text-sm leading-7 text-zinc-400">{subtitle}</p> : null}
+    <section className={`border-b border-white/10 py-5 ${className}`.trim()}>
+      <div className="mb-3 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[10px] tracking-[0.2em] text-zinc-500">{eyebrow}</p>
+          <h3 className="mt-1 text-base tracking-[0.08em] text-white md:text-lg">{title}</h3>
+          {subtitle ? <p className="mt-2 text-sm leading-7 text-zinc-400">{subtitle}</p> : null}
+        </div>
       </div>
       {children}
     </section>

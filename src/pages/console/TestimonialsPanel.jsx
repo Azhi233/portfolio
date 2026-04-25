@@ -66,20 +66,18 @@ function TestimonialsPanel() {
           </div>
         </div>
 
-        {state.error ? <p className="mt-4 rounded-2xl border border-rose-300/30 bg-rose-300/10 px-4 py-3 text-sm text-rose-200">{state.error}</p> : null}
+        {state.error ? <p className="py-2 text-sm text-rose-300">{state.error}</p> : null}
 
-        <div className="mt-4 grid gap-3">
+        <div className="mt-4 grid gap-2">
           {state.items.length === 0 ? <p className="text-sm text-zinc-500">No testimonials yet.</p> : null}
           {state.items.slice(0, 4).map((item) => (
-            <div key={item.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm tracking-[0.08em] text-white">{item.projectName || 'Review'}</p>
-                  <p className="mt-2 text-sm text-zinc-400">{item.content || item.message || 'No content'}</p>
-                </div>
-                <Badge tone={item.status === 'approved' ? 'success' : item.status === 'rejected' ? 'danger' : 'warning'}>{item.status || 'pending'}</Badge>
+            <div key={item.id} className="flex items-start justify-between gap-3 border-b border-white/10 py-3">
+              <div>
+                <p className="text-sm tracking-[0.08em] text-white">{item.projectName || 'Review'}</p>
+                <p className="mt-1 text-sm text-zinc-400">{item.content || item.message || 'No content'}</p>
               </div>
-              <div className="mt-4 flex flex-wrap gap-3">
+              <div className="flex items-center gap-2">
+                <Badge tone={item.status === 'approved' ? 'success' : item.status === 'rejected' ? 'danger' : 'warning'}>{item.status || 'pending'}</Badge>
                 <Button type="button" variant="default" onClick={() => remove(item.id)}>DELETE</Button>
               </div>
             </div>

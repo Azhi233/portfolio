@@ -37,8 +37,8 @@ export default function ProjectEditorModal({
           <p className="mt-2 text-sm leading-7 text-zinc-400">基础信息、媒体、展示规则和状态分区展示，功能保持不变，只调整阅读顺序与层级。</p>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
-          <div className="grid gap-4">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(300px,0.95fr)]">
+          <div>
             <ProjectBasicInfoSection draft={draft} onUpdateDraft={onUpdateDraft} onRefresh={onRefresh} />
             <ProjectMediaSection
               draft={draft}
@@ -60,7 +60,7 @@ export default function ProjectEditorModal({
             />
           </div>
 
-          <div className="grid gap-4">
+          <div>
             <ProjectTypeSection draft={draft} onUpdateDraft={onUpdateDraft} />
             <ProjectFlagsSection draft={draft} onUpdateDraft={onUpdateDraft} />
             <ProjectPrivateFilesSection draft={draft} onUpdateDraft={onUpdateDraft} />
