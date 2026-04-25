@@ -33,7 +33,7 @@ export const placeholderVideos = [
 
 export function normalizeVideoItem(item, index = 0) {
   const videoUrl = String(item?.videoUrl || item?.mainVideoUrl || item?.url || item?.src || '').trim();
-  const poster = String(item?.posterUrl || item?.thumbnailUrl || item?.coverUrl || item?.previewUrl || '').trim();
+  const coverUrl = String(item?.coverUrl || item?.coverAssetUrl || item?.thumbnailUrl || item?.posterUrl || item?.previewUrl || '').trim();
   const fallbackTitle = `Video ${String(index + 1).padStart(2, '0')}`;
 
   return {
@@ -43,7 +43,8 @@ export function normalizeVideoItem(item, index = 0) {
     category: item?.category || item?.kind || 'Video',
     year: item?.year || item?.releaseYear || '',
     videoUrl,
-    poster: poster || '',
+    coverUrl: coverUrl || videoUrl,
+    poster: coverUrl,
     aspectRatio: item?.aspectRatio || item?.ratio || 'video',
     isFeatured: Boolean(item?.isFeatured),
   };

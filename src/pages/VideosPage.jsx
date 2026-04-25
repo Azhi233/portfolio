@@ -14,7 +14,7 @@ export default function VideosPage() {
     fetchJson('/projects?page=videos&kind=videos')
       .then((response) => {
         const list = Array.isArray(response) ? response : response?.items || response?.projects || response?.data || [];
-        const normalized = list.map(normalizeVideoItem).filter((item) => Boolean(item?.videoUrl));
+        const normalized = list.map(normalizeVideoItem).filter((item) => Boolean(item?.videoUrl || item?.coverUrl));
 
         setItems(normalized);
       })
