@@ -49,19 +49,37 @@ export function HomeHighlightsSection({ highlights }) {
 
 export function HomeFeaturedSection({ featuredImages, featuredVideos }) {
   return (
-    <section className="grid gap-4 md:grid-cols-2">
-      <Card className="p-6 md:p-8">
+    <section className="space-y-12">
+      <div>
         <p className="text-[11px] tracking-[0.22em] text-zinc-500">FEATURED IMAGES</p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          {featuredImages.length ? featuredImages.map((item) => <Link key={item.id} to="/images" className="group overflow-hidden rounded-2xl"><div className="overflow-hidden bg-transparent"><img src={item.coverUrl || item.thumbnailUrl || item.url} alt={item.title} className="h-auto w-full object-contain transition duration-700 group-hover:scale-105" /></div><div className="pt-3"><p className="text-sm tracking-[0.08em] text-white">{item.title}</p></div></Link>) : <p className="text-sm text-zinc-400">No featured images yet.</p>}
+        <div className="mt-4 grid gap-8">
+          {featuredImages.length ? featuredImages.map((item) => (
+            <Link key={item.id} to="/images" className="group block">
+              <div className="overflow-hidden bg-transparent">
+                <img src={item.coverUrl || item.thumbnailUrl || item.url} alt={item.title} className="h-auto w-full object-contain transition duration-700 group-hover:scale-105" />
+              </div>
+              <div className="pt-3">
+                <p className="text-sm tracking-[0.08em] text-white">{item.title}</p>
+              </div>
+            </Link>
+          )) : <p className="text-sm text-zinc-400">No featured images yet.</p>}
         </div>
-      </Card>
-      <Card className="p-6 md:p-8">
+      </div>
+      <div>
         <p className="text-[11px] tracking-[0.22em] text-zinc-500">FEATURED VIDEOS</p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          {featuredVideos.length ? featuredVideos.map((item) => <Link key={item.id} to="/videos" className="group overflow-hidden rounded-2xl"><div className="overflow-hidden bg-transparent"><MediaPreview src={item.videoUrl || item.mainVideoUrl || item.coverUrl || item.thumbnailUrl} title={item.title} kind="video" autoPlay={false} muted className="h-auto w-full object-contain transition duration-700 group-hover:scale-[1.01]" /></div><div className="pt-3"><p className="text-sm tracking-[0.08em] text-white">{item.title}</p></div></Link>) : <p className="text-sm text-zinc-400">No featured videos yet.</p>}
+        <div className="mt-4 grid gap-8">
+          {featuredVideos.length ? featuredVideos.map((item) => (
+            <Link key={item.id} to="/videos" className="group block">
+              <div className="overflow-hidden bg-transparent">
+                <MediaPreview src={item.videoUrl || item.mainVideoUrl || item.coverUrl || item.thumbnailUrl} title={item.title} kind="video" autoPlay={false} muted className="h-auto w-full object-contain transition duration-700 group-hover:scale-[1.01]" />
+              </div>
+              <div className="pt-3">
+                <p className="text-sm tracking-[0.08em] text-white">{item.title}</p>
+              </div>
+            </Link>
+          )) : <p className="text-sm text-zinc-400">No featured videos yet.</p>}
         </div>
-      </Card>
+      </div>
     </section>
   );
 }
