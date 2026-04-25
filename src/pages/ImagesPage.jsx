@@ -132,10 +132,7 @@ function ImagesPage() {
           {images.map((image, index) => {
             const wide = image.size === 'wide';
             return (
-              <article
-                key={image.id}
-                className={`overflow-hidden rounded-[1.5rem] transition-transform duration-500 hover:-translate-y-0.5 ${wide ? 'md:col-span-2' : ''}`}
-              >
+              <article key={image.id} className={`transition-transform duration-500 hover:-translate-y-0.5 ${wide ? 'md:col-span-2' : ''}`}>
                 <div className="overflow-hidden bg-transparent">
                   <img
                     src={image.url}

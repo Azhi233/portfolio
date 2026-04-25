@@ -50,10 +50,8 @@ export default function VideosPage() {
                       <h3 className="max-w-xs text-[2.15rem] font-light leading-[0.96] tracking-[0.04em] text-[#a97a4c] md:text-[2.9rem]">{video.title}</h3>
                       <p className="mt-6 max-w-sm text-sm leading-8 text-[#7a6b5b]">{video.description}</p>
                     </div>
-                    <Link to={`/videos/${video.id}`} className={`group block overflow-hidden rounded-[1.9rem] ${reverse ? 'lg:justify-self-start' : 'lg:justify-self-end'}`}>
-                      <div className="bg-transparent">
-                        <MediaPreview src={video.videoUrl || video.coverUrl} title={video.title} kind="video" autoPlay={false} muted className="h-auto w-full object-contain" />
-                      </div>
+                    <Link to={`/videos/${video.id}`} className={`group block ${reverse ? 'lg:justify-self-start' : 'lg:justify-self-end'}`}>
+                      <MediaPreview src={video.videoUrl || video.coverUrl} title={video.title} kind="video" autoPlay={false} muted className="h-auto w-full object-contain" />
                     </Link>
                   </article>
                 );
