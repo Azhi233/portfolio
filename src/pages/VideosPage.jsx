@@ -44,8 +44,6 @@ export default function VideosPage() {
             <div className="mt-12 space-y-32">
               {items.map((video, index) => {
                 const reverse = index % 2 === 1;
-                const wide = video.aspectRatio === 'wide';
-                const frameRatio = wide ? '21 / 9' : video.aspectRatio === 'portrait' ? '9 / 16' : video.aspectRatio === 'square' ? '1 / 1' : '16 / 9';
                 return (
                   <article key={video.id} className={`grid items-start gap-12 lg:grid-cols-[0.86fr_1.14fr] lg:gap-20 ${reverse ? 'lg:[&>*:first-child]:order-2' : ''}`}>
                     <div className={`pt-1 ${reverse ? 'lg:pl-10' : 'lg:pr-10'}`}>
@@ -54,9 +52,7 @@ export default function VideosPage() {
                     </div>
                     <Link to={`/videos/${video.id}`} className={`group block overflow-hidden rounded-[1.9rem] bg-white shadow-[0_18px_55px_rgba(148,120,82,0.08)] ${reverse ? 'lg:justify-self-start' : 'lg:justify-self-end'}`}>
                       <div className="overflow-hidden rounded-[1.35rem] bg-[#f6f1e8] px-3 py-3 md:px-4 md:py-4 lg:px-5 lg:py-5">
-                        <div className="overflow-hidden rounded-[1.1rem] bg-black" style={{ aspectRatio: frameRatio }}>
-                          <MediaPreview src={video.videoUrl || video.coverUrl} title={video.title} kind="video" autoPlay={false} muted className="h-full w-full object-contain" />
-                        </div>
+                        <MediaPreview src={video.videoUrl || video.coverUrl} title={video.title} kind="video" autoPlay={false} muted className="h-auto w-full object-contain" />
                       </div>
                     </Link>
                   </article>
