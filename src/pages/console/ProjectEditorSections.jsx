@@ -79,40 +79,48 @@ export function ProjectBasicInfoSection({ draft, onUpdateDraft, onRefresh }) {
 
 export function ProjectMediaSection({ draft, uploading, uploadProgress, uploadStage, uploadStatus, uploadFailureStage, uploadTarget, onToggleDisplayOn, onUploadImage, onUploadVideo, onUploadBts, onRemoveBts, onUpdateBts, onMoveBtsUp, onMoveBtsDown, onReorderBts }) {
   return (
-    <SectionShell eyebrow="MEDIA" title="Uploads" subtitle="封面、主视频和 BTS 媒体。">
-      <div className="grid gap-4 md:grid-cols-2">
-        <MediaPicker label="Image Upload" accept="image/*" value={draft.coverUrl} uploading={uploading} progress={uploadProgress} stage={uploadStage} statusText={uploadStatus} failedStage={uploadFailureStage} helperText="图片会显示在图片页。" onPick={onUploadImage} />
-        <MediaPicker label="Video Upload" accept="video/*" value={draft.mainVideoUrl} uploading={uploading} progress={uploadProgress} stage={uploadStage} statusText={uploadStatus} failedStage={uploadFailureStage} helperText="视频会走转码逻辑并显示在视频页。" onPick={onUploadVideo} />
-      </div>
-      <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-        <p className="text-[11px] tracking-[0.2em] text-zinc-500">DISPLAY TARGET</p>
-        <h4 className="mt-2 text-base tracking-[0.08em] text-white">仅在以下页面显示</h4>
-        <p className="mt-2 text-sm leading-7 text-zinc-400">勾选后，这条作品只会在选中的页面出现。</p>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          {displayTargets.map(([value, label]) => (
-            <label key={value} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-200">
-              <input type="checkbox" checked={Array.isArray(draft.displayOn) ? draft.displayOn.includes(value) : false} onChange={(event) => onToggleDisplayOn(value, event.target.checked)} />
-              <span>{label}</span>
-            </label>
-          ))}
+    <div className="grid gap-4">
+      <SectionShell eyebrow="MEDIA" title="Cover & Main Video" subtitle="封面和主视频分开管理，保持上传路径清晰。">
+        <div className="grid gap-4 md:grid-cols-2">
+          <MediaPicker label="Image Upload" accept="image/*" value={draft.coverUrl} uploading={uploading} progress={uploadProgress} stage={uploadStage} statusText={uploadStatus} failedStage={uploadFailureStage} helperText="图片会显示在图片页。" onPick={onUploadImage} />
+          <MediaPicker label="Video Upload" accept="video/*" value={draft.mainVideoUrl} uploading={uploading} progress={uploadProgress} stage={uploadStage} statusText={uploadStatus} failedStage={uploadFailureStage} helperText="视频会走转码逻辑并显示在视频页。" onPick={onUploadVideo} />
         </div>
-      </div>
-      <ProjectMediaUploader
-        items={Array.isArray(draft.btsMedia) ? draft.btsMedia : []}
-        uploading={uploading}
-        progress={uploadProgress}
-        uploadStage={uploadStage}
-        uploadStatus={uploadStatus}
-        failedStage={uploadFailureStage}
-        uploadTarget={uploadTarget}
-        onUpload={onUploadBts}
-        onRemove={onRemoveBts}
-        onUpdate={onUpdateBts}
-        onMoveUp={onMoveBtsUp}
-        onMoveDown={onMoveBtsDown}
-        onReorder={onReorderBts}
-      />
-    </SectionShell>
+      </SectionShell>
+
+      <SectionShell eyebrow="MEDIA" title="Display Targets" subtitle="只勾选需要展示的页面，减少误发布。">
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+          <p className="text-[11px] tracking-[0.2em] text-zinc-500">DISPLAY TARGET</p>
+          <h4 className="mt-2 text-base tracking-[0.08em] text-white">仅在以下页面显示</h4>
+          <p className="mt-2 text-sm leading-7 text-zinc-400">勾选后，这条作品只会在选中的页面出现。</p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {displayTargets.map(([value, label]) => (
+              <label key={value} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-200">
+                <input type="checkbox" checked={Array.isArray(draft.displayOn) ? draft.displayOn.includes(value) : false} onChange={(event) => onToggleDisplayOn(value, event.target.checked)} />
+                <span>{label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      </SectionShell>
+
+      <SectionShell eyebrow="MEDIA" title="BTS Media" subtitle="BTS 文件独立管理，便于补充与重排。">
+        <ProjectMediaUploader
+          items={Array.isArray(draft.btsMedia) ? draft.btsMedia : []}
+          uploading={uploading}
+          progress={uploadProgress}
+          uploadStage={uploadStage}
+          uploadStatus={uploadStatus}
+          failedStage={uploadFailureStage}
+          uploadTarget={uploadTarget}
+          onUpload={onUploadBts}
+          onRemove={onRemoveBts}
+          onUpdate={onUpdateBts}
+          onMoveUp={onMoveBtsUp}
+          onMoveDown={onMoveBtsDown}
+          onReorder={onReorderBts}
+        />
+      </SectionShell>
+    </div>
   );
 }
 
