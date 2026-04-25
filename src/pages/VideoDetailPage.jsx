@@ -26,13 +26,13 @@ function DetailHero({ video, ratio, onDetectRatio }) {
         <div className="overflow-hidden bg-black shadow-[0_30px_80px_rgba(0,0,0,0.10)] transition-transform duration-500 hover:-translate-y-1">
           <div className={`bg-black ${ratio ? '' : 'aspect-[16/10]'}`} style={frameStyle}>
             <MediaPreview
-              src={video.videoUrl || video.poster}
+              src={video.videoUrl || video.coverUrl || video.poster}
               title={video.title}
               kind={video.videoUrl ? 'video' : 'image'}
               autoPlay={Boolean(video.videoUrl)}
               muted
               onVideoMetadata={({ width, height }) => onDetectRatio(width, height)}
-              className="h-full w-full object-cover transition-transform duration-700 hover:scale-[1.02]"
+              className="h-full w-full object-contain transition-transform duration-700 hover:scale-[1.02]"
             />
           </div>
         </div>

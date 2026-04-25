@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import Button from '../components/Button.jsx';
 import Card from '../components/Card.jsx';
 import Badge from '../components/Badge.jsx';
+import MediaPreview from '../components/MediaPreview.jsx';
 
 export function HomeHeroSection({ locale, t }) {
   return (
@@ -58,7 +59,7 @@ export function HomeFeaturedSection({ featuredImages, featuredVideos }) {
       <Card className="p-6 md:p-8">
         <p className="text-[11px] tracking-[0.22em] text-zinc-500">FEATURED VIDEOS</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          {featuredVideos.length ? featuredVideos.map((item) => <Link key={item.id} to="/videos" className="group overflow-hidden rounded-2xl border border-white/10 bg-black/20"><div className="aspect-video overflow-hidden bg-black/30"><img src={item.coverUrl || item.thumbnailUrl || item.videoUrl || item.mainVideoUrl} alt={item.title} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /></div><div className="p-4"><p className="text-sm tracking-[0.08em] text-white">{item.title}</p></div></Link>) : <p className="text-sm text-zinc-400">No featured videos yet.</p>}
+          {featuredVideos.length ? featuredVideos.map((item) => <Link key={item.id} to="/videos" className="group overflow-hidden rounded-2xl border border-white/10 bg-black/20"><div className="aspect-[16/10] overflow-hidden bg-black/30"><MediaPreview src={item.videoUrl || item.mainVideoUrl || item.coverUrl || item.thumbnailUrl} title={item.title} kind="video" autoPlay={false} muted className="h-full w-full object-contain transition duration-700 group-hover:scale-[1.01]" /></div><div className="p-4"><p className="text-sm tracking-[0.08em] text-white">{item.title}</p></div></Link>) : <p className="text-sm text-zinc-400">No featured videos yet.</p>}
         </div>
       </Card>
     </section>
