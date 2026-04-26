@@ -9,7 +9,6 @@ import ClientAccessPage from './pages/ClientAccessPage.jsx';
 import ProjectDetailPage from './pages/ProjectDetailPage.jsx';
 import StudioNotesPage from './pages/StudioNotesPage.jsx';
 import ConsoleHome from './pages/console/index.jsx';
-import EditorModePage from './pages/console/EditorModePage.jsx';
 
 function App() {
   return (
@@ -26,7 +25,6 @@ function App() {
       <Route path="/studio-notes" element={<StudioNotesPage />} />
       <Route path="/oldhome" element={<Navigate to="/" replace />} />
       <Route path="/console" element={<ConsoleHome />} />
-      <Route path="/console/editor" element={<EditorModePage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
