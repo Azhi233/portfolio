@@ -52,9 +52,9 @@ function AnalyticsPanel() {
       >
         <div className="flex items-center justify-between gap-4">
           <div>
-            {state.loading ? <p className="text-sm text-zinc-400">Loading analytics...</p> : null}
+            {state.loading ? <p className="text-sm text-white/70">Loading analytics...</p> : null}
             {state.error ? <p className="text-sm text-rose-300">{state.error}</p> : null}
-            {!state.loading && !state.error ? <p className="text-sm text-zinc-500">Live project counts update from the backend.</p> : null}
+            {!state.loading && !state.error ? <p className="text-sm text-white/70">Live project counts update from the backend.</p> : null}
           </div>
           <Badge tone="warning">SUMMARY</Badge>
         </div>

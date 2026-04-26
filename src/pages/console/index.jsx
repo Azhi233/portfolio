@@ -14,11 +14,11 @@ function ConsoleHome() {
         <header className="sticky top-0 z-20 -mx-4 border-b border-white/10 bg-[#050507]/92 px-4 py-4 backdrop-blur md:-mx-8 md:px-8 lg:-mx-10 lg:px-10">
           <div className="mx-auto flex w-full max-w-7xl items-end justify-between gap-4">
             <div className="max-w-3xl">
-              <p className="text-[11px] tracking-[0.32em] text-zinc-500">{t('console.eyebrow')}</p>
+              <p className="text-[11px] tracking-[0.32em] text-white/70">{t('console.eyebrow')}</p>
               <h1 className="mt-3 font-serif text-4xl tracking-[0.08em] text-white md:text-5xl">{t('console.title')}</h1>
-              <p className="mt-3 max-w-3xl text-sm leading-7 text-zinc-300 md:text-base">{t('console.subtitle')}</p>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-white/80 md:text-base">{t('console.subtitle')}</p>
             </div>
-            <p className="text-[10px] uppercase tracking-[0.28em] text-zinc-500">Workspace</p>
+            <p className="text-[10px] uppercase tracking-[0.28em] text-white/60">Workspace</p>
           </div>
         </header>
 

@@ -50,27 +50,27 @@ function EditIcon() {
 
 function ProjectTableRow({ item, index, onEdit, onToggleFeatured, onDelete }) {
   return (
-    <tr className="border-b border-white/10 text-sm text-zinc-900 last:border-b-0">
-      <td className="w-14 py-3 pr-3 text-[11px] text-zinc-500">{String(index + 1).padStart(2, '0')}</td>
+    <tr className="border-b border-white/10 text-sm text-white last:border-b-0">
+      <td className="w-14 py-3 pr-3 text-[11px] text-white/60">{String(index + 1).padStart(2, '0')}</td>
       <td className="py-3 pr-4">
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium tracking-[0.02em] text-zinc-900">{item.title}</p>
-          <p className="mt-1 truncate text-[11px] text-zinc-500">{item.category || 'Uncategorized'}</p>
+          <p className="truncate text-sm font-medium tracking-[0.02em] text-white">{item.title}</p>
+          <p className="mt-1 truncate text-[11px] text-white/60">{item.category || 'Uncategorized'}</p>
         </div>
       </td>
-      <td className="w-28 py-3 pr-3 text-zinc-600">{item.isVisible === false ? 'Hidden' : 'Live'}</td>
+      <td className="w-28 py-3 pr-3 text-white/75">{item.isVisible === false ? 'Hidden' : 'Live'}</td>
       <td className="w-24 py-3 pr-3">
-        <button type="button" onClick={() => onToggleFeatured(item)} className="inline-flex items-center justify-center text-zinc-900 transition hover:opacity-70" aria-label={item.isFeatured ? 'Unfeature project' : 'Feature project'}>
+        <button type="button" onClick={() => onToggleFeatured(item)} className="inline-flex items-center justify-center text-white transition hover:opacity-70" aria-label={item.isFeatured ? 'Unfeature project' : 'Feature project'}>
           <StarIcon filled={Boolean(item.isFeatured)} />
         </button>
       </td>
       <td className="w-24 py-3 pr-3">
-        <button type="button" onClick={() => onEdit(item)} className="inline-flex items-center justify-center text-zinc-900 transition hover:opacity-70" aria-label="Edit project">
+        <button type="button" onClick={() => onEdit(item)} className="inline-flex items-center justify-center text-white transition hover:opacity-70" aria-label="Edit project">
           <EditIcon />
         </button>
       </td>
       <td className="w-24 py-3 text-right">
-        <button type="button" onClick={() => onDelete(item.id)} className="inline-flex items-center justify-center text-zinc-900 transition hover:opacity-70" aria-label="Delete project">
+        <button type="button" onClick={() => onDelete(item.id)} className="inline-flex items-center justify-center text-white transition hover:opacity-70" aria-label="Delete project">
           <TrashIcon />
         </button>
       </td>
@@ -83,9 +83,9 @@ function FeaturedQueuePanel({ featuredVideos, onReorderFeatured }) {
     <div className="border-b border-white/10 pb-4">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.28em] text-zinc-500">Featured Queue</p>
-          <h3 className="mt-2 text-lg font-medium tracking-[0.04em] text-zinc-900">首页精选顺序</h3>
-          <p className="mt-2 max-w-xl text-sm leading-7 text-zinc-600">拖拽调整精选顺序。</p>
+          <p className="text-[10px] uppercase tracking-[0.28em] text-white/60">Featured Queue</p>
+          <h3 className="mt-2 text-lg font-medium tracking-[0.04em] text-white">首页精选顺序</h3>
+          <p className="mt-2 max-w-xl text-sm leading-7 text-white/75">拖拽调整精选顺序。</p>
         </div>
         <Badge tone="warning">DRAG TO REORDER</Badge>
       </div>
@@ -137,20 +137,20 @@ function ProjectFilterPanel({ query, category, onQueryChange, onCategoryChange, 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
           <p className="mb-2 text-[10px] uppercase tracking-[0.24em] text-zinc-500">Search</p>
-          <input value={query} onChange={(event) => onQueryChange(event.target.value)} className="w-full border-b border-white/15 bg-transparent px-0 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-white/40" placeholder="Search title, description, category..." />
+          <input value={query} onChange={(event) => onQueryChange(event.target.value)} className="w-full border-b border-white/15 bg-transparent px-0 py-3 text-sm text-white outline-none transition placeholder:text-white/40 focus:border-white/40" placeholder="Search title, description, category..." />
         </label>
         <label className="block">
           <p className="mb-2 text-[10px] uppercase tracking-[0.24em] text-zinc-500">Category</p>
-          <input value={category} onChange={(event) => onCategoryChange(event.target.value)} className="w-full border-b border-white/15 bg-transparent px-0 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-white/40" placeholder="all" />
+          <input value={category} onChange={(event) => onCategoryChange(event.target.value)} className="w-full border-b border-white/15 bg-transparent px-0 py-3 text-sm text-white outline-none transition placeholder:text-white/40 focus:border-white/40" placeholder="all" />
         </label>
       </div>
 
       <div className="mt-4 grid gap-2 text-sm">
-        {loading ? <p className="text-zinc-600">Loading projects...</p> : null}
-        {notice ? <p className={noticeTone === 'danger' ? 'text-rose-800' : 'text-emerald-800'}>{notice}</p> : null}
-        {error ? <p className="text-rose-800">{error}</p> : null}
-        {deleting ? <p className="text-zinc-600">{deleteStatus || 'Deleting project...'}</p> : null}
-        {!deleting && deleteStatus ? <p className="text-emerald-800">{deleteStatus}</p> : null}
+        {loading ? <p className="text-white/70">Loading projects...</p> : null}
+        {notice ? <p className={noticeTone === 'danger' ? 'text-rose-300' : 'text-emerald-300'}>{notice}</p> : null}
+        {error ? <p className="text-rose-300">{error}</p> : null}
+        {deleting ? <p className="text-white/70">{deleteStatus || 'Deleting project...'}</p> : null}
+        {!deleting && deleteStatus ? <p className="text-emerald-300">{deleteStatus}</p> : null}
       </div>
     </div>
   );

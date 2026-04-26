@@ -103,16 +103,16 @@ function ConfigPanel() {
           </div>
         )}
       >
-        {state.loading ? <p className="text-sm text-zinc-400">Loading config...</p> : null}
+        {state.loading ? <p className="text-sm text-white/75">Loading config...</p> : null}
         {state.error ? <p className="text-sm text-rose-300">{state.error}</p> : null}
-        {!state.loading && !state.error ? <p className="text-sm text-zinc-500">Current site text and homepage copy are stored in the backend.</p> : null}
+        {!state.loading && !state.error ? <p className="text-sm text-white/80">Current site text and homepage copy are stored in the backend.</p> : null}
       </ConsolePanelShell>
 
       <Modal open={state.isOpen} title="Edit Config" onClose={() => setState((prev) => ({ ...prev, isOpen: false }))}>
         <div className="grid gap-5">
           <ReviewNotice />
           <div className="rounded-2xl border border-white/10 p-4">
-            <p className="mb-3 text-xs tracking-[0.12em] text-zinc-400">Homepage Video</p>
+            <p className="mb-3 text-xs tracking-[0.12em] text-white/80">Homepage Video</p>
             <MediaPicker
               label="Upload Homepage Video"
               accept="video/*"
@@ -123,11 +123,11 @@ function ConfigPanel() {
             />
             <div className="mt-4 grid gap-4">
               <label className="block">
-                <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Homepage Video Title</p>
+                <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Homepage Video Title</p>
                 <Input value={state.draft?.homeVideoTitle || ''} onChange={(event) => updateDraft('homeVideoTitle', event.target.value)} />
               </label>
               <label className="block">
-                <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Homepage Video URL</p>
+                <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Homepage Video URL</p>
                 <Input value={state.draft?.homeVideoUrl || ''} onChange={(event) => updateDraft('homeVideoUrl', event.target.value)} />
               </label>
             </div>

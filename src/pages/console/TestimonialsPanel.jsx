@@ -57,8 +57,8 @@ function TestimonialsPanel() {
       <ConsolePanelShell eyebrow="REVIEWS" title="Testimonials" description="评论与推荐的后台读取入口。" badge={{ label: 'REVIEWS', tone: 'default' }}>
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs tracking-[0.16em] text-zinc-500">{reviewCount} ITEM(S) / {approvedCount} APPROVED</p>
-            {state.loading ? <p className="mt-2 text-sm text-zinc-400">Loading testimonials...</p> : null}
+            <p className="text-xs tracking-[0.16em] text-white/60">{reviewCount} ITEM(S) / {approvedCount} APPROVED</p>
+            {state.loading ? <p className="mt-2 text-sm text-white/70">Loading testimonials...</p> : null}
           </div>
           <div className="flex gap-3">
             <Button type="button" variant="default" onClick={openNew}>NEW REVIEW</Button>
@@ -69,7 +69,7 @@ function TestimonialsPanel() {
         {state.error ? <p className="py-2 text-sm text-rose-300">{state.error}</p> : null}
 
         <div className="mt-4 grid gap-2">
-          {state.items.length === 0 ? <p className="text-sm text-zinc-500">No testimonials yet.</p> : null}
+          {state.items.length === 0 ? <p className="text-sm text-white/60">No testimonials yet.</p> : null}
           {state.items.slice(0, 4).map((item) => (
             <div key={item.id} className="flex items-start justify-between gap-3 border-b border-white/10 py-3">
               <div>
