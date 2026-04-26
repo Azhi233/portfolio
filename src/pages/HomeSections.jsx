@@ -3,40 +3,25 @@ import Button from '../components/Button.jsx';
 import Badge from '../components/Badge.jsx';
 import MediaPreview from '../components/MediaPreview.jsx';
 
-export function HomeHeroSection({ locale, t }) {
+export function HomeHeroSection({ t, homeVideoUrl, homeVideoTitle }) {
   return (
-    <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
-      <div className="p-8 md:p-12">
-        <p className="text-[11px] tracking-[0.32em] text-zinc-500">{t('home.eyebrow')}</p>
-        <h1 className="mt-5 max-w-3xl font-serif text-5xl leading-[1.02] tracking-[0.08em] text-white md:text-7xl">{t('home.title')}</h1>
-        <p className="mt-6 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">{t('home.subtitle')}</p>
-
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link to="/oldvideo"><Button as="span" variant="primary">{t('home.viewVideos', 'View Videos')}</Button></Link>
-          <Link to="/oldImages"><Button as="span" variant="subtle">{t('home.viewImages', 'View Images')}</Button></Link>
-          <Link to="/client-access"><Button as="span" variant="subtle">{t('home.clientAccess')}</Button></Link>
-          <Link to="/console"><Button as="span" variant="default">{t('home.console')}</Button></Link>
-        </div>
+    <section className="space-y-6">
+      <p className="text-[11px] tracking-[0.32em] text-zinc-500">{t('home.eyebrow')}</p>
+      <h1 className="max-w-4xl font-serif text-5xl leading-[1.02] tracking-[0.08em] text-white md:text-7xl">{t('home.title')}</h1>
+      {homeVideoTitle ? <p className="text-[11px] tracking-[0.22em] text-zinc-500">{homeVideoTitle}</p> : null}
+      {homeVideoUrl ? (
+        <video className="mt-2 h-auto w-full" src={homeVideoUrl} autoPlay loop muted playsInline controls={false} preload="metadata" />
+      ) : (
+        <div className="mt-2 border border-dashed border-white/15 px-6 py-16 text-sm text-zinc-400">No homepage video uploaded yet.</div>
+      )}
+      <p className="max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">{t('home.subtitle')}</p>
+      <div className="flex flex-wrap gap-3">
+        <Link to="/videos"><Button as="span" variant="primary">{t('home.viewVideos', 'View Videos')}</Button></Link>
+        <Link to="/images"><Button as="span" variant="subtle">{t('home.viewImages', 'View Images')}</Button></Link>
+        <Link to="/client-access"><Button as="span" variant="subtle">{t('home.clientAccess')}</Button></Link>
+        <Link to="/console"><Button as="span" variant="default">{t('home.console')}</Button></Link>
       </div>
-
-      <div className="border-t border-white/10 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),rgba(255,255,255,0.02)_36%,rgba(0,0,0,0.22)_72%)] p-8 md:p-12 lg:border-l lg:border-t-0">
-        <p className="text-[11px] tracking-[0.28em] text-zinc-500">{t('home.navigation')}</p>
-        <div className="mt-5 grid gap-3">
-          {[
-            ['/videos', locale === 'zh' ? '视频页' : 'VIDEO PAGE', locale === 'zh' ? '独立浏览作品视频' : 'Browse portfolio videos separately'],
-            ['/images', locale === 'zh' ? '图片页' : 'IMAGE PAGE', locale === 'zh' ? '独立浏览图片文件' : 'Browse image files separately'],
-            ['/client-access', t('home.navAccess'), t('home.navAccessDesc')],
-            ['/about', t('home.navAbout'), t('home.navAboutDesc')],
-            ['/console', t('home.navConsole'), t('home.navConsoleDesc')],
-          ].map(([to, title, desc]) => (
-            <Link key={to} to={to} className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 transition hover:border-white/20 hover:bg-white/[0.05]">
-              <p className="text-sm tracking-[0.12em] text-white">{title}</p>
-              <p className="mt-1 text-sm leading-7 text-zinc-400">{desc}</p>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </div>
+    </section>
   );
 }
 

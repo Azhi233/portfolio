@@ -10,7 +10,7 @@ function isImageUrl(url = '') {
   return /\.(png|jpe?g|gif|webp|avif|svg)(\?|#|$)/.test(value) || value.includes('image');
 }
 
-export default function MediaPreview({ src = '', title = '', className = '', muted = false, autoPlay = false, kind = '', onVideoMetadata = () => {} }) {
+export default function MediaPreview({ src = '', title = '', className = '', muted = false, autoPlay = false, loop = false, kind = '', onVideoMetadata = () => {} }) {
   const resolvedSrc = resolveResourceUrl(src);
   if (!resolvedSrc) {
     return (
@@ -29,6 +29,7 @@ export default function MediaPreview({ src = '', title = '', className = '', mut
         playsInline
         muted={muted}
         autoPlay={autoPlay}
+        loop={loop}
         onLoadedMetadata={(event) => {
           const video = event.currentTarget;
           onVideoMetadata?.({ width: video.videoWidth, height: video.videoHeight, src });
