@@ -18,7 +18,7 @@ function groupFilesByType(files = []) {
 }
 
 function PrivateFilesPanel() {
-  const [state, setState] = useState({ loading: true, saving: false, uploading: false, error: '', items: [], selectedProject: null, isOpen: false, draft: { label: '', name: '', url: '', type: 'zip', enabled: true, sortOrder: 0 } });
+  const [state, setState] = useState({ loading: true, saving: false, uploading: false, error: '', items: [], selectedProject: null, selectedFile: null, isOpen: false, draft: { label: '', name: '', url: '', type: 'zip', enabled: true, sortOrder: 0 } });
   const [openProjects, setOpenProjects] = useState({});
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -55,7 +55,15 @@ function PrivateFilesPanel() {
   const totalFiles = filteredRows.reduce((sum, item) => sum + item.files.length, 0);
 
   const openEditor = (project) => {
-    setState((prev) => ({ ...prev, selectedProject: project, isOpen: true, draft: { label: '', name: '', url: '', type: 'zip', enabled: true, sortOrder: 0 } }));
+    setState((prev) => ({ ...prev, selectedProject: project, selectedFile: null, isOpen: true, draft: { label: '', name: '', url: '', type: 'zip', enabled: true, sortOrder: 0 } }));
+  };
+
+  const openReplaceEditor = (project, file) => {
+    setState((prev) => ({ ...prev, selectedProject: project, selectedFile: file, isOpen: true, draft: { label: file?.label || '', name: file?.name || '', url: file?.url || '', type: file?.type || 'zip', enabled: file?.enabled !== false, sortOrder: file?.sortOrder || 0 } }));
+  };
+
+  const setAllProjectsOpen = (nextOpen) => {
+    setOpenProjects(Object.fromEntries(filteredRows.map((row) => [row.id, nextOpen])));
   };
 
   const addFile = async () => {
@@ -63,12 +71,28 @@ function PrivateFilesPanel() {
     setState((prev) => ({ ...prev, saving: true, error: '' }));
     try {
       const currentFiles = Array.isArray(state.selectedProject.privateFiles) ? state.selectedProject.privateFiles : [];
-      const nextFiles = [...currentFiles, { id: crypto.randomUUID(), ...state.draft }];
+      const nextFiles = state.selectedFile
+        ? currentFiles.map((file) => (file.id === state.selectedFile.id ? { ...file, ...state.draft } : file))
+        : [...currentFiles, { id: crypto.randomUUID(), ...state.draft }];
       await fetchJson(`/projects/${state.selectedProject.id}`, { method: 'PUT', body: JSON.stringify({ ...state.selectedProject, privateFiles: nextFiles }) });
       await load();
-      setState((prev) => ({ ...prev, saving: false, isOpen: false, selectedProject: null }));
+      setState((prev) => ({ ...prev, saving: false, isOpen: false, selectedProject: null, selectedFile: null }));
     } catch (error) {
       setState((prev) => ({ ...prev, saving: false, error: error.message || 'Failed to save private file.' }));
+    }
+  };
+
+  const deleteFile = async (project, file) => {
+    if (!project || !file) return;
+    setState((prev) => ({ ...prev, saving: true, error: '' }));
+    try {
+      const currentFiles = Array.isArray(project.privateFiles) ? project.privateFiles : [];
+      const nextFiles = currentFiles.filter((item) => item.id !== file.id);
+      await fetchJson(`/projects/${project.id}`, { method: 'PUT', body: JSON.stringify({ ...project, privateFiles: nextFiles }) });
+      await load();
+      setState((prev) => ({ ...prev, saving: false }));
+    } catch (error) {
+      setState((prev) => ({ ...prev, saving: false, error: error.message || 'Failed to delete private file.' }));
     }
   };
 
@@ -108,6 +132,11 @@ function PrivateFilesPanel() {
 
         {state.error ? <p className="py-2 text-sm text-rose-300">{state.error}</p> : null}
 
+        <div className="mt-4 flex items-center justify-end gap-3">
+          <Button type="button" variant="subtle" onClick={() => setAllProjectsOpen(true)}>EXPAND ALL</Button>
+          <Button type="button" variant="subtle" onClick={() => setAllProjectsOpen(false)}>COLLAPSE ALL</Button>
+        </div>
+
         <div className="mt-4 grid gap-3">
           {filteredRows.length === 0 ? <p className="text-sm text-zinc-500">No private files yet.</p> : null}
           {filteredRows.map((item) => {
@@ -135,6 +164,10 @@ function PrivateFilesPanel() {
                                 <p className="truncate text-sm tracking-[0.06em] text-white">{file.label || file.name || file.url}</p>
                                 <p className="mt-1 truncate text-xs text-zinc-400">{file.url}</p>
                               </div>
+                              <div className="flex gap-2">
+                                <Button type="button" variant="subtle" onClick={() => openReplaceEditor(state.items.find((project) => project.id === item.id), file)}>REPLACE</Button>
+                                <Button type="button" variant="subtle" onClick={() => deleteFile(state.items.find((project) => project.id === item.id), file)}>DELETE</Button>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -151,7 +184,7 @@ function PrivateFilesPanel() {
         </div>
       </ConsolePanelShell>
 
-      <Modal open={state.isOpen} title="Add Private File" onClose={() => setState((prev) => ({ ...prev, isOpen: false, selectedProject: null }))}>
+      <Modal open={state.isOpen} title={state.selectedFile ? 'Edit Private File' : 'Add Private File'} onClose={() => setState((prev) => ({ ...prev, isOpen: false, selectedProject: null, selectedFile: null }))}>
         <div className="grid gap-4">
           <label className="block">
             <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Label</p>
