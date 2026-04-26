@@ -10,7 +10,7 @@ export function HomeHeroSection({ t, homeVideoUrl, homeVideoTitle }) {
       <h1 className="max-w-4xl font-serif text-5xl leading-[1.02] tracking-[0.08em] text-white md:text-7xl">{t('home.title')}</h1>
       {homeVideoTitle ? <p className="text-[11px] tracking-[0.22em] text-zinc-500">{homeVideoTitle}</p> : null}
       {homeVideoUrl ? (
-        <video className="mt-2 h-auto w-full" src={homeVideoUrl} autoPlay loop muted playsInline controls={false} preload="metadata" />
+        <video className="mt-2 h-auto w-full max-h-[72vh] object-cover" src={homeVideoUrl} autoPlay loop muted playsInline controls={false} preload="metadata" />
       ) : (
         <div className="mt-2 border border-dashed border-white/15 px-6 py-16 text-sm text-zinc-400">
           No homepage video uploaded yet.
