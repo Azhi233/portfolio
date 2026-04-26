@@ -4,10 +4,26 @@ import ConfigPanel from './ConfigPanel.jsx';
 import AnalyticsPanel from './AnalyticsPanel.jsx';
 import PrivateFilesPanel from './PrivateFilesPanel.jsx';
 import TestimonialsPanel from './TestimonialsPanel.jsx';
+import { useEffect } from 'react';
+import { fetchJson, getAccessToken, storeAccessToken } from '../../utils/api.js';
 import { useI18n } from '../../context/I18nContext.jsx';
+import { normalizePassword, readStoredPassword } from '../clientAccessUtils.js';
 
 function ConsoleHome() {
   const { t } = useI18n();
+
+  useEffect(() => {
+    const token = getAccessToken();
+    if (token) return;
+    const password = normalizePassword(readStoredPassword());
+    if (!password) return;
+
+    fetchJson('/client-access/unlock', { method: 'POST', data: { password } })
+      .then((response) => {
+        if (response?.token) storeAccessToken(response.token);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <main className="min-h-screen bg-[#050507] px-4 pb-20 pt-18 text-zinc-100 md:px-8 lg:px-10">
