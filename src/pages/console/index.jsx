@@ -1,4 +1,5 @@
 import ProjectsPanel from './ProjectsPanel.jsx';
+import HomepageVideoPanel from './HomepageVideoPanel.jsx';
 import ConfigPanel from './ConfigPanel.jsx';
 import AnalyticsPanel from './AnalyticsPanel.jsx';
 import PrivateFilesPanel from './PrivateFilesPanel.jsx';
@@ -25,6 +26,7 @@ function ConsoleHome() {
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
           <ProjectsPanel filterMode="all" />
           <div className="grid gap-6">
+            <HomepageVideoPanel />
             <ConfigPanel />
             <AnalyticsPanel />
           </div>
