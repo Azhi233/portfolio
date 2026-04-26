@@ -12,7 +12,10 @@ export function HomeHeroSection({ t, homeVideoUrl, homeVideoTitle }) {
       {homeVideoUrl ? (
         <video className="mt-2 h-auto w-full" src={homeVideoUrl} autoPlay loop muted playsInline controls={false} preload="metadata" />
       ) : (
-        <div className="mt-2 border border-dashed border-white/15 px-6 py-16 text-sm text-zinc-400">No homepage video uploaded yet.</div>
+        <div className="mt-2 border border-dashed border-white/15 px-6 py-16 text-sm text-zinc-400">
+          No homepage video uploaded yet.
+          <div className="mt-2 text-xs text-zinc-500">Upload one in Console → Config → Homepage Video.</div>
+        </div>
       )}
       <p className="max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">{t('home.subtitle')}</p>
       <div className="flex flex-wrap gap-3">

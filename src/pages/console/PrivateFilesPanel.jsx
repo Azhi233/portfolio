@@ -132,9 +132,12 @@ function PrivateFilesPanel() {
 
         {state.error ? <p className="py-2 text-sm text-rose-300">{state.error}</p> : null}
 
-        <div className="mt-4 flex items-center justify-end gap-3">
-          <Button type="button" variant="subtle" onClick={() => setAllProjectsOpen(true)}>EXPAND ALL</Button>
-          <Button type="button" variant="subtle" onClick={() => setAllProjectsOpen(false)}>COLLAPSE ALL</Button>
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <p className="text-xs tracking-[0.16em] text-zinc-500">Expanded projects are shown below; collapsed groups stay out of the way.</p>
+          <div className="flex items-center gap-3">
+            <Button type="button" variant="subtle" onClick={() => setAllProjectsOpen(true)}>EXPAND ALL</Button>
+            <Button type="button" variant="subtle" onClick={() => setAllProjectsOpen(false)}>COLLAPSE ALL</Button>
+          </div>
         </div>
 
         <div className="mt-4 grid gap-3">
