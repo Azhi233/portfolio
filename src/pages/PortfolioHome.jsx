@@ -9,6 +9,7 @@ function PortfolioHome() {
   const { t } = useI18n();
   const [layout, setLayout] = useState(null);
   const [projects, setProjects] = useState([]);
+  const [homeVideo, setHomeVideo] = useState({ title: '', url: '' });
 
   useEffect(() => {
     let mounted = true;
@@ -25,11 +26,25 @@ function PortfolioHome() {
       }
     };
 
+    const loadHomeVideo = async () => {
+      try {
+        const config = await fetchJson('/config');
+        if (!mounted) return;
+        setHomeVideo({
+          title: config?.homeVideoTitle || '',
+          url: config?.homeVideoUrl || '',
+        });
+      } catch {
+        if (mounted) setHomeVideo({ title: '', url: '' });
+      }
+    };
+
     const unsubscribe = subscribePortfolioLayoutUpdates((next) => {
       if (mounted) setLayout(next);
     });
 
     loadProjects();
+    loadHomeVideo();
 
     return () => {
       mounted = false;
@@ -40,7 +55,7 @@ function PortfolioHome() {
   return (
     <main className="relative min-h-screen bg-[#FAF9F6] text-[#151515]">
       <MinimalTopNav />
-      <PortfolioHero t={t} layout={layout} />
+      <PortfolioHero t={t} layout={layout} homeVideo={homeVideo} />
       <PortfolioWorkSection projects={projects} layout={layout} />
       <PortfolioFooter />
     </main>

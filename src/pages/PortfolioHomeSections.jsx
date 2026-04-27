@@ -1,8 +1,19 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import MediaFrame from '../components/MediaFrame.jsx';
+import Button from '../components/Button.jsx';
 
-export function PortfolioHero({ t, layout }) {
+function HomeVideoLoop({ title, url }) {
+  if (!url) return null;
+  return (
+    <div className="overflow-hidden rounded-[2rem] border border-black/5 bg-white shadow-[0_30px_80px_rgba(0,0,0,0.08)]">
+      <video className="h-full w-full object-cover" src={url} autoPlay loop muted playsInline controls={false} preload="metadata" />
+      {title ? <div className="border-t border-black/5 px-5 py-4 text-left text-xs uppercase tracking-[0.24em] text-[#151515]/55">{title}</div> : null}
+    </div>
+  );
+}
+
+export function PortfolioHero({ t, layout, homeVideo }) {
   const slots = Array.isArray(layout?.slots) ? layout.slots : [];
   const heroTitleSlot = slots.find((slot) => slot.id === 'hero-title') || null;
   const heroBackgroundSlot = slots.find((slot) => slot.id === 'hero-background') || null;
@@ -28,15 +39,27 @@ export function PortfolioHero({ t, layout }) {
           />
         </div>
       ) : null}
-      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: 'easeOut' }} className="relative z-10 mx-auto grid max-w-6xl gap-6 text-center md:grid-cols-[1fr_auto_1fr] md:items-center md:text-left">
+      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: 'easeOut' }} className="relative z-10 mx-auto grid max-w-6xl gap-8 text-center md:grid-cols-[1fr_auto_1fr] md:items-center md:text-left">
         <div className="hidden md:block" />
         <div className="flex flex-col items-center md:items-start">
           <p className="text-[11px] uppercase tracking-[0.34em] text-[#151515]/45">{eyebrow}</p>
           <h1 className="mt-5 text-5xl font-light tracking-[0.08em] md:text-8xl">{title}</h1>
           <p className="mx-auto mt-6 max-w-2xl text-sm leading-7 text-[#151515]/60 md:mx-0 md:text-base">{subtitle}</p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Button as="span" variant="primary">
+              <a href="#work">View Work</a>
+            </Button>
+            <Button as="span" variant="subtle">
+              <Link to="/client-access">Client Access</Link>
+            </Button>
+          </div>
         </div>
         <div className="flex justify-center md:justify-end">
-          {heroSecondarySlot?.mediaUrl ? (
+          {homeVideo?.url ? (
+            <div className="w-full max-w-[420px]">
+              <HomeVideoLoop title={homeVideo.title} url={homeVideo.url} />
+            </div>
+          ) : heroSecondarySlot?.mediaUrl ? (
             <div className="w-full max-w-[240px] overflow-hidden rounded-[1.5rem] border border-black/5 bg-white shadow-[0_20px_50px_rgba(0,0,0,0.08)]">
               <MediaFrame
                 src={heroSecondarySlot.mediaUrl}
@@ -93,7 +116,7 @@ export function PortfolioWorkSection({ projects, layout }) {
               };
               if (!media.mediaUrl) return null;
               return (
-                <a key={project.id} href="/" className="pointer-events-auto group overflow-hidden rounded-3xl border border-black/5 bg-white shadow-[0_30px_80px_rgba(0,0,0,0.05)] transition-transform duration-300 hover:-translate-y-1">
+                <a key={project.id} href={`/projects/${project.id}`} className="pointer-events-auto group overflow-hidden rounded-3xl border border-black/5 bg-white shadow-[0_30px_80px_rgba(0,0,0,0.05)] transition-transform duration-300 hover:-translate-y-1">
                   <MediaFrame
                     src={media.mediaUrl}
                     alt={project.title}
