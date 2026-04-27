@@ -1,28 +1,43 @@
+import { useEffect, useState } from 'react';
 import ProjectsPanel from './ProjectsPanel.jsx';
 import HomepageVideoPanel from './HomepageVideoPanel.jsx';
 import ConfigPanel from './ConfigPanel.jsx';
 import AnalyticsPanel from './AnalyticsPanel.jsx';
 import PrivateFilesPanel from './PrivateFilesPanel.jsx';
 import TestimonialsPanel from './TestimonialsPanel.jsx';
-import { useEffect } from 'react';
 import { fetchJson, getAccessToken, storeAccessToken } from '../../utils/api.js';
 import { useI18n } from '../../context/I18nContext.jsx';
 import { normalizePassword, readStoredPassword } from '../clientAccessUtils.js';
 
 function ConsoleHome() {
   const { t } = useI18n();
+  const [accessStatus, setAccessStatus] = useState('');
 
   useEffect(() => {
     const token = getAccessToken();
-    if (token) return;
+    if (token) {
+      setAccessStatus('Access token ready.');
+      return;
+    }
     const password = normalizePassword(readStoredPassword());
-    if (!password) return;
+    if (!password) {
+      setAccessStatus('No stored client password found.');
+      return;
+    }
 
+    setAccessStatus('Restoring client access token...');
     fetchJson('/client-access/unlock', { method: 'POST', data: { password } })
       .then((response) => {
-        if (response?.token) storeAccessToken(response.token);
+        if (response?.token) {
+          storeAccessToken(response.token);
+          setAccessStatus('Client access token restored.');
+          return;
+        }
+        setAccessStatus('Client access unlock returned no token.');
       })
-      .catch(() => {});
+      .catch((error) => {
+        setAccessStatus(error?.message ? `Failed to restore access token: ${error.message}` : 'Failed to restore access token.');
+      });
   }, []);
 
   return (
@@ -34,6 +49,7 @@ function ConsoleHome() {
               <p className="text-[11px] tracking-[0.32em] text-white/70">{t('console.eyebrow')}</p>
               <h1 className="mt-3 font-serif text-4xl tracking-[0.08em] text-white md:text-5xl">{t('console.title')}</h1>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-white/80 md:text-base">{t('console.subtitle')}</p>
+              {accessStatus ? <p className="mt-2 text-xs tracking-[0.12em] text-white/55">{accessStatus}</p> : null}
             </div>
             <p className="text-[10px] uppercase tracking-[0.28em] text-white/60">Workspace</p>
           </div>
