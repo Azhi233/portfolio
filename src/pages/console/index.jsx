@@ -6,6 +6,7 @@ import AnalyticsPanel from './AnalyticsPanel.jsx';
 import PrivateFilesPanel from './PrivateFilesPanel.jsx';
 import TestimonialsPanel from './TestimonialsPanel.jsx';
 import Button from '../../components/Button.jsx';
+import ConsolePanelShell from './ConsolePanelShell.jsx';
 import { fetchJson, getAccessToken, storeAccessToken } from '../../utils/api.js';
 import { useI18n } from '../../context/I18nContext.jsx';
 import { normalizePassword, readStoredPassword } from '../clientAccessUtils.js';
@@ -56,11 +57,23 @@ function ConsoleHome() {
           </div>
         </header>
 
-        <div className="mb-1 flex flex-wrap items-center justify-end gap-3">
-          <Button type="button" variant="subtle" onClick={async () => { await fetchJson('/sync/media-assets', { method: 'POST' }); window.location.reload(); }}>
-            立即同步
-          </Button>
-        </div>
+        <ConsolePanelShell
+          eyebrow="SYNC"
+          title="MinIO 资源同步"
+          description="手动扫描 MinIO 中的新增资源，并同步更新后台列表。"
+          badge={{ label: 'MANUAL SYNC', tone: 'warning' }}
+          footer={(
+            <div className="flex flex-wrap justify-end gap-3">
+              <Button type="button" variant="subtle" onClick={async () => { await fetchJson('/sync/media-assets', { method: 'POST' }); window.location.reload(); }}>
+                立即同步
+              </Button>
+            </div>
+          )}
+        >
+          <p className="text-sm leading-7 text-white/75">
+            点击按钮后会扫描 `Homepage Video`、`Projects` 和 `Private Files`，自动把新增资源同步回后台列表。
+          </p>
+        </ConsolePanelShell>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
           <ProjectsPanel filterMode="all" />
