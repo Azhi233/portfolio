@@ -1,8 +1,12 @@
 import multer from 'multer';
+import { promises as fs } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { createVideoTranscodeTask, getVideoTranscodeTaskByTaskId, updateVideoTranscodeTask } from '../db/videoTranscode.repository.js';
 import { createTaskId, isVideoFile, processVideoTask } from './upload.helpers.js';
 import { uploadFile } from '../utils/minio.js';
 import { createMediaAsset, listMediaAssets } from '../services/media.service.js';
+import { emitTaskEvent } from '../utils/taskEvents.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20480 * 1024 * 1024 } });
 

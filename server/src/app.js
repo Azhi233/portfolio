@@ -23,6 +23,8 @@ import { createReviewAuditRouter } from './routes/review-audit.routes.js';
 import { createTranslationReviewController } from './controllers/translation-review.controller.js';
 import { createTranslationReviewRouter } from './routes/translation-review.routes.js';
 import { createUploadRouter } from './routes/upload.routes.js';
+import { createSyncController } from './controllers/sync.controller.js';
+import { createSyncRouter } from './routes/sync.routes.js';
 import { createHealthcheckRouter } from './routes/healthcheck.routes.js';
 import { readProjects } from './db/projects.repository.js';
 
@@ -100,6 +102,8 @@ export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged,
   app.use('/api/translation-review-items', createTranslationReviewRouter(createTranslationReviewController()));
   const uploadController = createUploadController();
   app.use('/api/uploads', createUploadRouter(uploadController));
+  const syncController = createSyncController();
+  app.use('/api/sync', createSyncRouter(syncController));
   app.use('/api/healthcheck', createHealthcheckRouter());
 
   return app;
