@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchJson, getAccessToken, storeAccessToken } from '../../utils/api.js';
+import { fetchJson } from '../../utils/api.js';
 import Button from '../../components/Button.jsx';
 import Input from '../../components/Input.jsx';
 import MediaPicker from '../../components/MediaPicker.jsx';
 import Modal from '../../components/Modal.jsx';
 import ConsolePanelShell from './ConsolePanelShell.jsx';
 import { uploadHomepageVideo } from '../../utils/homepageVideoUpload.js';
-import { normalizePassword, readStoredPassword } from '../clientAccessUtils.js';
 
 const createDraft = () => ({
   homeVideoTitle: '',
@@ -48,7 +47,7 @@ function StepDot({ state }) {
 }
 
 export default function HomepageVideoPanel() {
-  const [state, setState] = useState({ loading: true, saving: false, uploading: false, error: '', draft: createDraft(), isOpen: false, uploadStage: 'idle', uploadProgress: 0, uploadStatus: '', uploadFailureStage: '', accessStatus: '' });
+  const [state, setState] = useState({ loading: true, saving: false, uploading: false, error: '', draft: createDraft(), isOpen: false, uploadStage: 'idle', uploadProgress: 0, uploadStatus: '', uploadFailureStage: '' });
 
   const load = async () => {
     setState((prev) => ({ ...prev, loading: true, error: '' }));
@@ -62,34 +61,6 @@ export default function HomepageVideoPanel() {
 
   useEffect(() => {
     load();
-  }, []);
-
-  useEffect(() => {
-    const token = getAccessToken();
-    if (token) {
-      setState((prev) => ({ ...prev, accessStatus: 'Access token ready.' }));
-      return;
-    }
-
-    const password = normalizePassword(readStoredPassword());
-    if (!password) {
-      setState((prev) => ({ ...prev, accessStatus: 'No stored client password found.' }));
-      return;
-    }
-
-    setState((prev) => ({ ...prev, accessStatus: 'Restoring client access token...' }));
-    fetchJson('/client-access/unlock', { method: 'POST', data: { password } })
-      .then((response) => {
-        if (response?.token) {
-          storeAccessToken(response.token);
-          setState((prev) => ({ ...prev, accessStatus: 'Client access token restored.' }));
-          return;
-        }
-        setState((prev) => ({ ...prev, accessStatus: 'Client access unlock returned no token.' }));
-      })
-      .catch((error) => {
-        setState((prev) => ({ ...prev, accessStatus: `Failed to restore access token: ${error?.message || 'unknown error'}` }));
-      });
   }, []);
 
   const updateDraft = (key, value) => setState((prev) => ({ ...prev, draft: { ...(prev.draft || {}), [key]: value } }));
@@ -141,11 +112,6 @@ export default function HomepageVideoPanel() {
   const save = async () => {
     setState((prev) => ({ ...prev, saving: true, error: '', isOpen: true }));
     try {
-      const token = getAccessToken();
-      if (!token) {
-        setState((prev) => ({ ...prev, saving: false, error: 'No access token available. Please unlock the console first.' }));
-        return;
-      }
       await fetchJson('/config', { method: 'POST', body: JSON.stringify(state.draft || {}) });
       await load();
       setState((prev) => ({ ...prev, saving: false, uploadStage: 'done', uploadStatus: 'Homepage video saved.' }));
@@ -170,12 +136,11 @@ export default function HomepageVideoPanel() {
         footer={(
           <div className="flex gap-3">
             <Button type="button" variant="subtle" onClick={load}>REFRESH</Button>
-            <Button type="button" variant="subtle" onClick={clear}>EDIT</Button>
+            <Button type="button" variant="primary" onClick={clear}>UPLOAD HERO VIDEO</Button>
           </div>
         )}
       >
         {state.loading ? <p className="text-sm text-white/75">Loading homepage video...</p> : null}
-        {state.accessStatus ? <p className="text-xs tracking-[0.12em] text-white/55">{state.accessStatus}</p> : null}
         {state.error ? <p className="text-sm text-rose-300">{state.error}</p> : null}
         <div className="space-y-3">
           <p className="text-xs tracking-[0.16em] text-white/60">{state.draft?.homeVideoTitle || 'No homepage video selected yet.'}</p>
