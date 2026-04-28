@@ -27,25 +27,18 @@ export function createConfigController({ notifyConfigChanged, broadcastEvent, au
       return res.status(400).json({ ok: false, message: 'Homepage video payload must be a JSON object.' });
     }
 
-    const current = await getConfig();
-    const next = await saveConfig({ ...current, homeVideoTitle: payload.homeVideoTitle || '', homeVideoUrl: payload.homeVideoUrl || '' });
-    notifyConfigChanged('config');
-    broadcastEvent?.('config-updated', { scope: 'homepageVideo' });
-    return res.json({ ok: true, data: next });
-  }
-
-  async function postHomepageVideoHandler(req, res) {
-    const payload = req.body;
-    if (!isPlainObject(payload)) {
-      return res.status(400).json({ ok: false, message: 'Homepage video payload must be a JSON object.' });
-    }
-
     const { homeVideoTitle, homeVideoUrl } = payload;
     const current = await getConfig();
-    const data = await saveConfig({ ...current, homeVideoTitle: homeVideoTitle || '', homeVideoUrl: homeVideoUrl || '' });
-    notifyConfigChanged('config');
-    broadcastEvent?.('config-updated', { scope: 'config' });
-    return res.json({ ok: true, data: { homeVideoTitle: data?.homeVideoTitle || '', homeVideoUrl: data?.homeVideoUrl || '' } });
+    const currentHomepageVideo = isPlainObject(current?.['homepage-video']) ? current['homepage-video'] : {};
+    const nextHomepageVideo = {
+      ...currentHomepageVideo,
+      homeVideoTitle: homeVideoTitle || '',
+      homeVideoUrl: homeVideoUrl || '',
+    };
+    const data = await saveConfig({ 'homepage-video': nextHomepageVideo });
+    notifyConfigChanged('homepage-video');
+    broadcastEvent?.('config-updated', { scope: 'homepage-video' });
+    return res.json({ ok: true, data: nextHomepageVideo, config: data });
   }
 
   async function getEditorLayoutHandler(_req, res) {

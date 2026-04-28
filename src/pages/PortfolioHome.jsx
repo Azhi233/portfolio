@@ -29,10 +29,11 @@ function PortfolioHome() {
     const loadHomeVideo = async () => {
       try {
         const config = await fetchJson('/config');
+        const homepageVideo = config?.['homepage-video'] || {};
         if (mounted) {
           setHomeVideo({
-            title: config?.homeVideoTitle || '',
-            url: config?.homeVideoUrl || '',
+            title: homepageVideo?.homeVideoTitle || '',
+            url: homepageVideo?.homeVideoUrl || '',
           });
         }
       } catch {
