@@ -33,7 +33,7 @@ export function createUploadController() {
       const forwardedProto = String(req.headers['x-forwarded-proto'] || '').trim();
       const proxyBaseUrl = forwardedHost ? `${forwardedProto || req.protocol}://${forwardedHost}` : '';
       const assetSpace = String(req.body?.assetSpace || req.body?.projectType || req.body?.space || 'Projects').trim() || 'Projects';
-      const rootFolder = String(req.body?.root || '首页视频').trim() || '首页视频';
+      const rootFolder = String(req.body?.root || assetSpace || 'Projects').trim() || 'Projects';
 
       if (isVideoFile(file)) {
         const taskId = createTaskId();
@@ -62,7 +62,7 @@ export function createUploadController() {
       const uploadMime = file.mimetype || 'application/octet-stream';
       const mediaKind = uploadMime.startsWith('video/') ? 'video' : 'image';
       const category = String(req.body?.category || req.body?.folder || req.body?.subfolder || '默认分类').trim() || '默认分类';
-      const root = String(req.body?.root || '首页视频').trim() || '首页视频';
+      const root = String(req.body?.root || assetSpace || 'Projects').trim() || assetSpace || 'Projects';
       const sections = isPrivate
         ? [root, '私密项目', mediaKind === 'image' ? '照片' : '视频', category]
         : [root, mediaKind === 'image' ? '照片' : '视频', category];
