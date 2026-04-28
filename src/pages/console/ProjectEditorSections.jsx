@@ -84,8 +84,8 @@ export function ProjectMediaSection({ draft, uploading, uploadProgress, uploadSt
     <div className="grid gap-4">
       <SectionShell eyebrow="MEDIA" title="Cover & Main Video" subtitle="封面和主视频分开管理，保持上传路径清晰。">
         <div className="grid gap-4 md:grid-cols-2">
-          <MediaPicker label="Image Upload" accept="image/*" value={draft.coverUrl} uploading={uploading} progress={uploadProgress} stage={uploadStage} statusText={uploadStatus} failedStage={uploadFailureStage} helperText="图片会显示在图片页。" onPick={onUploadImage} />
-          <MediaPicker label="Video Upload" accept="video/*" value={draft.mainVideoUrl} uploading={uploading} progress={uploadProgress} stage={uploadStage} statusText={uploadStatus} failedStage={uploadFailureStage} helperText="视频会走转码逻辑并显示在视频页。" onPick={onUploadVideo} />
+          <MediaPicker label="Image Upload" accept="image/*" value={draft.coverUrl} uploading={uploading} progress={uploadProgress} stage={uploadStage} statusText={uploadStatus} failedStage={uploadFailureStage} helperText="图片会显示在图片页。" onPick={(file) => onUploadImage(file, { category: draft.category })} />
+          <MediaPicker label="Video Upload" accept="video/*" value={draft.mainVideoUrl} uploading={uploading} progress={uploadProgress} stage={uploadStage} statusText={uploadStatus} failedStage={uploadFailureStage} helperText="视频会走转码逻辑并显示在视频页。" onPick={(file) => onUploadVideo(file, { category: draft.category })} />
         </div>
       </SectionShell>
 
@@ -114,7 +114,7 @@ export function ProjectMediaSection({ draft, uploading, uploadProgress, uploadSt
           uploadStatus={uploadStatus}
           failedStage={uploadFailureStage}
           uploadTarget={uploadTarget}
-          onUpload={onUploadBts}
+          onUpload={(file, kind, meta) => onUploadBts(file, kind, { ...meta, category: draft.category })}
           onRemove={onRemoveBts}
           onUpdate={onUpdateBts}
           onMoveUp={onMoveBtsUp}
