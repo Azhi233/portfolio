@@ -53,7 +53,8 @@ export default function HomepageVideoPanel() {
     setState((prev) => ({ ...prev, loading: true, error: '' }));
     try {
       const config = await fetchJson('/config');
-      setState((prev) => ({ ...prev, loading: false, error: '', draft: { homeVideoTitle: config?.homeVideoTitle || '', homeVideoUrl: config?.homeVideoUrl || '' } }));
+      const homepageVideo = config?.['homepage-video'] || {};
+      setState((prev) => ({ ...prev, loading: false, error: '', draft: { homeVideoTitle: homepageVideo?.homeVideoTitle || '', homeVideoUrl: homepageVideo?.homeVideoUrl || '' } }));
     } catch (error) {
       setState((prev) => ({ ...prev, loading: false, error: error.message || 'Failed to load homepage video.' }));
     }
@@ -110,7 +111,7 @@ export default function HomepageVideoPanel() {
         uploadStatus: 'Homepage video ready.',
         draft: nextDraft,
       }));
-      await fetchJson('/config/homepage-video', { method: 'POST', body: JSON.stringify(nextDraft) });
+      await fetchJson('/config/homepage-video', { method: 'POST', body: JSON.stringify({ homeVideoTitle: nextDraft.homeVideoTitle, homeVideoUrl: nextDraft.homeVideoUrl }) });
     } catch (error) {
       const message = error?.message || 'Failed to upload homepage video.';
       const authHint = /401|unauthorized/i.test(message) ? ' Please unlock the console again.' : '';
