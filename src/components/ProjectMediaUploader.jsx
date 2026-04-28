@@ -32,7 +32,7 @@ export default function ProjectMediaUploader({ items = [], uploading = false, pr
         stage={uploadStage}
         statusText={uploadStatus}
         helperText="Upload BTS assets one by one or use the batch panel below to attach per-file metadata before saving."
-        onPick={(file) => onUpload?.(file, uploadTarget === 'video' ? 'video' : 'image', { category })}
+        onPick={(file) => onUpload?.(file, uploadTarget === 'video' ? 'video' : 'image', { category, displayName: file?.name })}
       />
 
       <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
