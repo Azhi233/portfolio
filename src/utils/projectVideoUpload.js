@@ -9,10 +9,10 @@ function getFileKind(file) {
   return file?.type?.startsWith('video/') ? 'video' : 'image';
 }
 
-function getAssetCategory(file) {
-  const name = String(file?.name || '').toLowerCase();
-  if (/^(private|secret|priv|私密)/.test(name) || name.includes('私密')) return '私密项目';
-  return 'Projects';
+function getAssetCategory(meta = {}) {
+  const category = String(meta.category || meta.folder || meta.subfolder || '').trim();
+  if (category) return category;
+  return '默认分类';
 }
 
 async function waitForTask(taskId, onStatus) {
@@ -37,13 +37,13 @@ async function waitForTask(taskId, onStatus) {
   }
 }
 
-export async function uploadMediaAsset(file, { type = 'public', onProgress, onStage } = {}) {
+export async function uploadMediaAsset(file, { type = 'public', onProgress, onStage, category: metaCategory, root = 'Projects', assetSpace = 'Projects' } = {}) {
   if (!file) throw new Error('File is required.');
 
   const kind = getFileKind(file);
   onStage?.({ stage: 'preparing', kind, fileName: file.name, progress: 0 });
 
-  const category = getAssetCategory(file);
+  const category = getAssetCategory({ category: metaCategory });
   const imageDisplayName = String(file.name || 'file').replace(/\.[^.]+$/, '') || 'file';
 
   if (kind !== 'video') {
@@ -52,7 +52,7 @@ export async function uploadMediaAsset(file, { type = 'public', onProgress, onSt
       const loaded = Number(event?.loaded || 0);
       const progress = total > 0 ? Math.round((loaded / total) * 100) : 0;
       onProgress?.({ stage: 'uploading', progress, fileName: file.name, kind });
-    }, { root: '首页视频', assetSpace: category, category: imageDisplayName });
+    }, { root, assetSpace, category, displayName: imageDisplayName });
 
     return { result, file, kind, converted: false };
   }
@@ -70,7 +70,7 @@ export async function uploadMediaAsset(file, { type = 'public', onProgress, onSt
     const loaded = Number(event?.loaded || 0);
     const progress = total > 0 ? Math.round((loaded / total) * 100) : 0;
     onProgress?.({ stage: 'uploading-source', progress, fileName: uploadFileObject.name, kind });
-  }, { root: '首页视频', assetSpace: category, category: '视频', displayName: videoDisplayName, keepOriginalName: true });
+  }, { root, assetSpace, category, displayName: videoDisplayName, keepOriginalName: true });
 
   if (initial?.status === 'processing' && initial?.taskId) {
     const task = await waitForTask(initial.taskId, onStage);
