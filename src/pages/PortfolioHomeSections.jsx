@@ -89,9 +89,29 @@ export function PortfolioWorkSection({ projects, layout }) {
     return String(a?.title || '').localeCompare(String(b?.title || ''));
   });
 
+  const wideVideoSlot = slots.find((slot) => slot.id === 'projects-video') || null;
+
   return (
     <section id="work" className="bg-[#FAF9F6] px-6 py-24 md:px-12 md:py-32">
       <div className="mx-auto max-w-7xl">
+        {wideVideoSlot?.mediaUrl ? (
+          <div className="mb-12 overflow-hidden rounded-[2rem] border border-black/5 bg-white shadow-[0_30px_80px_rgba(0,0,0,0.05)]">
+            <MediaFrame
+              src={wideVideoSlot.mediaUrl}
+              alt={wideVideoSlot.title || 'Projects video'}
+              type={wideVideoSlot.mediaType || 'video'}
+              aspectRatio={wideVideoSlot.aspectRatio || '21 / 9'}
+              cropX={wideVideoSlot.cropX || 50}
+              cropY={wideVideoSlot.cropY || 50}
+              scale={wideVideoSlot.scale || 1}
+              className="h-full w-full"
+              autoPlay
+              muted
+              loop
+            />
+            {wideVideoSlot.title ? <div className="border-t border-black/5 px-6 py-4 text-xs uppercase tracking-[0.24em] text-[#151515]/55">{wideVideoSlot.title}</div> : null}
+          </div>
+        ) : null}
         <div className="mb-10 flex items-end justify-between gap-6">
           <div>
             <p className="text-[11px] uppercase tracking-[0.28em] text-[#151515]/45">Selected Work</p>
