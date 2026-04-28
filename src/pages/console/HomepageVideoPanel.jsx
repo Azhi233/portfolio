@@ -83,6 +83,7 @@ export default function HomepageVideoPanel() {
     setState((prev) => ({ ...prev, uploading: true, error: '', isOpen: true, uploadStage: 'preparing', uploadProgress: 0, uploadStatus: `Preparing ${file.name}...` }));
     try {
       const { result, file: uploadFileObject } = await uploadHomepageVideo(file, {
+        displayName: state.draft?.homeVideoTitle || file.name || 'Homepage Video',
         onProgress: ({ stage, progress, fileName }) => setState((prev) => ({
           ...prev,
           uploadStage: stage,

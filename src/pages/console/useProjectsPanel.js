@@ -115,9 +115,11 @@ export function useProjectsPanel(filterMode = 'all') {
     setState((prev) => ({ ...prev, uploading: true, uploadProgress: 0, uploadStage: 'preparing', uploadStatus: `Preparing ${file.name}...`, error: '', uploadFailureStage: '', notice: '' }));
     try {
       const projectCategory = meta.category || state.draft?.category || '默认分类';
+      const projectTitle = String(meta.displayName || meta.title || state.draft?.title || file.name || 'project-media').trim() || 'project-media';
       const { result, file: uploadFileObject } = await uploadMediaAsset(file, {
         type: 'public',
         category: projectCategory,
+        displayName: projectTitle,
         root: 'Projects',
         assetSpace: 'Projects',
         onProgress: ({ stage, progress, fileName }) => setState((prev) => ({
@@ -167,6 +169,7 @@ export function useProjectsPanel(filterMode = 'all') {
       const { result, file: uploadFileObject } = await uploadMediaAsset(file, {
         type: 'public',
         category: meta.category,
+        displayName: meta.displayName || meta.title || file.name,
         onProgress: ({ stage, progress, fileName }) => setState((prev) => ({ ...prev, uploadStage: stage, uploadProgress: Math.max(prev.uploadProgress, progress || 0), uploadStatus: stage === 'uploading-source' ? `Uploading source video ${fileName}...` : stage === 'uploading' ? `Uploading ${fileName}...` : stage === 'transcoding' ? `Transcoding ${fileName || file.name}...` : prev.uploadStatus })),
         onStage: ({ stage, status, message, fileName }) => setState((prev) => ({ ...prev, uploadStage: stage, uploadStatus: stage === 'transcoding' ? `Transcoding ${fileName || file.name} to MP4...` : stage === 'preparing' ? `Preparing ${fileName || file.name}...` : stage === 'writing-back' ? 'Writing uploaded media back to project...' : status === 'completed' ? 'Transcoding complete.' : message || prev.uploadStatus })),
       });

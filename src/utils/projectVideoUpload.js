@@ -37,14 +37,14 @@ async function waitForTask(taskId, onStatus) {
   }
 }
 
-export async function uploadMediaAsset(file, { type = 'public', onProgress, onStage, category: metaCategory, root = 'Projects', assetSpace = 'Projects' } = {}) {
+export async function uploadMediaAsset(file, { type = 'public', onProgress, onStage, category: metaCategory, displayName: metaDisplayName, root = 'Projects', assetSpace = 'Projects' } = {}) {
   if (!file) throw new Error('File is required.');
 
   const kind = getFileKind(file);
   onStage?.({ stage: 'preparing', kind, fileName: file.name, progress: 0 });
 
   const category = getAssetCategory({ category: metaCategory });
-  const imageDisplayName = String(file.name || 'file').replace(/\.[^.]+$/, '') || 'file';
+  const imageDisplayName = String(metaDisplayName || file.name || 'file').replace(/\.[^.]+$/, '') || 'file';
 
   if (kind !== 'video') {
     const result = await uploadFile(file, type, (event) => {
@@ -63,7 +63,7 @@ export async function uploadMediaAsset(file, { type = 'public', onProgress, onSt
   });
 
   const uploadFileObject = transcoded.file || file;
-  const videoDisplayName = String(uploadFileObject.name || file.name || 'video').replace(/\.[^.]+$/, '') || 'video';
+  const videoDisplayName = String(metaDisplayName || uploadFileObject.name || file.name || 'video').replace(/\.[^.]+$/, '') || 'video';
   onStage?.({ stage: 'uploading-source', kind, fileName: uploadFileObject.name, progress: 0 });
   const initial = await uploadFile(uploadFileObject, type, (event) => {
     const total = Number(event?.total || uploadFileObject.size || 0);
