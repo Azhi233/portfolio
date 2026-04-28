@@ -5,6 +5,7 @@ import ConfigPanel from './ConfigPanel.jsx';
 import AnalyticsPanel from './AnalyticsPanel.jsx';
 import PrivateFilesPanel from './PrivateFilesPanel.jsx';
 import TestimonialsPanel from './TestimonialsPanel.jsx';
+import Button from '../../components/Button.jsx';
 import { fetchJson, getAccessToken, storeAccessToken } from '../../utils/api.js';
 import { useI18n } from '../../context/I18nContext.jsx';
 import { normalizePassword, readStoredPassword } from '../clientAccessUtils.js';
@@ -54,6 +55,12 @@ function ConsoleHome() {
             <p className="text-[10px] uppercase tracking-[0.28em] text-white/60">Workspace</p>
           </div>
         </header>
+
+        <div className="mb-1 flex flex-wrap items-center justify-end gap-3">
+          <Button type="button" variant="subtle" onClick={async () => { await fetchJson('/sync/media-assets', { method: 'POST' }); window.location.reload(); }}>
+            立即同步
+          </Button>
+        </div>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
           <ProjectsPanel filterMode="all" />
