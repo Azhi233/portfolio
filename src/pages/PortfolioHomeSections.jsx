@@ -6,27 +6,32 @@ import Button from '../components/Button.jsx';
 function HomeVideoLoop({ title, url }) {
   if (!url) return null;
   return (
-    <div className="overflow-hidden rounded-[2rem] border border-black/5 bg-white shadow-[0_30px_80px_rgba(0,0,0,0.08)]">
+    <div className="relative h-full w-full overflow-hidden bg-black">
       <video className="h-full w-full object-cover" src={url} autoPlay loop muted playsInline controls={false} preload="metadata" />
-      {title ? <div className="border-t border-black/5 px-5 py-4 text-left text-xs uppercase tracking-[0.24em] text-[#151515]/55">{title}</div> : null}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/30" />
+      {title ? <div className="pointer-events-none absolute left-6 top-6 rounded-full border border-white/20 bg-black/20 px-4 py-2 text-[10px] uppercase tracking-[0.24em] text-white/90 backdrop-blur">{title}</div> : null}
     </div>
   );
 }
 
 export function PortfolioHero({ t, layout, homeVideo }) {
   const slots = Array.isArray(layout?.slots) ? layout.slots : [];
-  const heroTitleSlot = slots.find((slot) => slot.id === 'hero-title') || null;
   const heroBackgroundSlot = slots.find((slot) => slot.id === 'hero-background') || null;
-  const heroSecondarySlot = slots.find((slot) => slot.id === 'hero-secondary') || null;
-  const eyebrow = heroTitleSlot?.eyebrow || 'Cinematic Visuals for Industry & Product';
-  const title = heroTitleSlot?.title || t('home.heroTitle', 'Your Name');
-  const subtitle = heroTitleSlot?.text || 'A quiet visual portfolio built around large imagery, minimal text, and highly curated motion.';
+  const heroVideoSlot = slots.find((slot) => slot.id === 'hero-video') || null;
+  const eyebrow = 'Cinematic Visuals for Industry & Product';
+  const title = t('home.heroTitle', 'Your Name');
+  const subtitle = 'A quiet visual portfolio built around large imagery, minimal text, and highly curated motion.';
+  const videoUrl = homeVideo?.url || heroVideoSlot?.mediaUrl || '';
+  const videoTitle = homeVideo?.title || heroVideoSlot?.title || '';
 
   return (
-    <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 pt-10 md:px-12 md:pt-14">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(0,0,0,0.06),transparent_42%),linear-gradient(180deg,rgba(250,249,246,0.2),rgba(250,249,246,1))]" />
-      {heroBackgroundSlot?.mediaUrl ? (
-        <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-18">
+    <section className="relative min-h-screen overflow-hidden bg-black">
+      {videoUrl ? (
+        <div className="absolute inset-0">
+          <HomeVideoLoop title={videoTitle} url={videoUrl} />
+        </div>
+      ) : heroBackgroundSlot?.mediaUrl ? (
+        <div className="absolute inset-0">
           <MediaFrame
             src={heroBackgroundSlot.mediaUrl}
             alt="Hero background"
@@ -39,13 +44,25 @@ export function PortfolioHero({ t, layout, homeVideo }) {
           />
         </div>
       ) : null}
-      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: 'easeOut' }} className="relative z-10 mx-auto grid max-w-6xl gap-8 text-center md:grid-cols-[1fr_auto_1fr] md:items-center md:text-left">
-        <div className="hidden md:block" />
-        <div className="flex flex-col items-center md:items-start">
-          <p className="text-[11px] uppercase tracking-[0.34em] text-[#151515]/45">{eyebrow}</p>
-          <h1 className="mt-5 text-5xl font-light tracking-[0.08em] md:text-8xl">{title}</h1>
-          <p className="mx-auto mt-6 max-w-2xl text-sm leading-7 text-[#151515]/60 md:mx-0 md:text-base">{subtitle}</p>
-          <div className="mt-8 flex flex-wrap gap-3">
+
+      <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/10 to-black/45" />
+      <header className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between px-6 py-5 md:px-10">
+        <div className="text-[11px] uppercase tracking-[0.32em] text-white/90">MDWANG</div>
+        <nav className="hidden gap-6 text-[11px] uppercase tracking-[0.22em] text-white/70 md:flex">
+          <a href="#work" className="transition hover:text-white">Projects</a>
+          <Link to="/videos" className="transition hover:text-white">Videos</Link>
+          <Link to="/studio-notes" className="transition hover:text-white">Studio Notes</Link>
+          <Link to="/about" className="transition hover:text-white">About</Link>
+          <Link to="/client-access" className="transition hover:text-white">Client Deliverables</Link>
+        </nav>
+      </header>
+
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: 'easeOut' }} className="relative z-10 flex min-h-screen items-center justify-center px-6 pt-24">
+        <div className="mx-auto max-w-5xl text-center text-white">
+          <p className="text-[11px] uppercase tracking-[0.34em] text-white/75">{eyebrow}</p>
+          <h1 className="mt-5 text-5xl font-light tracking-[0.08em] drop-shadow-[0_6px_30px_rgba(0,0,0,0.35)] md:text-8xl">{title}</h1>
+          <p className="mx-auto mt-6 max-w-2xl text-sm leading-7 text-white/80 md:text-base">{subtitle}</p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Button as="span" variant="primary">
               <a href="#work">View Work</a>
             </Button>
@@ -53,26 +70,6 @@ export function PortfolioHero({ t, layout, homeVideo }) {
               <Link to="/client-access">Client Access</Link>
             </Button>
           </div>
-        </div>
-        <div className="flex justify-center md:justify-end">
-          {homeVideo?.url ? (
-            <div className="w-full max-w-[420px]">
-              <HomeVideoLoop title={homeVideo.title} url={homeVideo.url} />
-            </div>
-          ) : heroSecondarySlot?.mediaUrl ? (
-            <div className="w-full max-w-[240px] overflow-hidden rounded-[1.5rem] border border-black/5 bg-white shadow-[0_20px_50px_rgba(0,0,0,0.08)]">
-              <MediaFrame
-                src={heroSecondarySlot.mediaUrl}
-                alt={heroSecondarySlot.title || 'Hero secondary'}
-                type={heroSecondarySlot.mediaType || 'image'}
-                aspectRatio={heroSecondarySlot.aspectRatio || '3 / 4'}
-                cropX={heroSecondarySlot.cropX || 50}
-                cropY={heroSecondarySlot.cropY || 50}
-                scale={heroSecondarySlot.scale || 1}
-                className="h-full w-full"
-              />
-            </div>
-          ) : null}
         </div>
       </motion.div>
     </section>
