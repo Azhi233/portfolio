@@ -15,6 +15,7 @@ function ConsoleHome() {
   const { t } = useI18n();
   const [accessStatus, setAccessStatus] = useState('');
   const [syncState, setSyncState] = useState({ status: 'idle', message: '' });
+  const [syncTick, setSyncTick] = useState(0);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -80,8 +81,8 @@ function ConsoleHome() {
                     const result = await fetchJson('/sync/media-assets', { method: 'POST' });
                     const scanned = Number(result?.scanned || 0);
                     const upserted = Number(result?.upserted || 0);
-                    setSyncState({ status: 'success', message: `同步成功：扫描 ${scanned} 项，更新 ${upserted} 项，正在刷新页面...` });
-                    window.location.reload();
+                    setSyncState({ status: 'success', message: `同步成功：扫描 ${scanned} 项，更新 ${upserted} 项。` });
+                    setSyncTick((prev) => prev + 1);
                   } catch (error) {
                     setSyncState({ status: 'error', message: error?.message || '同步失败，请稍后重试。' });
                   }
@@ -120,7 +121,7 @@ function ConsoleHome() {
           </div>
         </ConsolePanelShell>
 
-        <div className="grid gap-6 xl:grid-cols-2">
+        <div key={`sync-${syncTick}`} className="grid gap-6 xl:grid-cols-2">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_0_40px_rgba(255,255,255,0.03)]">
             <ProjectsPanel filterMode="all" />
           </div>
@@ -139,7 +140,7 @@ function ConsoleHome() {
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-2">
+        <div key={`sync-private-${syncTick}`} className="grid gap-6 xl:grid-cols-2">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_0_40px_rgba(255,255,255,0.03)]">
             <PrivateFilesPanel />
           </div>
