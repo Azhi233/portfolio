@@ -102,7 +102,7 @@ function PrivateFilesPanel() {
     const category = String(state.selectedProject?.category || state.selectedProject?.title || '默认分类').trim() || '默认分类';
     setState((prev) => ({ ...prev, uploading: true, error: '', uploadStage: 'uploading', uploadStatus: `Uploading ${file.name}...`, uploadError: '' }));
     try {
-      const displayName = String(state.draft.label || state.draft.name || state.selectedProject?.title || file.name || 'private-file').trim() || 'private-file';
+      const displayName = String(state.selectedProject?.title || state.draft.label || state.draft.name || file.name || 'private-file').trim() || 'private-file';
       const result = await uploadFile(file, 'private', undefined, { root: 'Private Files', assetSpace: 'Private Files', category, displayName });
       setState((prev) => ({ ...prev, uploading: false, uploadStage: 'success', uploadStatus: `Uploaded: ${result.url || file.name}`, draft: { ...prev.draft, url: result.url, name: file.name, type: file.type || prev.draft.type } }));
     } catch (error) {
