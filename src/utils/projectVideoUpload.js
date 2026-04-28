@@ -63,14 +63,14 @@ export async function uploadMediaAsset(file, { type = 'public', onProgress, onSt
   });
 
   const uploadFileObject = transcoded.file || file;
-  const displayName = String(uploadFileObject.name || file.name || 'video').replace(/\.[^.]+$/, '') || 'video';
+  const videoDisplayName = String(uploadFileObject.name || file.name || 'video').replace(/\.[^.]+$/, '') || 'video';
   onStage?.({ stage: 'uploading-source', kind, fileName: uploadFileObject.name, progress: 0 });
   const initial = await uploadFile(uploadFileObject, type, (event) => {
     const total = Number(event?.total || uploadFileObject.size || 0);
     const loaded = Number(event?.loaded || 0);
     const progress = total > 0 ? Math.round((loaded / total) * 100) : 0;
     onProgress?.({ stage: 'uploading-source', progress, fileName: uploadFileObject.name, kind });
-  }, { root: '首页视频', assetSpace: category, category: '视频', displayName, keepOriginalName: true });
+  }, { root: '首页视频', assetSpace: category, category: '视频', displayName: videoDisplayName, keepOriginalName: true });
 
   if (initial?.status === 'processing' && initial?.taskId) {
     const task = await waitForTask(initial.taskId, onStage);
