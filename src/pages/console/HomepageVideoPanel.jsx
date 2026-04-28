@@ -112,7 +112,7 @@ export default function HomepageVideoPanel() {
   const save = async () => {
     setState((prev) => ({ ...prev, saving: true, error: '', isOpen: true }));
     try {
-      await fetchJson('/config', { method: 'POST', body: JSON.stringify(state.draft || {}) });
+      await fetchJson('/config/homepage-video', { method: 'POST', body: JSON.stringify({ homeVideoTitle: state.draft?.homeVideoTitle || '', homeVideoUrl: state.draft?.homeVideoUrl || '' }) });
       await load();
       setState((prev) => ({ ...prev, saving: false, uploadStage: 'done', uploadStatus: 'Homepage video saved.' }));
     } catch (error) {

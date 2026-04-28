@@ -21,6 +21,33 @@ export function createConfigController({ notifyConfigChanged, broadcastEvent, au
     return res.json({ ok: true, data });
   }
 
+  async function postHomepageVideoHandler(req, res) {
+    const payload = req.body;
+    if (!isPlainObject(payload)) {
+      return res.status(400).json({ ok: false, message: 'Homepage video payload must be a JSON object.' });
+    }
+
+    const current = await getConfig();
+    const next = await saveConfig({ ...current, homeVideoTitle: payload.homeVideoTitle || '', homeVideoUrl: payload.homeVideoUrl || '' });
+    notifyConfigChanged('config');
+    broadcastEvent?.('config-updated', { scope: 'homepageVideo' });
+    return res.json({ ok: true, data: next });
+  }
+
+  async function postHomepageVideoHandler(req, res) {
+    const payload = req.body;
+    if (!isPlainObject(payload)) {
+      return res.status(400).json({ ok: false, message: 'Homepage video payload must be a JSON object.' });
+    }
+
+    const { homeVideoTitle, homeVideoUrl } = payload;
+    const current = await getConfig();
+    const data = await saveConfig({ ...current, homeVideoTitle: homeVideoTitle || '', homeVideoUrl: homeVideoUrl || '' });
+    notifyConfigChanged('config');
+    broadcastEvent?.('config-updated', { scope: 'config' });
+    return res.json({ ok: true, data: { homeVideoTitle: data?.homeVideoTitle || '', homeVideoUrl: data?.homeVideoUrl || '' } });
+  }
+
   async function getEditorLayoutHandler(_req, res) {
     const config = await getConfig();
     return res.json({ ok: true, data: config.editorLayout || { slots: [] } });
@@ -38,5 +65,5 @@ export function createConfigController({ notifyConfigChanged, broadcastEvent, au
     return res.json({ ok: true, data: config.editorLayout || payload });
   }
 
-  return { getConfigHandler, postConfigHandler, getEditorLayoutHandler, putEditorLayoutHandler, authMiddleware };
+  return { getConfigHandler, postConfigHandler, postHomepageVideoHandler, getEditorLayoutHandler, putEditorLayoutHandler, authMiddleware };
 }
