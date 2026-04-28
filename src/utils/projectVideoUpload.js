@@ -44,7 +44,7 @@ export async function uploadMediaAsset(file, { type = 'public', onProgress, onSt
   onStage?.({ stage: 'preparing', kind, fileName: file.name, progress: 0 });
 
   const category = getAssetCategory(file);
-  const displayName = String(file.name || 'file').replace(/\.[^.]+$/, '') || 'file';
+  const imageDisplayName = String(file.name || 'file').replace(/\.[^.]+$/, '') || 'file';
 
   if (kind !== 'video') {
     const result = await uploadFile(file, type, (event) => {
@@ -52,7 +52,7 @@ export async function uploadMediaAsset(file, { type = 'public', onProgress, onSt
       const loaded = Number(event?.loaded || 0);
       const progress = total > 0 ? Math.round((loaded / total) * 100) : 0;
       onProgress?.({ stage: 'uploading', progress, fileName: file.name, kind });
-    }, { root: '首页视频', assetSpace: category, category: displayName });
+    }, { root: '首页视频', assetSpace: category, category: imageDisplayName });
 
     return { result, file, kind, converted: false };
   }
