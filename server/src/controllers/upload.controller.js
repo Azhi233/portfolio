@@ -65,7 +65,7 @@ export function createUploadController() {
       const root = String(req.body?.root || assetSpace || 'Projects').trim() || assetSpace || 'Projects';
       const displayName = String(req.body?.displayName || req.body?.title || uploadName.replace(/\.[^.]+$/, '') || 'file').trim() || 'file';
       const sections = [root, category];
-      const result = await uploadFile(uploadBuffer, uploadName, isPrivate, uploadMime, { baseUrl: publicBaseUrl || proxyBaseUrl || baseUrl, sections, displayName, keepOriginalName: true });
+      const result = await uploadFile(uploadBuffer, uploadName, isPrivate, uploadMime, { baseUrl: publicBaseUrl || proxyBaseUrl || baseUrl, sections, displayName });
       await createMediaAsset({
         id: result.id || `asset-${Date.now()}`,
         kind: mediaKind,

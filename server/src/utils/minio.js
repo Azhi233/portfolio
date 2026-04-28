@@ -31,10 +31,10 @@ function safePathSegment(value = '', fallback = 'untitled') {
 function buildObjectName(fileName = '', isPrivate = false, options = {}) {
   const sections = Array.isArray(options.sections) ? options.sections : [];
   const normalizedSections = sections.map((segment) => safePathSegment(segment)).filter(Boolean);
-  const baseName = safePathSegment(options.displayName || path.parse(fileName).name || 'file', 'file');
+  const displayName = String(options.displayName || path.parse(fileName).name || 'file').trim();
+  const baseName = safePathSegment(displayName, 'file');
   const ext = safeExt(fileName);
-  const uniqueSuffix = options.keepOriginalName ? '' : `-${crypto.randomUUID().slice(0, 8)}`;
-  return path.posix.join(...normalizedSections, `${baseName}${uniqueSuffix}.${ext}`);
+  return path.posix.join(...normalizedSections, `${baseName}.${ext}`);
 }
 
 async function ensureBucket(bucketName) {
