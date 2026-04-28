@@ -94,14 +94,23 @@ export default function HomepageVideoPanel() {
           uploadStatus: stage === 'transcoding' ? `Transcoding ${fileName || file.name} to MP4...` : stage === 'preparing' ? `Preparing ${fileName || file.name}...` : stage === 'writing-back' ? 'Writing uploaded video back to homepage config...' : status === 'completed' ? 'Transcoding complete.' : message || prev.uploadStatus,
         })),
       });
+      const nextDraft = {
+        ...(state.draft || {}),
+        homeVideoUrl: result?.url || uploadFileObject?.url || result?.targetUrl || '',
+        homeVideoTitle: file.name || 'Homepage video',
+      };
+      if (!nextDraft.homeVideoUrl) {
+        throw new Error('Upload finished but no homepage video URL was returned.');
+      }
       setState((prev) => ({
         ...prev,
         uploading: false,
         uploadStage: 'done',
         uploadProgress: 100,
         uploadStatus: 'Homepage video ready.',
-        draft: { ...(prev.draft || {}), homeVideoUrl: result?.url || uploadFileObject?.url || result?.targetUrl || '', homeVideoTitle: file.name || 'Homepage video' },
+        draft: nextDraft,
       }));
+      await fetchJson('/config/homepage-video', { method: 'POST', body: JSON.stringify(nextDraft) });
     } catch (error) {
       const message = error?.message || 'Failed to upload homepage video.';
       const authHint = /401|unauthorized/i.test(message) ? ' Please unlock the console again.' : '';
