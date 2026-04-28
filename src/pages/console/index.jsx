@@ -77,8 +77,10 @@ function ConsoleHome() {
                 onClick={async () => {
                   setSyncState({ status: 'loading', message: '同步中，请稍候...' });
                   try {
-                    await fetchJson('/sync/media-assets', { method: 'POST' });
-                    setSyncState({ status: 'success', message: '同步成功，正在刷新页面...' });
+                    const result = await fetchJson('/sync/media-assets', { method: 'POST' });
+                    const scanned = Number(result?.scanned || 0);
+                    const upserted = Number(result?.upserted || 0);
+                    setSyncState({ status: 'success', message: `同步成功：扫描 ${scanned} 项，更新 ${upserted} 项，正在刷新页面...` });
                     window.location.reload();
                   } catch (error) {
                     setSyncState({ status: 'error', message: error?.message || '同步失败，请稍后重试。' });
