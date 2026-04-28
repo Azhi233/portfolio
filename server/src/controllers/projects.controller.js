@@ -324,7 +324,7 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
       refs.forEach((ref) => objectNamesToDelete.set(`${ref.bucketName}:${ref.objectName}`, ref));
     }
 
-    for (const entry of objectNamesToDelete) {
+    for (const [, entry] of objectNamesToDelete) {
       try {
         await deleteObject(entry.bucketName, entry.objectName);
       } catch (error) {

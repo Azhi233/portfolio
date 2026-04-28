@@ -71,18 +71,11 @@ function detectMimeKind(mime = '', fileName = '') {
   return '视频';
 }
 
-function buildUploadSections(reqMeta = {}, fileName = '', mime = '') {
-  const root = safePathSegment(reqMeta.root || '首页视频', '首页视频');
+function buildUploadSections(reqMeta = {}) {
   const assetSpace = String(reqMeta.assetSpace || reqMeta.projectType || reqMeta.type || 'Projects').trim() || 'Projects';
-  const privacy = String(reqMeta.privacy || '').toLowerCase() === 'private' ? 'Private Files' : assetSpace;
-  const mediaKind = detectMimeKind(mime, fileName);
+  const root = safePathSegment(reqMeta.root || assetSpace, assetSpace);
   const category = safePathSegment(reqMeta.category || reqMeta.folder || reqMeta.subfolder || '默认分类', '默认分类');
-
-  if (privacy === 'Private Files') {
-    return [root, privacy, mediaKind, category];
-  }
-
-  return [root, privacy, mediaKind, category];
+  return [root, category];
 }
 
 export async function processVideoTask(taskId, originalName, buffer, reqMeta) {

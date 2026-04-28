@@ -63,10 +63,9 @@ export function createUploadController() {
       const mediaKind = uploadMime.startsWith('video/') ? 'video' : 'image';
       const category = String(req.body?.category || req.body?.folder || req.body?.subfolder || '默认分类').trim() || '默认分类';
       const root = String(req.body?.root || assetSpace || 'Projects').trim() || assetSpace || 'Projects';
-      const sections = isPrivate
-        ? [root, '私密项目', mediaKind === 'image' ? '照片' : '视频', category]
-        : [root, mediaKind === 'image' ? '照片' : '视频', category];
-      const result = await uploadFile(uploadBuffer, uploadName, isPrivate, uploadMime, { baseUrl: publicBaseUrl || proxyBaseUrl || baseUrl, sections, displayName: uploadName.replace(/\.[^.]+$/, '') || 'file', keepOriginalName: true });
+      const displayName = String(req.body?.displayName || req.body?.title || uploadName.replace(/\.[^.]+$/, '') || 'file').trim() || 'file';
+      const sections = [root, category];
+      const result = await uploadFile(uploadBuffer, uploadName, isPrivate, uploadMime, { baseUrl: publicBaseUrl || proxyBaseUrl || baseUrl, sections, displayName, keepOriginalName: true });
       await createMediaAsset({
         id: result.id || `asset-${Date.now()}`,
         kind: mediaKind,
