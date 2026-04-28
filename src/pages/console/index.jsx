@@ -14,6 +14,7 @@ import { normalizePassword, readStoredPassword } from '../clientAccessUtils.js';
 function ConsoleHome() {
   const { t } = useI18n();
   const [accessStatus, setAccessStatus] = useState('');
+  const [syncState, setSyncState] = useState({ status: 'idle', message: '' });
 
   useEffect(() => {
     const token = getAccessToken();
@@ -70,11 +71,29 @@ function ConsoleHome() {
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-3">
-              <Button type="button" variant="subtle" onClick={async () => { await fetchJson('/sync/media-assets', { method: 'POST' }); window.location.reload(); }}>
+              <Button
+                type="button"
+                variant="subtle"
+                onClick={async () => {
+                  setSyncState({ status: 'loading', message: '同步中，请稍候...' });
+                  try {
+                    await fetchJson('/sync/media-assets', { method: 'POST' });
+                    setSyncState({ status: 'success', message: '同步成功，正在刷新页面...' });
+                    window.location.reload();
+                  } catch (error) {
+                    setSyncState({ status: 'error', message: error?.message || '同步失败，请稍后重试。' });
+                  }
+                }}
+              >
                 立即同步
               </Button>
             </div>
           </div>
+          {syncState.status !== 'idle' ? (
+            <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${syncState.status === 'success' ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-100' : syncState.status === 'error' ? 'border-rose-400/30 bg-rose-400/10 text-rose-100' : 'border-cyan-300/20 bg-cyan-300/10 text-cyan-50'}`}>
+              {syncState.message}
+            </div>
+          ) : null}
         </section>
 
         <ConsolePanelShell
@@ -99,18 +118,32 @@ function ConsoleHome() {
           </div>
         </ConsolePanelShell>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
-          <ProjectsPanel filterMode="all" />
+        <div className="grid gap-6 xl:grid-cols-2">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_0_40px_rgba(255,255,255,0.03)]">
+            <ProjectsPanel filterMode="all" />
+          </div>
           <div className="grid gap-6">
-            <HomepageVideoPanel />
-            <ConfigPanel />
-            <AnalyticsPanel />
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_0_40px_rgba(255,255,255,0.03)]">
+              <HomepageVideoPanel />
+            </div>
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_0_40px_rgba(255,255,255,0.03)]">
+                <ConfigPanel />
+              </div>
+              <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_0_40px_rgba(255,255,255,0.03)]">
+                <AnalyticsPanel />
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <PrivateFilesPanel />
-          <TestimonialsPanel />
+        <div className="grid gap-6 xl:grid-cols-2">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_0_40px_rgba(255,255,255,0.03)]">
+            <PrivateFilesPanel />
+          </div>
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_0_40px_rgba(255,255,255,0.03)]">
+            <TestimonialsPanel />
+          </div>
         </div>
       </section>
     </main>
