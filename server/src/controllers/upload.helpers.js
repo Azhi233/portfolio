@@ -53,6 +53,38 @@ export function runFfmpegTranscode(inputPath, outputPath) {
   });
 }
 
+function safePathSegment(value = '', fallback = 'video') {
+  const segment = String(value)
+    .trim()
+    .replace(/[\\/]+/g, '-')
+    .replace(/[<>:"|?*\u0000-\u001f]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return segment || fallback;
+}
+
+function detectMimeKind(mime = '', fileName = '') {
+  const lowerMime = String(mime).toLowerCase();
+  const lowerName = String(fileName).toLowerCase();
+  if (lowerMime.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(lowerName)) return '照片';
+  return '视频';
+}
+
+function buildUploadSections(reqMeta = {}, fileName = '', mime = '') {
+  const root = safePathSegment(reqMeta.root || '首页视频', '首页视频');
+  const assetSpace = String(reqMeta.assetSpace || reqMeta.projectType || reqMeta.type || 'Projects').trim() || 'Projects';
+  const privacy = String(reqMeta.privacy || '').toLowerCase() === 'private' ? 'Private Files' : assetSpace;
+  const mediaKind = detectMimeKind(mime, fileName);
+  const category = safePathSegment(reqMeta.category || reqMeta.folder || reqMeta.subfolder || '默认分类', '默认分类');
+
+  if (privacy === 'Private Files') {
+    return [root, privacy, mediaKind, category];
+  }
+
+  return [root, privacy, mediaKind, category];
+}
+
 export async function processVideoTask(taskId, originalName, buffer, reqMeta) {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'portfolio-video-'));
   const inputPath = path.join(tempDir, originalName || 'input');
@@ -64,7 +96,12 @@ export async function processVideoTask(taskId, originalName, buffer, reqMeta) {
     await runFfmpegTranscode(inputPath, outputPath);
     const uploadBuffer = await fs.readFile(outputPath);
     const uploadName = `${path.basename(originalName, path.extname(originalName)) || 'video'}.mp4`;
-    const result = await uploadFile(uploadBuffer, uploadName, false, 'video/mp4', { baseUrl: reqMeta.baseUrl });
+    const result = await uploadFile(uploadBuffer, uploadName, false, 'video/mp4', {
+      baseUrl: reqMeta.baseUrl,
+      sections: buildUploadSections(reqMeta, uploadName, 'video/mp4'),
+      displayName: safePathSegment(reqMeta?.displayName || path.basename(uploadName, path.extname(uploadName)) || 'video', 'video'),
+      keepOriginalName: true,
+    });
 
     await updateVideoTranscodeTask(taskId, { status: 'completed', targetUrl: result.url, errorMsg: null });
     emitTaskEvent({ event: 'task-completed', taskId, status: 'completed', targetUrl: result.url, errorMsg: null });

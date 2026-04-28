@@ -9,6 +9,12 @@ function getFileKind(file) {
   return file?.type?.startsWith('video/') ? 'video' : 'image';
 }
 
+function getAssetCategory(file) {
+  const name = String(file?.name || '').toLowerCase();
+  if (/^(private|secret|priv|私密)/.test(name) || name.includes('私密')) return '私密项目';
+  return 'Projects';
+}
+
 async function waitForTask(taskId, onStatus) {
   let delayMs = 1200;
   let lastStatus = '';
@@ -37,13 +43,16 @@ export async function uploadMediaAsset(file, { type = 'public', onProgress, onSt
   const kind = getFileKind(file);
   onStage?.({ stage: 'preparing', kind, fileName: file.name, progress: 0 });
 
+  const category = getAssetCategory(file);
+  const displayName = String(file.name || 'file').replace(/\.[^.]+$/, '') || 'file';
+
   if (kind !== 'video') {
     const result = await uploadFile(file, type, (event) => {
       const total = Number(event?.total || file.size || 0);
       const loaded = Number(event?.loaded || 0);
       const progress = total > 0 ? Math.round((loaded / total) * 100) : 0;
       onProgress?.({ stage: 'uploading', progress, fileName: file.name, kind });
-    });
+    }, { root: '首页视频', assetSpace: category, category: displayName });
 
     return { result, file, kind, converted: false };
   }
@@ -54,13 +63,14 @@ export async function uploadMediaAsset(file, { type = 'public', onProgress, onSt
   });
 
   const uploadFileObject = transcoded.file || file;
+  const displayName = String(uploadFileObject.name || file.name || 'video').replace(/\.[^.]+$/, '') || 'video';
   onStage?.({ stage: 'uploading-source', kind, fileName: uploadFileObject.name, progress: 0 });
   const initial = await uploadFile(uploadFileObject, type, (event) => {
     const total = Number(event?.total || uploadFileObject.size || 0);
     const loaded = Number(event?.loaded || 0);
     const progress = total > 0 ? Math.round((loaded / total) * 100) : 0;
     onProgress?.({ stage: 'uploading-source', progress, fileName: uploadFileObject.name, kind });
-  });
+  }, { root: '首页视频', assetSpace: category, category: '视频', displayName, keepOriginalName: true });
 
   if (initial?.status === 'processing' && initial?.taskId) {
     const task = await waitForTask(initial.taskId, onStage);

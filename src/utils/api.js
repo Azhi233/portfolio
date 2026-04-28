@@ -92,10 +92,15 @@ export async function fetchJson(url, options = {}) {
   return response.data?.data ?? response.data;
 }
 
-export async function uploadFile(file, type = 'public', onUploadProgress) {
+export async function uploadFile(file, type = 'public', onUploadProgress, extraFields = {}) {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('type', type);
+  Object.entries(extraFields || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      formData.append(key, value);
+    }
+  });
   return fetchJson('/uploads', {
     method: 'POST',
     data: formData,

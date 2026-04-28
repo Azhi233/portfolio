@@ -17,11 +17,24 @@ function safeExt(fileName = '') {
   return ext.toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
 }
 
-function buildObjectName(fileName = '', isPrivate = false) {
-  const bucketPrefix = isPrivate ? 'private' : 'public';
-  const datePrefix = new Date().toISOString().slice(0, 10);
+function safePathSegment(value = '', fallback = 'untitled') {
+  const segment = String(value)
+    .trim()
+    .replace(/[\\/]+/g, '-')
+    .replace(/[<>:"|?*\u0000-\u001f]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return segment || fallback;
+}
+
+function buildObjectName(fileName = '', isPrivate = false, options = {}) {
+  const sections = Array.isArray(options.sections) ? options.sections : [];
+  const normalizedSections = sections.map((segment) => safePathSegment(segment)).filter(Boolean);
+  const baseName = safePathSegment(options.displayName || path.parse(fileName).name || 'file', 'file');
   const ext = safeExt(fileName);
-  return path.posix.join(MINIO_UPLOAD_PREFIX, bucketPrefix, datePrefix, `${crypto.randomUUID()}.${ext}`);
+  const uniqueSuffix = options.keepOriginalName ? '' : `-${crypto.randomUUID().slice(0, 8)}`;
+  return path.posix.join(...normalizedSections, `${baseName}${uniqueSuffix}.${ext}`);
 }
 
 async function ensureBucket(bucketName) {
@@ -70,7 +83,7 @@ function getPublicBaseUrl(options = {}) {
 export async function uploadFile(fileStream, fileName, isPrivate = false, contentType = 'application/octet-stream', options = {}) {
   ensureClient();
   const bucketName = isPrivate ? PRIVATE_BUCKET : PUBLIC_BUCKET;
-  const objectName = buildObjectName(fileName, isPrivate);
+  const objectName = buildObjectName(fileName, isPrivate, options);
   await ensureBucket(bucketName);
   await minioClient.putObject(bucketName, objectName, fileStream, undefined, { 'Content-Type': contentType });
 

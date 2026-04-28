@@ -28,17 +28,21 @@ export function createUploadController() {
       const forwardedHost = String(req.headers['x-forwarded-host'] || '').trim();
       const forwardedProto = String(req.headers['x-forwarded-proto'] || '').trim();
       const proxyBaseUrl = forwardedHost ? `${forwardedProto || req.protocol}://${forwardedHost}` : '';
+      const assetSpace = String(req.body?.assetSpace || req.body?.projectType || req.body?.space || 'Projects').trim() || 'Projects';
+      const rootFolder = String(req.body?.root || '首页视频').trim() || '首页视频';
 
       if (isVideoFile(file)) {
         const taskId = createTaskId();
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'portfolio-upload-'));
         const originalPath = path.join(tempDir, file.originalname || `${taskId}.bin`);
         await fs.writeFile(originalPath, file.buffer);
+        const category = String(req.body?.category || req.body?.folder || '默认分类').trim() || '默认分类';
+        const displayName = String(req.body?.displayName || req.body?.videoName || file.originalname || 'video').trim() || 'video';
 
         await createVideoTranscodeTask({ taskId, status: 'processing', originalPath, targetUrl: null, errorMsg: null });
         emitTaskEvent({ event: 'task-started', taskId, status: 'processing', targetUrl: null, errorMsg: null });
 
-        processVideoTask(taskId, file.originalname || '', file.buffer, { baseUrl: publicBaseUrl || proxyBaseUrl || baseUrl })
+        processVideoTask(taskId, file.originalname || '', file.buffer, { baseUrl: publicBaseUrl || proxyBaseUrl || baseUrl, root: rootFolder, assetSpace, category, displayName, privacy: isPrivate ? 'private' : 'public' })
           .catch(async (error) => {
             const errorMsg = error?.message || 'transcode_failed';
             await updateVideoTranscodeTask(taskId, { status: 'failed', errorMsg });
@@ -52,8 +56,13 @@ export function createUploadController() {
       const uploadBuffer = file.buffer;
       const uploadName = file.originalname;
       const uploadMime = file.mimetype || 'application/octet-stream';
-      const result = await uploadFile(uploadBuffer, uploadName, isPrivate, uploadMime, { baseUrl: publicBaseUrl || proxyBaseUrl || baseUrl });
       const mediaKind = uploadMime.startsWith('video/') ? 'video' : 'image';
+      const category = String(req.body?.category || req.body?.folder || req.body?.subfolder || '默认分类').trim() || '默认分类';
+      const root = String(req.body?.root || '首页视频').trim() || '首页视频';
+      const sections = isPrivate
+        ? [root, '私密项目', mediaKind === 'image' ? '照片' : '视频', category]
+        : [root, mediaKind === 'image' ? '照片' : '视频', category];
+      const result = await uploadFile(uploadBuffer, uploadName, isPrivate, uploadMime, { baseUrl: publicBaseUrl || proxyBaseUrl || baseUrl, sections, displayName: uploadName.replace(/\.[^.]+$/, '') || 'file', keepOriginalName: true });
       await createMediaAsset({
         id: result.id || `asset-${Date.now()}`,
         kind: mediaKind,

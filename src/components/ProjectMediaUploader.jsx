@@ -12,6 +12,7 @@ function getKind(item = {}) {
 export default function ProjectMediaUploader({ items = [], uploading = false, progress = 0, uploadStage = 'idle', uploadStatus = '', uploadTarget = 'auto', onUpload, onRemove, onUpdate, onMoveUp, onMoveDown, onReorder }) {
   const [dragIndex, setDragIndex] = useState(null);
   const [batchFiles, setBatchFiles] = useState([]);
+  const [category, setCategory] = useState('默认分类');
 
   const batchCount = batchFiles.length;
 
@@ -31,7 +32,7 @@ export default function ProjectMediaUploader({ items = [], uploading = false, pr
         stage={uploadStage}
         statusText={uploadStatus}
         helperText="Upload BTS assets one by one or use the batch panel below to attach per-file metadata before saving."
-        onPick={onUpload}
+        onPick={(file) => onUpload?.(file, uploadTarget === 'video' ? 'video' : 'image', { category })}
       />
 
       <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
@@ -63,12 +64,16 @@ export default function ProjectMediaUploader({ items = [], uploading = false, pr
         {batchCount > 0 ? (
           <div className="mt-4 grid gap-3">
             <div className="sticky top-0 z-10 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-[#0a0a0d]/95 p-3 backdrop-blur-md">
+              <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-zinc-300">
+                <span>Category</span>
+                <Input value={category} onChange={(event) => setCategory(event.target.value)} />
+              </label>
               <Button
                 type="button"
                 variant="primary"
                 disabled={uploading}
                 onClick={() => {
-                  batchFiles.forEach((entry) => onUpload?.(entry.file, entry.kind, { title: entry.title }));
+                  batchFiles.forEach((entry) => onUpload?.(entry.file, entry.kind, { title: entry.title, category }));
                 }}
               >
                 UPLOAD ALL
@@ -101,7 +106,7 @@ export default function ProjectMediaUploader({ items = [], uploading = false, pr
                     type="button"
                     variant="primary"
                     disabled={uploading}
-                    onClick={() => onUpload?.(entry.file, entry.kind, { title: entry.title })}
+                    onClick={() => onUpload?.(entry.file, entry.kind, { title: entry.title, category })}
                   >
                     UPLOAD
                   </Button>

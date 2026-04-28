@@ -59,8 +59,8 @@ function ProjectsPanel({ filterMode = 'all' }) {
         onSave={save}
         onUpdateDraft={updateDraft}
         onToggleDisplayOn={toggleDisplayOn}
-        onUploadImage={(file) => uploadAsset(file, 'image')}
-        onUploadVideo={(file) => uploadAsset(file, 'video')}
+        onUploadImage={(file, meta) => uploadAsset(file, 'image', meta)}
+        onUploadVideo={(file, meta) => uploadAsset(file, 'video', meta)}
         onUploadBts={(file, kind, meta) => addBtsItem(file, kind, meta)}
         onRemoveBts={(index) => updateBtsMedia((Array.isArray(state.draft.btsMedia) ? state.draft.btsMedia : []).filter((_, i) => i !== index))}
         onUpdateBts={(index, nextItem) => updateBtsMedia((Array.isArray(state.draft.btsMedia) ? state.draft.btsMedia : []).map((item, i) => (i === index ? nextItem : item)))}
