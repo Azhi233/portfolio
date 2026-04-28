@@ -106,13 +106,19 @@ export default function HomepageVideoPanel() {
       }
       setState((prev) => ({
         ...prev,
+        uploadStage: 'writing-back',
+        uploadStatus: 'Writing uploaded video back to homepage config...',
+      }));
+      await fetchJson('/config/homepage-video', { method: 'POST', data: { homeVideoTitle: nextDraft.homeVideoTitle, homeVideoUrl: nextDraft.homeVideoUrl } });
+      await load();
+      setState((prev) => ({
+        ...prev,
         uploading: false,
         uploadStage: 'done',
         uploadProgress: 100,
         uploadStatus: 'Homepage video ready.',
         draft: nextDraft,
       }));
-      await fetchJson('/config/homepage-video', { method: 'POST', data: { homeVideoTitle: nextDraft.homeVideoTitle, homeVideoUrl: nextDraft.homeVideoUrl } });
     } catch (error) {
       const message = error?.message || 'Failed to upload homepage video.';
       const authHint = /401|unauthorized/i.test(message) ? ' Please unlock the console again.' : '';
