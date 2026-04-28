@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchJson } from '../../utils/api.js';
+import { fetchJson, getAccessToken, storeAccessToken } from '../../utils/api.js';
 import Button from '../../components/Button.jsx';
 import Input from '../../components/Input.jsx';
 import MediaPicker from '../../components/MediaPicker.jsx';
 import Modal from '../../components/Modal.jsx';
 import ConsolePanelShell from './ConsolePanelShell.jsx';
 import { uploadHomepageVideo } from '../../utils/homepageVideoUpload.js';
+import { normalizePassword, readStoredPassword } from '../clientAccessUtils.js';
 
 const createDraft = () => ({
   homeVideoTitle: '',
@@ -23,25 +24,14 @@ const steps = [
 function getStepState(currentStage, stage, hasError) {
   const order = ['idle', 'preparing', 'transcoding', 'uploading-source', 'uploading', 'writing-back', 'done', 'error'];
   const currentIndex = order.indexOf(String(currentStage || 'idle'));
-  const stageIndex = {
-    select: 1,
-    transcode: 2,
-    upload: 4,
-    writeback: 5,
-    finish: 6,
-  }[stage] ?? 0;
-
+  const stageIndex = { select: 1, transcode: 2, upload: 4, writeback: 5, finish: 6 }[stage] ?? 0;
   if (hasError) {
     if (stage === 'finish') return 'pending';
     if (stageIndex < currentIndex) return 'done';
     if (stageIndex === currentIndex) return 'error';
     return 'pending';
   }
-
-  if (currentStage === 'done') {
-    return stage === 'finish' ? 'done' : 'done';
-  }
-
+  if (currentStage === 'done') return 'done';
   if (stageIndex < currentIndex) return 'done';
   if (stageIndex === currentIndex) return 'active';
   return 'pending';
@@ -54,26 +44,17 @@ function StepDot({ state }) {
     error: 'border-rose-300 bg-rose-500',
     pending: 'border-white/20 bg-transparent',
   }[state] || 'border-white/20 bg-transparent';
-
   return <span className={`inline-flex h-3.5 w-3.5 rounded-full border ${styles}`} />;
 }
 
 export default function HomepageVideoPanel() {
-  const [state, setState] = useState({ loading: true, saving: false, uploading: false, error: '', draft: createDraft(), isOpen: false, uploadStage: 'idle', uploadProgress: 0, uploadStatus: '', uploadFailureStage: '' });
+  const [state, setState] = useState({ loading: true, saving: false, uploading: false, error: '', draft: createDraft(), isOpen: false, uploadStage: 'idle', uploadProgress: 0, uploadStatus: '', uploadFailureStage: '', accessStatus: '' });
 
   const load = async () => {
     setState((prev) => ({ ...prev, loading: true, error: '' }));
     try {
       const config = await fetchJson('/config');
-      setState((prev) => ({
-        ...prev,
-        loading: false,
-        error: '',
-        draft: {
-          homeVideoTitle: config?.homeVideoTitle || '',
-          homeVideoUrl: config?.homeVideoUrl || '',
-        },
-      }));
+      setState((prev) => ({ ...prev, loading: false, error: '', draft: { homeVideoTitle: config?.homeVideoTitle || '', homeVideoUrl: config?.homeVideoUrl || '' } }));
     } catch (error) {
       setState((prev) => ({ ...prev, loading: false, error: error.message || 'Failed to load homepage video.' }));
     }
@@ -81,6 +62,34 @@ export default function HomepageVideoPanel() {
 
   useEffect(() => {
     load();
+  }, []);
+
+  useEffect(() => {
+    const token = getAccessToken();
+    if (token) {
+      setState((prev) => ({ ...prev, accessStatus: 'Access token ready.' }));
+      return;
+    }
+
+    const password = normalizePassword(readStoredPassword());
+    if (!password) {
+      setState((prev) => ({ ...prev, accessStatus: 'No stored client password found.' }));
+      return;
+    }
+
+    setState((prev) => ({ ...prev, accessStatus: 'Restoring client access token...' }));
+    fetchJson('/client-access/unlock', { method: 'POST', data: { password } })
+      .then((response) => {
+        if (response?.token) {
+          storeAccessToken(response.token);
+          setState((prev) => ({ ...prev, accessStatus: 'Client access token restored.' }));
+          return;
+        }
+        setState((prev) => ({ ...prev, accessStatus: 'Client access unlock returned no token.' }));
+      })
+      .catch((error) => {
+        setState((prev) => ({ ...prev, accessStatus: `Failed to restore access token: ${error?.message || 'unknown error'}` }));
+      });
   }, []);
 
   const updateDraft = (key, value) => setState((prev) => ({ ...prev, draft: { ...(prev.draft || {}), [key]: value } }));
@@ -120,38 +129,35 @@ export default function HomepageVideoPanel() {
         uploadStage: 'done',
         uploadProgress: 100,
         uploadStatus: 'Homepage video ready.',
-        draft: {
-          ...(prev.draft || {}),
-          homeVideoUrl: result?.url || uploadFileObject?.url || result?.targetUrl || '',
-          homeVideoTitle: file.name || 'Homepage video',
-        },
+        draft: { ...(prev.draft || {}), homeVideoUrl: result?.url || uploadFileObject?.url || result?.targetUrl || '', homeVideoTitle: file.name || 'Homepage video' },
       }));
     } catch (error) {
-      setState((prev) => ({ ...prev, uploading: false, uploadStage: 'error', uploadFailureStage: 'transcoding', uploadProgress: 0, uploadStatus: `Upload failed: ${error.message || 'Unknown error'}`, error: error.message || 'Failed to upload homepage video.' }));
+      const message = error?.message || 'Failed to upload homepage video.';
+      const authHint = /401|unauthorized/i.test(message) ? ' Please unlock the console again.' : '';
+      setState((prev) => ({ ...prev, uploading: false, uploadStage: 'error', uploadFailureStage: /401|unauthorized/i.test(message) ? 'auth' : 'transcoding', uploadProgress: 0, uploadStatus: `Upload failed: ${message}${authHint}`, error: message }));
     }
   };
 
   const save = async () => {
     setState((prev) => ({ ...prev, saving: true, error: '', isOpen: true }));
     try {
+      const token = getAccessToken();
+      if (!token) {
+        setState((prev) => ({ ...prev, saving: false, error: 'No access token available. Please unlock the console first.' }));
+        return;
+      }
       await fetchJson('/config', { method: 'POST', body: JSON.stringify(state.draft || {}) });
       await load();
       setState((prev) => ({ ...prev, saving: false, uploadStage: 'done', uploadStatus: 'Homepage video saved.' }));
     } catch (error) {
-      setState((prev) => ({ ...prev, saving: false, error: error.message || 'Failed to save homepage video.' }));
+      const message = error?.message || 'Failed to save homepage video.';
+      const authHint = /401|unauthorized/i.test(message) ? ' Please unlock the console again.' : '';
+      setState((prev) => ({ ...prev, saving: false, error: message + authHint, uploadStage: /401|unauthorized/i.test(message) ? 'error' : prev.uploadStage, uploadFailureStage: /401|unauthorized/i.test(message) ? 'auth' : prev.uploadFailureStage, uploadStatus: `Save failed: ${message}${authHint}` }));
     }
   };
 
   const clear = () => {
-    setState((prev) => ({
-      ...prev,
-      draft: createDraft(),
-      uploadStage: 'idle',
-      uploadProgress: 0,
-      uploadStatus: '',
-      uploadFailureStage: '',
-      isOpen: true,
-    }));
+    setState((prev) => ({ ...prev, draft: createDraft(), uploadStage: 'idle', uploadProgress: 0, uploadStatus: '', uploadFailureStage: '', isOpen: true }));
   };
 
   return (
@@ -169,6 +175,7 @@ export default function HomepageVideoPanel() {
         )}
       >
         {state.loading ? <p className="text-sm text-white/75">Loading homepage video...</p> : null}
+        {state.accessStatus ? <p className="text-xs tracking-[0.12em] text-white/55">{state.accessStatus}</p> : null}
         {state.error ? <p className="text-sm text-rose-300">{state.error}</p> : null}
         <div className="space-y-3">
           <p className="text-xs tracking-[0.16em] text-white/60">{state.draft?.homeVideoTitle || 'No homepage video selected yet.'}</p>
@@ -178,14 +185,7 @@ export default function HomepageVideoPanel() {
 
       <Modal open={state.isOpen} title="Homepage Video" onClose={() => setState((prev) => ({ ...prev, isOpen: false }))}>
         <div className="grid gap-5">
-          <MediaPicker
-            label="Upload Homepage Video"
-            accept="video/*"
-            onPick={uploadHomeVideo}
-            value={state.draft?.homeVideoUrl}
-            uploading={state.uploading}
-            helperText="Upload the homepage hero video here."
-          />
+          <MediaPicker label="Upload Homepage Video" accept="video/*" onPick={uploadHomeVideo} value={state.draft?.homeVideoUrl} uploading={state.uploading} helperText="Upload the homepage hero video here." />
 
           <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
             <div className="flex items-center justify-between gap-3">
@@ -201,9 +201,7 @@ export default function HomepageVideoPanel() {
                       <StepDot state={stepState} />
                       <div>
                         <p className="text-sm tracking-[0.08em] text-white">{step.label}</p>
-                        <p className="mt-1 text-xs text-white/60">
-                          {step.id === 'select' ? '选择本地视频文件。' : step.id === 'transcode' ? '转码成可播放的 MP4。' : step.id === 'upload' ? '上传到存储。' : step.id === 'writeback' ? '写回首页配置。' : '流程结束。'}
-                        </p>
+                        <p className="mt-1 text-xs text-white/60">{step.id === 'select' ? '选择本地视频文件。' : step.id === 'transcode' ? '转码成可播放的 MP4。' : step.id === 'upload' ? '上传到存储。' : step.id === 'writeback' ? '写回首页配置。' : '流程结束。'}</p>
                       </div>
                     </div>
                     <p className="text-xs tracking-[0.12em] text-white/60">{stepState.toUpperCase()}</p>
@@ -211,9 +209,7 @@ export default function HomepageVideoPanel() {
                 );
               })}
             </div>
-            <div className="mt-4 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/75">
-              {state.uploadStatus || '等待上传...'}
-            </div>
+            <div className="mt-4 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/75">{state.uploadStatus || '等待上传...'}</div>
           </div>
 
           <label className="block">
