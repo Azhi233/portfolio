@@ -90,16 +90,15 @@ bootstrap().catch((error) => {
   process.exitCode = 1;
 });
 
-function startServer(port, attemptsLeft = 20) {
+function startServer(port) {
   const server = app.listen(port, () => {
     console.log(`OSS STS policy API running at http://localhost:${port}`);
   });
 
   server.on('error', (error) => {
-    if (error?.code === 'EADDRINUSE' && attemptsLeft > 0) {
-      const nextPort = port + 1;
-      console.warn(`Port ${port} is in use, retrying on ${nextPort}...`);
-      startServer(nextPort, attemptsLeft - 1);
+    if (error?.code === 'EADDRINUSE') {
+      console.error(`Port ${port} is in use. Please free it and restart the server.`);
+      process.exitCode = 1;
       return;
     }
 
