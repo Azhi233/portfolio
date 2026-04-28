@@ -114,9 +114,12 @@ export function useProjectsPanel(filterMode = 'all') {
     if (!file) return;
     setState((prev) => ({ ...prev, uploading: true, uploadProgress: 0, uploadStage: 'preparing', uploadStatus: `Preparing ${file.name}...`, error: '', uploadFailureStage: '', notice: '' }));
     try {
+      const projectCategory = meta.category || state.draft?.category || '默认分类';
       const { result, file: uploadFileObject } = await uploadMediaAsset(file, {
         type: 'public',
-        category: meta.category,
+        category: projectCategory,
+        root: 'Projects',
+        assetSpace: 'Projects',
         onProgress: ({ stage, progress, fileName }) => setState((prev) => ({
           ...prev,
           uploadStage: stage,
