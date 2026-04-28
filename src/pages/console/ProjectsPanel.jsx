@@ -2,11 +2,27 @@ import { useEffect, useState } from 'react';
 import ProjectEditorModal from './ProjectEditorModal.jsx';
 import ProjectsOverviewSection from './ProjectsOverviewSection.jsx';
 import FloatingNotice from './FloatingNotice.jsx';
+import Button from '../../components/Button.jsx';
+import { fetchJson } from '../../utils/api.js';
 import { useProjectsPanel } from './useProjectsPanel.js';
 
 function ProjectsPanel({ filterMode = 'all' }) {
   const { state, featuredVideos, liveCount, filtered, load, openNew, openEdit, toggleDisplayOn, updateFeaturedOrder, save, uploadAsset, addBtsItem, updateBtsMedia, remove, toggleFeatured, setState, updateDraft } = useProjectsPanel(filterMode);
   const [toast, setToast] = useState({ open: false, tone: 'success', message: '' });
+  const [syncing, setSyncing] = useState(false);
+
+  const syncNow = async () => {
+    setSyncing(true);
+    try {
+      await fetchJson('/sync/media-assets', { method: 'POST' });
+      await load();
+      setToast({ open: true, tone: 'success', message: '同步完成，列表已刷新。' });
+    } catch (error) {
+      setToast({ open: true, tone: 'danger', message: error.message || '同步失败。' });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   useEffect(() => {
     if (!state.notice) return;
@@ -18,6 +34,12 @@ function ProjectsPanel({ filterMode = 'all' }) {
 
   return (
     <>
+      <div className="mb-4 flex flex-wrap gap-3">
+        <Button type="button" variant="subtle" onClick={syncNow} disabled={syncing}>
+          {syncing ? 'SYNCING...' : '立即同步'}
+        </Button>
+      </div>
+
       <ProjectsOverviewSection
         liveCount={liveCount}
         featuredVideos={featuredVideos}
