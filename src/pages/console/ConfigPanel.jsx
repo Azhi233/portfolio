@@ -7,7 +7,7 @@ import Modal from '../../components/Modal.jsx';
 import ReviewNotice from '../../components/ReviewNotice.jsx';
 import ConsolePanelShell from './ConsolePanelShell.jsx';
 
-const editableKeys = ['siteTitle', 'siteSubtitle', 'homeHeadline', 'homeDescription', 'contactEmail', 'contactWeChat', 'featuredImagesTitle', 'featuredImagesSubtitle', 'featuredImagesText'];
+const editableKeys = ['siteTitle', 'siteSubtitle', 'homeHeadline', 'homeDescription', 'contactEmail', 'contactWeChat', 'featuredImagesTitle', 'featuredImagesSubtitle', 'featuredImagesText', 'homepage-video.homeVideoTitle', 'homepage-video.homeVideoUrl'];
 const configLabels = {
   siteTitle: 'Site Title',
   siteSubtitle: 'Site Subtitle',
@@ -18,6 +18,8 @@ const configLabels = {
   featuredImagesTitle: 'Featured Images Title',
   featuredImagesSubtitle: 'Featured Images Subtitle',
   featuredImagesText: 'Featured Images URLs',
+  'homepage-video.homeVideoTitle': 'Homepage Video Title',
+  'homepage-video.homeVideoUrl': 'Homepage Video URL',
 };
 
 const createEmptyDraft = () => ({
@@ -30,6 +32,8 @@ const createEmptyDraft = () => ({
   featuredImagesTitle: '',
   featuredImagesSubtitle: '',
   featuredImagesText: '',
+  'homepage-video.homeVideoTitle': '',
+  'homepage-video.homeVideoUrl': '',
 });
 
 function ConfigPanel() {
@@ -39,7 +43,19 @@ function ConfigPanel() {
     setState((prev) => ({ ...prev, loading: true, error: '' }));
     try {
       const data = await fetchJson('/config');
-      setState((prev) => ({ ...prev, loading: false, error: '', data: data || {}, draft: { ...createEmptyDraft(), ...(data || {}) } }));
+      const homepageVideo = data?.['homepage-video'] || {};
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: '',
+        data: data || {},
+        draft: {
+          ...createEmptyDraft(),
+          ...(data || {}),
+          'homepage-video.homeVideoTitle': homepageVideo?.homeVideoTitle || '',
+          'homepage-video.homeVideoUrl': homepageVideo?.homeVideoUrl || '',
+        },
+      }));
     } catch (error) {
       setState((prev) => ({ ...prev, loading: false, error: error.message || 'Failed to load config.', data: {}, draft: createEmptyDraft() }));
     }
@@ -50,7 +66,16 @@ function ConfigPanel() {
   }, []);
 
   const previewRows = useMemo(() => editableKeys.map((key) => [key, state.draft?.[key] || '']), [state.draft]);
-  const updateDraft = (key, value) => setState((prev) => ({ ...prev, draft: { ...(prev.draft || {}), [key]: value } }));
+  const updateDraft = (key, value) => setState((prev) => ({
+    ...prev,
+    draft: key.startsWith('homepage-video.')
+      ? {
+          ...(prev.draft || {}),
+          'homepage-video.homeVideoTitle': key === 'homepage-video.homeVideoTitle' ? value : prev.draft?.['homepage-video.homeVideoTitle'] || '',
+          'homepage-video.homeVideoUrl': key === 'homepage-video.homeVideoUrl' ? value : prev.draft?.['homepage-video.homeVideoUrl'] || '',
+        }
+      : { ...(prev.draft || {}), [key]: value },
+  }));
 
   const save = async () => {
     setState((prev) => ({ ...prev, saving: true, error: '' }));
