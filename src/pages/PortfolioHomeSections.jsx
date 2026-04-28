@@ -7,9 +7,9 @@ function HomeVideoLoop({ title, url }) {
   if (!url) return null;
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">
-      <video className="h-full w-full object-cover" src={url} autoPlay loop muted playsInline controls={false} preload="metadata" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/30" />
-      {title ? <div className="pointer-events-none absolute left-6 top-6 rounded-full border border-white/20 bg-black/20 px-4 py-2 text-[10px] uppercase tracking-[0.24em] text-white/90 backdrop-blur">{title}</div> : null}
+      <video className="h-full w-full object-cover scale-[1.03]" src={url} autoPlay loop muted playsInline controls={false} preload="metadata" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/8 via-transparent to-black/28" />
+      {title ? <div className="pointer-events-none absolute left-5 top-5 rounded-full border border-white/15 bg-black/16 px-3.5 py-1.5 text-[9px] uppercase tracking-[0.22em] text-white/78 backdrop-blur-sm">{title}</div> : null}
     </div>
   );
 }
@@ -18,14 +18,11 @@ export function PortfolioHero({ t, layout, homeVideo }) {
   const slots = Array.isArray(layout?.slots) ? layout.slots : [];
   const heroBackgroundSlot = slots.find((slot) => slot.id === 'hero-background') || null;
   const heroVideoSlot = slots.find((slot) => slot.id === 'hero-video') || null;
-  const eyebrow = 'Cinematic Visuals for Industry & Product';
-  const title = t('home.heroTitle', 'Your Name');
-  const subtitle = 'A quiet visual portfolio built around large imagery, minimal text, and highly curated motion.';
   const videoUrl = homeVideo?.url || heroVideoSlot?.mediaUrl || '';
   const videoTitle = homeVideo?.title || heroVideoSlot?.title || '';
 
   return (
-    <section className="relative min-h-screen overflow-hidden bg-black">
+    <section className="relative min-h-screen overflow-hidden bg-black p-0">
       {videoUrl ? (
         <div className="absolute inset-0">
           <HomeVideoLoop title={videoTitle} url={videoUrl} />
@@ -45,10 +42,10 @@ export function PortfolioHero({ t, layout, homeVideo }) {
         </div>
       ) : null}
 
-      <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/10 to-black/45" />
-      <header className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between px-6 py-5 md:px-10">
-        <div className="text-[11px] uppercase tracking-[0.32em] text-white/90">MDWANG</div>
-        <nav className="hidden gap-6 text-[11px] uppercase tracking-[0.22em] text-white/70 md:flex">
+      <div className="absolute inset-0 bg-gradient-to-b from-black/22 via-transparent to-black/42" />
+      <header className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between px-5 py-4 md:px-8">
+        <div className="text-[10px] uppercase tracking-[0.3em] text-white/72">MDWANG</div>
+        <nav className="hidden gap-6 text-[10px] uppercase tracking-[0.18em] text-white/40 md:flex">
           <a href="#work" className="transition hover:text-white">Projects</a>
           <Link to="/videos" className="transition hover:text-white">Videos</Link>
           <Link to="/studio-notes" className="transition hover:text-white">Studio Notes</Link>
@@ -57,21 +54,10 @@ export function PortfolioHero({ t, layout, homeVideo }) {
         </nav>
       </header>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: 'easeOut' }} className="relative z-10 flex min-h-screen items-center justify-center px-6 pt-24">
-        <div className="mx-auto max-w-5xl text-center text-white">
-          <p className="text-[11px] uppercase tracking-[0.34em] text-white/75">{eyebrow}</p>
-          <h1 className="mt-5 text-5xl font-light tracking-[0.08em] drop-shadow-[0_6px_30px_rgba(0,0,0,0.35)] md:text-8xl">{title}</h1>
-          <p className="mx-auto mt-6 max-w-2xl text-sm leading-7 text-white/80 md:text-base">{subtitle}</p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Button as="span" variant="primary">
-              <a href="#work">View Work</a>
-            </Button>
-            <Button as="span" variant="subtle">
-              <Link to="/client-access">Client Access</Link>
-            </Button>
-          </div>
-        </div>
-      </motion.div>
+      <div className="absolute left-5 bottom-5 z-20 max-w-[240px] text-[10px] uppercase tracking-[0.24em] text-white/42 md:left-8 md:bottom-8">
+        <p>Cinematic Visuals for Industry & Product</p>
+        <p className="mt-2 max-w-[180px] text-[9px] leading-5 text-white/28">A quiet visual portfolio built around large imagery, minimal text, and highly curated motion.</p>
+      </div>
     </section>
   );
 }
