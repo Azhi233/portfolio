@@ -59,19 +59,19 @@ function ConsoleHome() {
           </div>
         </header>
 
-        <section className="rounded-3xl border border-cyan-400/20 bg-gradient-to-br from-cyan-400/10 via-white/[0.03] to-transparent p-5 shadow-[0_0_60px_rgba(34,211,238,0.08)] md:p-7">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <section className="rounded-3xl border border-cyan-400/20 bg-gradient-to-br from-cyan-400/10 via-white/[0.03] to-transparent p-4 shadow-[0_0_60px_rgba(34,211,238,0.08)] md:p-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-3xl">
-              <div className="mb-3 flex items-center gap-3">
+              <div className="mb-2 flex items-center gap-3">
                 <p className="text-[11px] tracking-[0.32em] text-cyan-200/80">SYNC</p>
                 <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[10px] tracking-[0.18em] text-cyan-100/80">MANUAL</span>
               </div>
               <h2 className="text-2xl tracking-[0.08em] text-white md:text-3xl">MinIO 资源同步</h2>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-white/72 md:text-base">
+              <p className="mt-2 max-w-2xl text-sm leading-7 text-white/72 md:text-base">
                 点击后会扫描 `Homepage Video`、`Projects` 和 `Private Files`，把新增资源同步更新到后台列表。
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-3">
+            <div className="flex shrink-0 items-center gap-2">
               <Button
                 type="button"
                 variant="subtle"
@@ -93,7 +93,7 @@ function ConsoleHome() {
             </div>
           </div>
           {syncState.status !== 'idle' ? (
-            <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${syncState.status === 'success' ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-100' : syncState.status === 'error' ? 'border-rose-400/30 bg-rose-400/10 text-rose-100' : 'border-cyan-300/20 bg-cyan-300/10 text-cyan-50'}`}>
+            <div className={`mt-3 rounded-2xl border px-4 py-2.5 text-sm ${syncState.status === 'success' ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-100' : syncState.status === 'error' ? 'border-rose-400/30 bg-rose-400/10 text-rose-100' : 'border-cyan-300/20 bg-cyan-300/10 text-cyan-50'}`}>
               {syncState.message}
             </div>
           ) : null}
