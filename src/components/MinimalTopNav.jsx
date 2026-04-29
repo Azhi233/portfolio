@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const NAV_ITEMS = [
+  { label: 'Home', to: '/' },
   { label: 'Images', to: '/images' },
   { label: 'Videos', to: '/videos' },
   { label: 'Studio Notes', to: '/studio-notes' },
@@ -8,9 +9,17 @@ const NAV_ITEMS = [
   { label: 'Client Deliverables', to: '/client-access' },
 ];
 
-function MinimalTopNav() {
+function MinimalTopNav({ items = NAV_ITEMS }) {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const handleNav = (item) => {
+    if (item.hash) {
+      document.querySelector(item.hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    navigate(item.to || '/');
+  };
 
   return (
     <header className="fixed left-0 right-0 top-0 z-[80] bg-[#FAF9F6]/90 px-6 py-4 backdrop-blur-[1px] md:px-12">
@@ -24,13 +33,14 @@ function MinimalTopNav() {
         </button>
 
         <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[10px] uppercase tracking-[0.24em] text-[#151515]/40 md:gap-x-6 md:text-[11px]">
-          {NAV_ITEMS.map((item) => {
-            const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);
+          {items.map((item) => {
+            const key = item.to || item.hash || item.label;
+            const isActive = item.to ? (item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to)) : false;
             return (
               <button
-                key={item.to}
+                key={key}
                 type="button"
-                onClick={() => navigate(item.to)}
+                onClick={() => handleNav(item)}
                 className={`transition-opacity hover:opacity-70 ${isActive ? 'text-[#151515]/90' : ''}`}
               >
                 {item.label}

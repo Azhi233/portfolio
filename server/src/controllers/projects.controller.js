@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { createProject, editProject, getProjectById, listProjects, removeProject } from '../services/projects.service.js';
-import { deleteObject } from '../utils/minio.js';
+import { deleteObject, getPresignedUrl } from '../utils/minio.js';
 import { createMediaAsset } from '../services/media.service.js';
 import {
   attachVideoAspectRatio,
@@ -63,12 +63,26 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
     res.json({ ok: true, data: withPrivateGroups, groups: grouped });
   }
 
+  async function hydratePrivateFileUrls(project) {
+    if (!Array.isArray(project?.privateFiles) || project.privateFiles.length === 0) return project;
+    const privateFiles = await Promise.all(project.privateFiles.map(async (file) => {
+      const objectName = String(file?.objectName || '').trim();
+      if (!objectName) return file;
+      try {
+        return { ...file, url: await getPresignedUrl(objectName) };
+      } catch {
+        return file;
+      }
+    }));
+    return { ...project, privateFiles };
+  }
+
   async function getProject(req, res) {
     const project = await getProjectById(req.params.id);
     if (!project) {
       return res.status(404).json({ ok: false, message: 'Project not found.' });
     }
-    return res.json({ ok: true, data: attachVideoAspectRatio(project) });
+    return res.json({ ok: true, data: attachVideoAspectRatio(await hydratePrivateFileUrls(project)) });
   }
 
   async function postProject(req, res) {

@@ -320,6 +320,7 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
         category: categoryFolder,
         clientFolder,
         url: result?.url,
+        objectName: result?.objectName || '',
         kind: resolvedKind,
         mediaType: resolvedKind,
         isPrivate: true,
