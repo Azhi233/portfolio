@@ -292,18 +292,20 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
     if (!file) return;
     setState((prev) => ({ ...prev, ...uploadPatch(file.name), notice: '' }));
     try {
+      const ensuredProject = await ensureSavedProject();
       const mergedMeta = {
         ...meta,
         title: meta.title || uploadMeta.title || file.name,
-        category: meta.category || uploadMeta.category || draft.category || 'Client Deliverables',
+        category: meta.category || uploadMeta.category || ensuredProject.category || 'Client Deliverables',
         description: meta.description || uploadMeta.description || '',
       };
-      const ensuredProject = await ensureSavedProject();
+      const clientFolder = String(ensuredProject.clientAgency || ensuredProject.customerName || ensuredProject.clientCode || ensuredProject.title || 'Client Deliverables').trim();
+      const categoryFolder = String(mergedMeta.category || ensuredProject.category || 'Client Deliverables').trim();
       const { result, file: uploadFileObject } = await uploadMediaAsset(file, {
         type: 'private',
         root: 'Private Files',
-        assetSpace: 'Private Files',
-        category: String(mergedMeta.category || ensuredProject.category || ensuredProject.title || 'Client Deliverables').trim(),
+        assetSpace: categoryFolder,
+        category: categoryFolder,
         displayName: mergedMeta.title || file.name,
         onProgress: ({ stage, progress, fileName }) => setState((prev) => progressPatch(prev, stage, progress, fileName || file.name)),
         onStage: ({ stage, status, message, fileName }) => setState((prev) => ({ ...prev, uploadStage: stage, uploadStatus: message || status || `Processing ${fileName || file.name}...` })),
@@ -315,7 +317,8 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
         title: fileTitle,
         label: fileTitle,
         description: String(mergedMeta.description || '').trim(),
-        category: String(mergedMeta.category || ensuredProject.category || 'Client Deliverables').trim(),
+        category: categoryFolder,
+        clientFolder,
         url: result?.url,
         kind: resolvedKind,
         mediaType: resolvedKind,
@@ -496,6 +499,16 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
               <p className="text-[10px] uppercase tracking-[0.26em] text-zinc-500">Upload Metadata</p>
               <h3 className="mt-1 text-lg tracking-[0.08em] text-white">上传信息</h3>
               <p className="mt-1 text-sm text-zinc-500">这里设置将写入单个/批量上传文件的名称、分类和介绍。</p>
+            </div>
+            <div className="mb-4 grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">客户目录</p>
+                <p className="mt-2 text-sm text-zinc-200">{draft.clientAgency || draft.customerName || draft.clientCode || draft.title || 'Client Deliverables'}</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">分类目录</p>
+                <p className="mt-2 text-sm text-zinc-200">{uploadMeta.category || draft.category || 'Client Deliverables'}</p>
+              </div>
             </div>
             <div className="grid gap-3 md:grid-cols-3">
               <label className="block">
