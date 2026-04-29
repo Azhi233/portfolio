@@ -20,6 +20,7 @@ export function PortfolioHero({ t, layout, homeVideo }) {
   const heroVideoSlot = slots.find((slot) => slot.id === 'hero-video') || null;
   const videoUrl = homeVideo?.url || heroVideoSlot?.mediaUrl || '';
   const videoTitle = homeVideo?.title || heroVideoSlot?.title || '';
+  const videoCaption = homeVideo?.caption || '';
 
   return (
     <section className="relative min-h-screen overflow-hidden bg-black p-0">
@@ -54,9 +55,15 @@ export function PortfolioHero({ t, layout, homeVideo }) {
         </nav>
       </header>
 
-      <div className="absolute left-5 bottom-5 z-20 max-w-[240px] text-[10px] uppercase tracking-[0.24em] text-white/42 md:left-8 md:bottom-8">
-        <p>Cinematic Visuals for Industry & Product</p>
-        <p className="mt-2 max-w-[180px] text-[9px] leading-5 text-white/28">A quiet visual portfolio built around large imagery, minimal text, and highly curated motion.</p>
+      <div className="absolute left-5 bottom-5 z-20 max-w-[260px] text-[10px] uppercase tracking-[0.24em] text-white/42 md:left-8 md:bottom-8">
+        {videoCaption ? (
+          <p className="whitespace-pre-line leading-6">{videoCaption}</p>
+        ) : (
+          <>
+            <p>Cinematic Visuals for Industry & Product</p>
+            <p className="mt-2 max-w-[180px] text-[9px] leading-5 text-white/28">A quiet visual portfolio built around large imagery, minimal text, and highly curated motion.</p>
+          </>
+        )}
       </div>
     </section>
   );

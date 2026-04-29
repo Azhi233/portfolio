@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '../context/I18nContext.jsx';
 import MinimalTopNav from '../components/MinimalTopNav.jsx';
-import { fetchJson } from '../utils/api.js';
+import { fetchJson, resolveResourceUrl } from '../utils/api.js';
 import { PortfolioFooter, PortfolioHero, PortfolioWorkSection } from './PortfolioHomeSections.jsx';
 import { loadPortfolioLayout, subscribePortfolioLayoutUpdates } from './portfolioLayout.js';
 
@@ -9,7 +9,7 @@ function PortfolioHome() {
   const { t } = useI18n();
   const [layout, setLayout] = useState(null);
   const [projects, setProjects] = useState([]);
-  const [homeVideo, setHomeVideo] = useState({ title: '', url: '' });
+  const [homeVideo, setHomeVideo] = useState({ title: '', url: '', caption: '' });
 
   useEffect(() => {
     let mounted = true;
@@ -33,11 +33,12 @@ function PortfolioHome() {
         if (mounted) {
           setHomeVideo({
             title: homepageVideo?.homeVideoTitle || '',
-            url: homepageVideo?.homeVideoUrl || '',
+            url: resolveResourceUrl(homepageVideo?.homeVideoUrl || ''),
+            caption: homepageVideo?.homeVideoCaption || '',
           });
         }
       } catch {
-        if (mounted) setHomeVideo({ title: '', url: '' });
+        if (mounted) setHomeVideo({ title: '', url: '', caption: '' });
       }
     };
 

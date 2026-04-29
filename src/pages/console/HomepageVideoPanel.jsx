@@ -170,9 +170,9 @@ export default function HomepageVideoPanel() {
         footer={(
           <div className="flex flex-wrap gap-3">
             <Button type="button" variant="subtle" onClick={load}>REFRESH</Button>
-            <Button type="button" variant="subtle" onClick={openEditor}>EDIT TEXT</Button>
+            <Button type="button" variant="subtle" onClick={openEditor}>EDIT VIDEO INFO</Button>
             <Button type="button" variant="danger" onClick={removeHomepageVideo}>DELETE</Button>
-            <Button type="button" variant="primary" onClick={clear}>UPLOAD HERO VIDEO</Button>
+            <Button type="button" variant="primary" onClick={() => setState((prev) => ({ ...prev, isOpen: true }))}>UPLOAD HERO VIDEO</Button>
           </div>
         )}
       >
@@ -185,7 +185,8 @@ export default function HomepageVideoPanel() {
             <p className="break-all text-sm text-white/70">{state.draft?.homeVideoUrl || 'Upload a looping hero video for the homepage.'}</p>
           </div>
           <div className="flex flex-wrap gap-3 md:justify-end">
-            <Button type="button" variant="subtle" onClick={openEditor}>EDIT TEXT</Button>
+            <Button type="button" variant="subtle" onClick={openEditor}>EDIT VIDEO INFO</Button>
+            <Button type="button" variant="primary" onClick={() => setState((prev) => ({ ...prev, isOpen: true }))}>UPLOAD</Button>
             <Button type="button" variant="danger" onClick={removeHomepageVideo}>DELETE</Button>
           </div>
         </div>
@@ -278,6 +279,7 @@ export default function HomepageVideoPanel() {
             <div className="mt-4 flex flex-wrap justify-end gap-3 border-t border-white/10 pt-4 lg:pr-2">
               <Button type="button" variant="subtle" onClick={() => { resetUploadState(); setState((prev) => ({ ...prev, isOpen: false })); }}>CANCEL</Button>
               <Button type="button" variant="subtle" onClick={() => { clear(); }}>CLEAR</Button>
+            <Button type="button" variant="primary" onClick={save} disabled={state.saving || !state.draft?.homeVideoUrl}>{state.saving ? 'SAVING...' : 'SAVE VIDEO'}</Button>
             </div>
           </div>
         </div>
