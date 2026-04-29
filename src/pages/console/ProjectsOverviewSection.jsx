@@ -80,51 +80,61 @@ function ProjectTableRow({ item, index, onEdit, onToggleFeatured, onDelete }) {
   );
 }
 
-function FeaturedQueuePanel({ featuredVideos, onReorderFeatured }) {
+function ArrowIcon({ direction }) {
+  return direction === 'up' ? (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-none stroke-current stroke-2">
+      <path d="M12 19V5" />
+      <path d="M6 11l6-6 6 6" />
+    </svg>
+  ) : direction === 'down' ? (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-none stroke-current stroke-2">
+      <path d="M12 5v14" />
+      <path d="M6 13l6 6 6-6" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-none stroke-current stroke-2">
+      <path d="M12 5v14" />
+      <path d="M7 10l5-5 5 5" />
+      <path d="M7 19h10" />
+    </svg>
+  );
+}
+
+function FeaturedQueuePanel({ featuredVideos, selectedIds, onToggleSelect, onMoveSelectionUp, onMoveSelectionDown, onMoveSelectionTop }) {
   return (
     <div className="border-b border-white/10 pb-4">
-      <div className="mb-4 flex items-start justify-between gap-4">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-[10px] uppercase tracking-[0.28em] text-white/60">Featured Queue</p>
           <h3 className="mt-2 text-lg font-medium tracking-[0.04em] text-white">首页精选顺序</h3>
-          <p className="mt-2 max-w-xl text-sm leading-7 text-white/75">拖拽调整精选顺序。</p>
+          <p className="mt-2 max-w-xl text-sm leading-7 text-white/75">点击项目进行单选或多选，随后使用上方按钮调整顺序。</p>
         </div>
-        <Badge tone="warning">DRAG TO REORDER</Badge>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="subtle" onClick={onMoveSelectionUp}><ArrowIcon direction="up" /></Button>
+          <Button type="button" variant="subtle" onClick={onMoveSelectionDown}><ArrowIcon direction="down" /></Button>
+          <Button type="button" variant="subtle" onClick={onMoveSelectionTop}><ArrowIcon direction="top" /></Button>
+        </div>
       </div>
 
       {featuredVideos.length > 0 ? (
         <div className="grid gap-2">
-          {featuredVideos.map((item, index) => (
-            <div
-              key={item.id}
-              draggable
-              onDragStart={(event) => {
-                event.dataTransfer.effectAllowed = 'move';
-                event.dataTransfer.setData('text/plain', String(item.id));
-              }}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                const sourceId = event.dataTransfer.getData('text/plain');
-                if (!sourceId || sourceId === String(item.id)) return;
-                const currentIds = featuredVideos.map((video) => String(video.id));
-                const sourceIndex = currentIds.indexOf(String(sourceId));
-                const targetIndex = currentIds.indexOf(String(item.id));
-                if (sourceIndex === -1 || targetIndex === -1) return;
-                const nextIds = [...currentIds];
-                const [moved] = nextIds.splice(sourceIndex, 1);
-                nextIds.splice(targetIndex, 0, moved);
-                onReorderFeatured(nextIds);
-              }}
-              className="flex cursor-grab items-center justify-between gap-3 border-b border-white/10 py-3 pr-2 last:border-b-0 active:cursor-grabbing"
-            >
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-[0.24em] text-zinc-500">#{index + 1}</p>
-                <p className="mt-1 truncate text-sm tracking-[0.04em] text-zinc-900">{item.title}</p>
-              </div>
-              <Badge tone="warning">FEATURED</Badge>
-            </div>
-          ))}
+          {featuredVideos.map((item, index) => {
+            const selected = selectedIds.includes(String(item.id));
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onToggleSelect(item.id)}
+                className={`flex items-center justify-between gap-3 border-b border-white/10 py-3 pr-2 text-left last:border-b-0 transition ${selected ? 'bg-white/5' : 'hover:bg-white/[0.03]'}`}
+              >
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-zinc-500">#{index + 1}</p>
+                  <p className="mt-1 truncate text-sm tracking-[0.04em] text-white">{item.title}</p>
+                </div>
+                <Badge tone={selected ? 'success' : 'warning'}>{selected ? 'SELECTED' : 'FEATURED'}</Badge>
+              </button>
+            );
+          })}
         </div>
       ) : (
         <p className="text-sm text-zinc-600">No featured projects yet.</p>
@@ -263,6 +273,7 @@ function ProjectListModal({ open, items, onClose, onEdit, onToggleFeatured, onDe
 export default function ProjectsOverviewSection({ liveCount, featuredVideos, onRefresh, onUpload, query, category, onQueryChange, onCategoryChange, loading, notice, noticeTone, error, deleting, deleteStatus, filtered, onEdit, onToggleFeatured, onDelete, onReorderFeatured }) {
   const [listOpen, setListOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
+  const [selectedFeaturedIds, setSelectedFeaturedIds] = useState([]);
   const [listQuery, setListQuery] = useState('');
   const [listCategory, setListCategory] = useState('');
   const [listType, setListType] = useState('all');
@@ -283,7 +294,56 @@ export default function ProjectsOverviewSection({ liveCount, featuredVideos, onR
         <Button type="button" variant="subtle" onClick={() => setQueueOpen(true)}>OPEN FEATURED QUEUE</Button>
         <Button type="button" variant="subtle" onClick={() => setListOpen(true)}>OPEN PROJECT LIST</Button>
       </div>
-      <FeaturedQueueModal open={queueOpen} featuredVideos={featuredVideos} onClose={() => setQueueOpen(false)} onReorderFeatured={onReorderFeatured} />
+      <FeaturedQueueModal
+        open={queueOpen}
+        featuredVideos={featuredVideos}
+        selectedIds={selectedFeaturedIds}
+        onClose={() => setQueueOpen(false)}
+        onToggleSelect={(id) => setSelectedFeaturedIds((prev) => {
+          const key = String(id);
+          return prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key];
+        })}
+        onMoveSelectionUp={() => setSelectedFeaturedIds((prev) => {
+          const ids = [...prev];
+          const current = featuredVideos.map((item) => String(item.id));
+          const selected = ids.filter((id) => current.includes(id));
+          if (selected.length === 0) return prev;
+          const next = [...current];
+          for (const id of selected) {
+            const index = next.indexOf(id);
+            if (index > 0) {
+              const [moved] = next.splice(index, 1);
+              next.splice(index - 1, 0, moved);
+            }
+          }
+          onReorderFeatured(next);
+          return prev;
+        })}
+        onMoveSelectionDown={() => setSelectedFeaturedIds((prev) => {
+          const current = featuredVideos.map((item) => String(item.id));
+          const selected = prev.filter((id) => current.includes(id));
+          if (selected.length === 0) return prev;
+          const next = [...current];
+          for (let i = selected.length - 1; i >= 0; i -= 1) {
+            const id = selected[i];
+            const index = next.indexOf(id);
+            if (index !== -1 && index < next.length - 1) {
+              const [moved] = next.splice(index, 1);
+              next.splice(index + 1, 0, moved);
+            }
+          }
+          onReorderFeatured(next);
+          return prev;
+        })}
+        onMoveSelectionTop={() => setSelectedFeaturedIds((prev) => {
+          const current = featuredVideos.map((item) => String(item.id));
+          const selected = prev.filter((id) => current.includes(id));
+          if (selected.length === 0) return prev;
+          const next = [...current.filter((id) => !selected.includes(id)), ...selected];
+          onReorderFeatured(next);
+          return prev;
+        })}
+      />
       <ProjectListModal
         open={listOpen}
         items={modalItems}
