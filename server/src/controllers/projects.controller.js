@@ -63,18 +63,28 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
     res.json({ ok: true, data: withPrivateGroups, groups: grouped });
   }
 
-  async function hydratePrivateFileUrls(project) {
+  async function hydratePrivateFileUrls(project, { persistBackfill = false } = {}) {
     if (!Array.isArray(project?.privateFiles) || project.privateFiles.length === 0) return project;
+    let shouldPersist = false;
     const privateFiles = await Promise.all(project.privateFiles.map(async (file) => {
-      const objectName = String(file?.objectName || '').trim();
+      const parsedRef = extractObjectRef(file?.url);
+      const objectName = String(file?.objectName || '').trim() || parsedRef?.objectName || '';
+      const bucketName = String(file?.bucketName || '').trim() || parsedRef?.bucketName || '';
       if (!objectName) return file;
+      if (!file?.objectName && objectName) shouldPersist = true;
       try {
-        return { ...file, url: await getPresignedUrl(objectName) };
+        const url = await getPresignedUrl(objectName);
+        return { ...file, bucketName, objectName, url };
       } catch {
-        return file;
+        return { ...file, bucketName, objectName };
       }
     }));
-    return { ...project, privateFiles };
+
+    const hydrated = { ...project, privateFiles };
+    if (persistBackfill && shouldPersist) {
+      await editProject(String(project.id), { ...project, privateFiles });
+    }
+    return hydrated;
   }
 
   async function getProject(req, res) {
@@ -82,7 +92,7 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
     if (!project) {
       return res.status(404).json({ ok: false, message: 'Project not found.' });
     }
-    return res.json({ ok: true, data: attachVideoAspectRatio(await hydratePrivateFileUrls(project)) });
+    return res.json({ ok: true, data: attachVideoAspectRatio(await hydratePrivateFileUrls(project, { persistBackfill: true })) });
   }
 
   async function postProject(req, res) {
