@@ -40,7 +40,9 @@ function PrivateFilesPanel() {
       const projects = await fetchJson('/projects');
       setState((prev) => ({ ...prev, loading: false, error: '', items: Array.isArray(projects) ? projects : [] }));
     } catch (error) {
-      setState((prev) => ({ ...prev, loading: false, error: error.message || 'Failed to load private files.', items: [] }));
+      const message = error?.message || 'Failed to load private files.';
+      const is502 = /502/.test(message);
+      setState((prev) => ({ ...prev, loading: false, error: is502 ? '' : message, items: [] }));
     }
   };
 
@@ -75,7 +77,7 @@ function PrivateFilesPanel() {
       const nextFiles = state.selectedFile
         ? currentFiles.map((file) => (file.id === state.selectedFile.id ? { ...file, ...state.draft } : file))
         : [...currentFiles, { id: crypto.randomUUID(), ...state.draft }];
-      await fetchJson(`/projects/${state.selectedProject.id}`, { method: 'PUT', body: JSON.stringify({ ...state.selectedProject, privateFiles: nextFiles }) });
+      await fetchJson(`/projects/${state.selectedProject.id}`, { method: 'PUT', data: { ...state.selectedProject, privateFiles: nextFiles } });
       await load();
       setState((prev) => ({ ...prev, saving: false, isOpen: false, selectedProject: null, selectedFile: null }));
     } catch (error) {
@@ -89,7 +91,7 @@ function PrivateFilesPanel() {
     try {
       const currentFiles = Array.isArray(project.privateFiles) ? project.privateFiles : [];
       const nextFiles = currentFiles.filter((item) => item.id !== file.id);
-      await fetchJson(`/projects/${project.id}`, { method: 'PUT', body: JSON.stringify({ ...project, privateFiles: nextFiles }) });
+      await fetchJson(`/projects/${project.id}`, { method: 'PUT', data: { ...project, privateFiles: nextFiles } });
       await load();
       setState((prev) => ({ ...prev, saving: false }));
     } catch (error) {
@@ -106,7 +108,9 @@ function PrivateFilesPanel() {
       const result = await uploadFile(file, 'private', undefined, { root: 'Private Files', assetSpace: 'Private Files', category, displayName });
       setState((prev) => ({ ...prev, uploading: false, uploadStage: 'success', uploadStatus: `Uploaded: ${result.url || file.name}`, draft: { ...prev.draft, url: result.url, name: file.name, type: file.type || prev.draft.type } }));
     } catch (error) {
-      setState((prev) => ({ ...prev, uploading: false, uploadStage: 'error', uploadError: error.message || 'Failed to upload private file.', error: error.message || 'Failed to upload private file.' }));
+      const message = error?.message || 'Failed to upload private file.';
+      const is502 = /502/.test(message);
+      setState((prev) => ({ ...prev, uploading: false, uploadStage: 'error', uploadError: is502 ? '' : message, error: is502 ? '' : message }));
     }
   };
 
