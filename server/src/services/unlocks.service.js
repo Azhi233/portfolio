@@ -21,9 +21,15 @@ export async function setDeliveryUnlock(projectId, unlocked) {
 
 export async function unlockClientAccess(password) {
   const projects = await readProjects();
+  const normalizedPassword = String(password || '').trim();
   const match = projects.find((project) => {
     const nextPassword = String(project.accessPassword || project.password || '').trim();
-    return project.visibility === 'private' && nextPassword === password;
+    const visibility = String(project.visibility || '').trim().toLowerCase();
+    const projectCode = String(project.clientCode || '').trim();
+    return visibility === 'private' && (
+      nextPassword === normalizedPassword ||
+      (projectCode && projectCode === normalizedPassword)
+    );
   });
 
   if (!match) return null;

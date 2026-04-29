@@ -27,6 +27,7 @@ function ClientAccessPage() {
   const [error, setError] = useState('');
   const [hint, setHint] = useState('');
   const [matchedCustomer, setMatchedCustomer] = useState('');
+  const passwordLength = String(password || '').length;
 
   const canUseStored = useMemo(() => Boolean(readStoredPassword()), []);
 
@@ -101,6 +102,7 @@ function ClientAccessPage() {
             {error ? <p className="text-[10px] leading-5 text-rose-600">{error}</p> : null}
             {!error && hint ? <p className="text-[10px] leading-5 text-[#161616]/50">{hint}</p> : null}
             {!error && !hint && matchedCustomer ? <p className="text-[10px] leading-5 text-[#161616]/50">{matchedCustomer}</p> : null}
+            {!error && !hint && !matchedCustomer ? <p className="text-[10px] leading-5 text-[#161616]/28">{passwordLength > 0 ? `${passwordLength} characters entered` : 'Enter password to unlock'}</p> : null}
             {!error && !hint && !matchedCustomer && canUseStored ? (
               <button type="button" onClick={() => unlock(readStoredPassword())} className="mt-1 text-[11px] uppercase tracking-[0.12em] text-[#161616]/28 transition hover:text-[#161616]/45">
                 {t('clientAccess.useStored', 'Use last password')}
