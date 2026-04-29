@@ -5,6 +5,7 @@ import Button from '../../components/Button.jsx';
 import Modal from '../../components/Modal.jsx';
 import Input from '../../components/Input.jsx';
 import MediaPicker from '../../components/MediaPicker.jsx';
+import ProjectMediaUploader from '../../components/ProjectMediaUploader.jsx';
 import ConsolePanelShell from './ConsolePanelShell.jsx';
 
 function createDraft(file = {}) {
@@ -35,6 +36,7 @@ export default function PrivateFilesPanel() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [uploadStatus, setUploadStatus] = useState('');
   const [uploadError, setUploadError] = useState('');
+  const [pageItems, setPageItems] = useState([]);
 
   const load = async () => {
     setLoading(true);
@@ -122,6 +124,20 @@ export default function PrivateFilesPanel() {
     }
   };
 
+  const addPageItem = (file, kind, meta = {}) => {
+    if (!file) return;
+    const nextItem = {
+      id: crypto.randomUUID(),
+      title: meta.title || file.name || 'private-file',
+      label: meta.title || file.name || 'private-file',
+      name: file.name || meta.title || 'private-file',
+      url: draft.url || file.url || '',
+      kind: kind || 'image',
+      isPrivate: true,
+    };
+    setPageItems((prev) => [...prev, nextItem]);
+  };
+
   const uploadPrivateFile = async (file) => {
     if (!file) return;
     const category = String(selectedProject?.category || selectedProject?.title || '默认分类').trim() || '默认分类';
@@ -149,7 +165,7 @@ export default function PrivateFilesPanel() {
         <div className="flex items-center justify-end gap-3 rounded-3xl border border-white/10 bg-black/25 p-4">
           <Badge tone="success">{filteredRows.length} PROJECT(S) / {totalFiles} FILE(S)</Badge>
           <Button type="button" variant="subtle" onClick={load}>REFRESH</Button>
-          <Button type="button" variant="primary" onClick={() => openEditor(null, null)}>UPLOAD</Button>
+          <Button type="button" variant="primary" onClick={() => setListOpen(true)}>UPLOAD</Button>
           <Button type="button" variant="subtle" onClick={() => setListOpen(true)}>OPEN PROJECT LIST</Button>
         </div>
       </ConsolePanelShell>
@@ -217,7 +233,37 @@ export default function PrivateFilesPanel() {
             <Input value={draft.url} onChange={(event) => setDraft((prev) => ({ ...prev, url: event.target.value }))} />
           </label>
 
-          <MediaPicker label="Upload File" accept="*/*" value={draft.url} uploading={uploading} helperText="Uploads to MinIO and stores the returned URL." onPick={uploadPrivateFile} />
+          <ProjectMediaUploader
+            items={pageItems}
+            uploading={uploading}
+            progress={0}
+            uploadStage={uploadError ? 'error' : uploading ? 'uploading' : 'idle'}
+            uploadStatus={uploadStatus}
+            uploadTarget="image"
+            onUpload={addPageItem}
+            onRemove={(index) => setPageItems((prev) => prev.filter((_, i) => i !== index))}
+            onUpdate={(index, nextItem) => setPageItems((prev) => prev.map((item, i) => (i === index ? nextItem : item)))}
+            onMoveUp={(index) => setPageItems((prev) => {
+              if (index <= 0) return prev;
+              const next = [...prev];
+              const [moved] = next.splice(index, 1);
+              next.splice(index - 1, 0, moved);
+              return next;
+            })}
+            onMoveDown={(index) => setPageItems((prev) => {
+              if (index >= prev.length - 1) return prev;
+              const next = [...prev];
+              const [moved] = next.splice(index, 1);
+              next.splice(index + 1, 0, moved);
+              return next;
+            })}
+            onReorder={(from, to) => setPageItems((prev) => {
+              const next = [...prev];
+              const [moved] = next.splice(from, 1);
+              next.splice(to, 0, moved);
+              return next;
+            })}
+          />
           {uploadStatus ? <p className="text-xs tracking-[0.12em] text-zinc-400">{uploadStatus}</p> : null}
           {uploadError ? <p className="text-xs text-rose-300">{uploadError}</p> : null}
 
