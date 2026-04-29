@@ -53,16 +53,10 @@ export default function HomepageCopyPanel() {
       const nextCaption = draft.homeVideoCaption ?? '';
       const currentConfig = await fetchJson('/config');
       const currentHomepageVideo = getHomepageVideoConfig(currentConfig);
-      const savedConfig = await fetchJson('/config', {
+      const savedHomepageVideo = await fetchJson('/config/homepage-video', {
         method: 'POST',
-        data: {
-          'homepage-video': {
-            ...currentHomepageVideo,
-            homeVideoCaption: nextCaption,
-          },
-        },
+        data: { homeVideoCaption: nextCaption },
       });
-      const savedHomepageVideo = getHomepageVideoConfig(savedConfig);
       setDraft(createDraft({ ...currentHomepageVideo, ...savedHomepageVideo, homeVideoCaption: nextCaption }));
       setEditorOpen(false);
     } catch (err) {
