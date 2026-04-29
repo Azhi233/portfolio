@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import ProjectsPanel from './ProjectsPanel.jsx';
 import HomepageVideoPanel from './HomepageVideoPanel.jsx';
-import ConfigPanel from './ConfigPanel.jsx';
 import AnalyticsPanel from './AnalyticsPanel.jsx';
 import PrivateFilesPanel from './PrivateFilesPanel.jsx';
-import TestimonialsPanel from './TestimonialsPanel.jsx';
 import Button from '../../components/Button.jsx';
 import ConsolePanelShell from './ConsolePanelShell.jsx';
 import { fetchJson, getAccessToken, storeAccessToken } from '../../utils/api.js';
@@ -131,23 +129,15 @@ function ConsoleHome() {
             <div className={panelCardClass}>
               <HomepageVideoPanel />
             </div>
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className={panelCardClass}>
-                <ConfigPanel />
-              </div>
-              <div className={panelCardClass}>
-                <AnalyticsPanel />
-              </div>
+            <div className={panelCardClass}>
+              <AnalyticsPanel />
             </div>
           </div>
         </div>
 
-        <div key={`sync-private-${syncTick}`} className="grid gap-6 xl:grid-cols-2">
+        <div key={`sync-private-${syncTick}`} className="grid gap-6 xl:grid-cols-1">
           <div className={panelCardClass}>
             <PrivateFilesPanel />
-          </div>
-          <div className={panelCardClass}>
-            <TestimonialsPanel />
           </div>
         </div>
       </section>
