@@ -27,13 +27,14 @@ export function createConfigController({ notifyConfigChanged, broadcastEvent, au
       return res.status(400).json({ ok: false, message: 'Homepage video payload must be a JSON object.' });
     }
 
-    const { homeVideoTitle, homeVideoUrl } = payload;
+    const { homeVideoTitle, homeVideoUrl, homeVideoCaption } = payload;
     const current = await getConfig();
     const currentHomepageVideo = isPlainObject(current?.['homepage-video']) ? current['homepage-video'] : {};
     const nextHomepageVideo = {
       ...currentHomepageVideo,
-      homeVideoTitle: homeVideoTitle || '',
-      homeVideoUrl: homeVideoUrl || '',
+      ...(Object.prototype.hasOwnProperty.call(payload, 'homeVideoTitle') ? { homeVideoTitle: homeVideoTitle || '' } : {}),
+      ...(Object.prototype.hasOwnProperty.call(payload, 'homeVideoUrl') ? { homeVideoUrl: homeVideoUrl || '' } : {}),
+      ...(Object.prototype.hasOwnProperty.call(payload, 'homeVideoCaption') ? { homeVideoCaption: homeVideoCaption || '' } : {}),
     };
     const data = await saveConfig({ 'homepage-video': nextHomepageVideo });
     notifyConfigChanged('homepage-video');

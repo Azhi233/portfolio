@@ -19,9 +19,9 @@ function Home() {
 
   const { featuredImages, featuredVideos } = useMemo(() => splitFeaturedByMediaType(items), [items]);
   const homepageVideo = config?.['homepage-video'] || {};
-  const homeVideoUrl = homepageVideo?.homeVideoUrl || featuredVideos[0]?.videoUrl || featuredVideos[0]?.mainVideoUrl || '';
-  const homeVideoTitle = homepageVideo?.homeVideoTitle || featuredVideos[0]?.title || '';
-  const homeVideoCaption = homepageVideo?.homeVideoCaption || '';
+  const homeVideoUrl = homepageVideo?.homeVideoUrl || config?.homeVideoUrl || featuredVideos[0]?.videoUrl || featuredVideos[0]?.mainVideoUrl || '';
+  const homeVideoTitle = homepageVideo?.homeVideoTitle || config?.homeVideoTitle || featuredVideos[0]?.title || '';
+  const homeVideoCaption = homepageVideo?.homeVideoCaption || config?.homeVideoCaption || '';
 
   return (
     <main className="min-h-screen bg-[#050507] px-6 pb-20 pt-20 text-zinc-100 md:px-10 md:pt-24">

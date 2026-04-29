@@ -15,7 +15,11 @@ TEXT, AND HIGHLY
 CURATED MOTION`;
 
 function createDraft(source = {}) {
-  return { homeVideoCaption: source?.homeVideoCaption || '' };
+  return { homeVideoCaption: source?.homeVideoCaption ?? '' };
+}
+
+function getHomepageVideoConfig(config = {}) {
+  return config?.['homepage-video'] || {};
 }
 
 export default function HomepageCopyPanel() {
@@ -30,8 +34,7 @@ export default function HomepageCopyPanel() {
     setError('');
     try {
       const config = await fetchJson('/config');
-      const homepageVideo = config?.['homepage-video'] || {};
-      setDraft(createDraft(homepageVideo));
+      setDraft(createDraft(getHomepageVideoConfig(config)));
     } catch (err) {
       setError(err?.message || 'Failed to load homepage video copy.');
     } finally {
@@ -47,11 +50,20 @@ export default function HomepageCopyPanel() {
     setSaving(true);
     setError('');
     try {
-      await fetchJson('/config/homepage-video', {
+      const nextCaption = draft.homeVideoCaption ?? '';
+      const currentConfig = await fetchJson('/config');
+      const currentHomepageVideo = getHomepageVideoConfig(currentConfig);
+      const savedConfig = await fetchJson('/config', {
         method: 'POST',
-        data: { homeVideoCaption: draft.homeVideoCaption || '' },
+        data: {
+          'homepage-video': {
+            ...currentHomepageVideo,
+            homeVideoCaption: nextCaption,
+          },
+        },
       });
-      await load();
+      const savedHomepageVideo = getHomepageVideoConfig(savedConfig);
+      setDraft(createDraft({ ...currentHomepageVideo, ...savedHomepageVideo, homeVideoCaption: nextCaption }));
       setEditorOpen(false);
     } catch (err) {
       setError(err?.message || 'Failed to save homepage video copy.');
