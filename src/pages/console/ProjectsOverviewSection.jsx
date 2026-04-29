@@ -62,17 +62,17 @@ function ProjectTableRow({ item, index, onEdit, onToggleFeatured, onDelete }) {
       </td>
       <td className="w-28 py-3 pr-3 text-white/75">{item.isVisible === false ? 'Hidden' : 'Live'}</td>
       <td className="w-24 py-3 pr-3">
-        <button type="button" onClick={() => onToggleFeatured(item)} className="inline-flex items-center justify-center text-white transition hover:opacity-70" aria-label={item.isFeatured ? 'Unfeature project' : 'Feature project'}>
+        <button type="button" onClick={() => onToggleFeatured(item)} className="inline-flex items-center justify-center rounded-full p-1.5 text-white transition hover:bg-white/5 hover:opacity-80" aria-label={item.isFeatured ? 'Unfeature project' : 'Feature project'}>
           <StarIcon filled={Boolean(item.isFeatured)} />
         </button>
       </td>
       <td className="w-24 py-3 pr-3">
-        <button type="button" onClick={() => onEdit(item)} className="inline-flex items-center justify-center text-white transition hover:opacity-70" aria-label="Edit project">
+        <button type="button" onClick={() => onEdit(item)} className="inline-flex items-center justify-center rounded-full p-1.5 text-white transition hover:bg-white/5 hover:opacity-80" aria-label="Edit project">
           <EditIcon />
         </button>
       </td>
       <td className="w-24 py-3 text-right">
-        <button type="button" onClick={() => onDelete(item.id)} className="inline-flex items-center justify-center text-white transition hover:opacity-70" aria-label="Delete project">
+        <button type="button" onClick={() => onDelete(item.id)} className="inline-flex items-center justify-center rounded-full p-1.5 text-white transition hover:bg-white/5 hover:opacity-80" aria-label="Delete project">
           <TrashIcon />
         </button>
       </td>
