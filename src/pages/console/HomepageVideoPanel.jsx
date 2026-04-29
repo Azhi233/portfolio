@@ -139,8 +139,24 @@ export default function HomepageVideoPanel() {
     }
   };
 
+  const openEditor = () => {
+    setState((prev) => ({ ...prev, isOpen: true, uploadStage: 'idle', uploadProgress: 0, uploadStatus: '', uploadFailureStage: '' }));
+  };
+
   const clear = () => {
     setState((prev) => ({ ...prev, draft: createDraft(), uploadStage: 'idle', uploadProgress: 0, uploadStatus: '', uploadFailureStage: '', isOpen: true }));
+  };
+
+  const removeHomepageVideo = async () => {
+    setState((prev) => ({ ...prev, saving: true, error: '', uploadStatus: 'Deleting homepage video...' }));
+    try {
+      await fetchJson('/config/homepage-video', { method: 'POST', data: { homeVideoTitle: '', homeVideoUrl: '' } });
+      await load();
+      setState((prev) => ({ ...prev, saving: false, draft: createDraft(), uploadStage: 'idle', uploadProgress: 0, uploadStatus: 'Homepage video removed.' }));
+    } catch (error) {
+      const message = error?.message || 'Failed to delete homepage video.';
+      setState((prev) => ({ ...prev, saving: false, error: message, uploadStage: 'error', uploadStatus: `Delete failed: ${message}` }));
+    }
   };
 
   return (
@@ -151,8 +167,10 @@ export default function HomepageVideoPanel() {
         description="单独管理首页欢迎语下方的循环视频。"
         badge={{ label: 'HOME HERO', tone: 'warning' }}
         footer={(
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Button type="button" variant="subtle" onClick={load}>REFRESH</Button>
+            <Button type="button" variant="subtle" onClick={openEditor}>EDIT TEXT</Button>
+            <Button type="button" variant="danger" onClick={removeHomepageVideo}>DELETE</Button>
             <Button type="button" variant="primary" onClick={clear}>UPLOAD HERO VIDEO</Button>
           </div>
         )}
@@ -195,8 +213,8 @@ export default function HomepageVideoPanel() {
           </div>
 
           <label className="block">
-            <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Homepage Video Title</p>
-            <Input value={state.draft?.homeVideoTitle || ''} onChange={(event) => updateDraft('homeVideoTitle', event.target.value)} />
+            <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Homepage Video Caption</p>
+            <Input value={state.draft?.homeVideoTitle || ''} onChange={(event) => updateDraft('homeVideoTitle', event.target.value)} placeholder="左下角文案" />
           </label>
           <label className="block">
             <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Homepage Video URL</p>
