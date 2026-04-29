@@ -161,30 +161,10 @@ function ProjectFilterPanel({ query, category, onQueryChange, onCategoryChange, 
 function ProjectTable({ filtered, onEdit, onToggleFeatured, onDelete, onOpenList }) {
   return (
     <div className="overflow-hidden border-b border-white/10">
-      <div className="mb-3 flex justify-end">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-zinc-600">Works are now managed in a separate popup list.</p>
         <Button type="button" variant="subtle" onClick={onOpenList}>OPEN PROJECT LIST</Button>
       </div>
-      <table className="w-full border-collapse text-left">
-        <thead>
-          <tr className="border-b border-white/10 text-[10px] uppercase tracking-[0.24em] text-zinc-500">
-            <th className="w-16 py-3 pr-3 font-normal">#</th>
-            <th className="py-3 pr-4 font-normal">Project</th>
-            <th className="w-32 py-3 pr-3 font-normal">Status</th>
-            <th className="w-28 py-3 pr-3 font-normal">Featured</th>
-            <th className="w-28 py-3 pr-3 font-normal">Edit</th>
-            <th className="w-28 py-3 text-right font-normal">Delete</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filtered.length === 0 ? (
-            <tr>
-              <td colSpan="6" className="py-6 text-sm text-zinc-600">No matching projects.</td>
-            </tr>
-          ) : filtered.slice(0, 12).map((item, index) => (
-            <ProjectTableRow key={item.id} item={item} index={index} onEdit={onEdit} onToggleFeatured={onToggleFeatured} onDelete={onDelete} />
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }
