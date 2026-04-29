@@ -6,6 +6,7 @@ import ImageDetailPage from './pages/ImageDetailPage.jsx';
 import VideoDetailPage from './pages/VideoDetailPage.jsx';
 import AboutPage from './pages/AboutPage.jsx';
 import ClientAccessPage from './pages/ClientAccessPage.jsx';
+import ClientDeliverablesPage from './pages/ClientDeliverablesPage.jsx';
 import ProjectDetailPage from './pages/ProjectDetailPage.jsx';
 import StudioNotesPage from './pages/StudioNotesPage.jsx';
 import ConsoleHome from './pages/console/index.jsx';
@@ -22,6 +23,7 @@ function App() {
       <Route path="/videos/:id" element={<VideoDetailPage />} />
       <Route path="/about" element={<AboutPage />} />
       <Route path="/client-access" element={<ClientAccessPage />} />
+      <Route path="/client-deliverables/:id" element={<ClientDeliverablesPage />} />
       <Route path="/studio-notes" element={<StudioNotesPage />} />
       <Route path="/oldhome" element={<Navigate to="/" replace />} />
       <Route path="/console" element={<ConsoleHome />} />

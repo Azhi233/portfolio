@@ -100,7 +100,7 @@ export function ProjectBasicInfoSection({ draft, onUpdateDraft, onRefresh }) {
   );
 }
 
-export function ProjectMediaSection({ draft, uploading, uploadProgress, uploadStage, uploadStatus, uploadFailureStage, uploadTarget, onUploadImage, onUploadVideo, onUploadBts, onRemoveBts, onUpdateBts, onMoveBtsUp, onMoveBtsDown, onReorderBts }) {
+export function ProjectMediaSection({ draft, uploading, uploadProgress, uploadStage, uploadStatus, uploadFailureStage, uploadTarget, onUpdateDraft, onUploadImage, onUploadVideo, onUploadBts, onRemoveBts, onUpdateBts, onMoveBtsUp, onMoveBtsDown, onReorderBts }) {
   return (
     <div className="grid gap-4">
       <SectionShell eyebrow="UPLOAD" title="Single Project Upload" subtitle="上传单个作品，自动识别图片或视频，并回填封面预览和 URL。">

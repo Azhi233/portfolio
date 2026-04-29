@@ -64,9 +64,9 @@ function ClientAccessPage() {
 
       storePassword(normalizedPassword);
       storeAccessToken(token);
-      setMatchedCustomer(String(matchedProject.customerName || matchedProject.title || '').trim());
+      setMatchedCustomer(String(matchedProject.customerName || matchedProject.clientAgency || matchedProject.title || '').trim());
       setPassword(normalizedPassword);
-      navigate(`/projects/${matchedProject.id}`, {
+      navigate(`/client-deliverables/${matchedProject.id}`, {
         state: {
           clientAccessToken: token,
           clientAccessPassword: normalizedPassword,

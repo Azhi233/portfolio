@@ -6,7 +6,7 @@ import Button from '../../components/Button.jsx';
 import { fetchJson } from '../../utils/api.js';
 import { useProjectsPanel } from './useProjectsPanel.js';
 
-function ProjectsPanel({ filterMode = 'all' }) {
+function ProjectsPanel({ filterMode = 'all', onProjectsChange }) {
   const { state, featuredVideos, liveCount, filtered, load, openNew, openEdit, toggleDisplayOn, updateFeaturedOrder, save, uploadAsset, addBtsItem, updateBtsMedia, remove, toggleFeatured, setState, updateDraft } = useProjectsPanel(filterMode);
   const [toast, setToast] = useState({ open: false, tone: 'success', message: '' });
   const [syncing, setSyncing] = useState(false);
@@ -46,6 +46,10 @@ function ProjectsPanel({ filterMode = 'all' }) {
     items.splice(to, 0, moved);
     updateBtsMedia(items);
   }, [state.draft.btsMedia, updateBtsMedia]);
+
+  useEffect(() => {
+    onProjectsChange?.(state.items, load);
+  }, [onProjectsChange, state.items]);
 
   useEffect(() => {
     if (!state.notice) return;

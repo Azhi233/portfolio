@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import ProjectsPanel from './ProjectsPanel.jsx';
+import PrivateDeliverablesPanel from './PrivateDeliverablesPanel.jsx';
 import HomepageVideoPanel from './HomepageVideoPanel.jsx';
 import AnalyticsPanel from './AnalyticsPanel.jsx';
 import HomepageCopyPanel from './HomepageCopyPanel.jsx';
@@ -16,6 +17,7 @@ function ConsoleHome() {
   const [accessStatus, setAccessStatus] = useState('');
   const [syncState, setSyncState] = useState({ status: 'idle', message: '' });
   const [syncTick, setSyncTick] = useState(0);
+  const [projectsState, setProjectsState] = useState({ items: [], refresh: null });
 
   useEffect(() => {
     const token = getAccessToken();
@@ -123,7 +125,7 @@ function ConsoleHome() {
 
         <div key={`sync-${syncTick}`} className="grid gap-6 xl:grid-cols-2">
           <div className={panelCardClass}>
-            <ProjectsPanel filterMode="all" />
+            <ProjectsPanel filterMode="all" onProjectsChange={(items, refresh) => setProjectsState({ items, refresh })} />
           </div>
           <div className="grid gap-6">
             <div className={panelCardClass}>
@@ -136,6 +138,9 @@ function ConsoleHome() {
         </div>
 
         <div key={`sync-private-${syncTick}`} className="grid gap-6 xl:grid-cols-1">
+          <div className={panelCardClass}>
+            <PrivateDeliverablesPanel projects={projectsState.items} onRefresh={projectsState.refresh} />
+          </div>
           <div className={panelCardClass}>
             <HomepageCopyPanel />
           </div>
