@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import Badge from '../../components/Badge.jsx';
 import Button from '../../components/Button.jsx';
+import Modal from '../../components/Modal.jsx';
 import MediaFrame from '../../components/MediaFrame.jsx';
 
 function getMosaicSpan(index) {
@@ -156,9 +158,12 @@ function ProjectFilterPanel({ query, category, onQueryChange, onCategoryChange, 
   );
 }
 
-function ProjectTable({ filtered, onEdit, onToggleFeatured, onDelete }) {
+function ProjectTable({ filtered, onEdit, onToggleFeatured, onDelete, onOpenList }) {
   return (
     <div className="overflow-hidden border-b border-white/10">
+      <div className="mb-3 flex justify-end">
+        <Button type="button" variant="subtle" onClick={onOpenList}>OPEN PROJECT LIST</Button>
+      </div>
       <table className="w-full border-collapse text-left">
         <thead>
           <tr className="border-b border-white/10 text-[10px] uppercase tracking-[0.24em] text-zinc-500">
@@ -185,6 +190,7 @@ function ProjectTable({ filtered, onEdit, onToggleFeatured, onDelete }) {
 }
 
 export default function ProjectsOverviewSection({ liveCount, featuredVideos, onRefresh, onUpload, query, category, onQueryChange, onCategoryChange, loading, notice, noticeTone, error, deleting, deleteStatus, filtered, onEdit, onToggleFeatured, onDelete, onReorderFeatured }) {
+  const [listOpen, setListOpen] = useState(false);
   return (
     <section className="space-y-6">
       <div className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-end lg:justify-between">
@@ -205,7 +211,30 @@ export default function ProjectsOverviewSection({ liveCount, featuredVideos, onR
         <ProjectFilterPanel query={query} category={category} onQueryChange={onQueryChange} onCategoryChange={onCategoryChange} loading={loading} notice={notice} noticeTone={noticeTone} error={error} deleting={deleting} deleteStatus={deleteStatus} />
       </div>
 
-      <ProjectTable filtered={filtered} onEdit={onEdit} onToggleFeatured={onToggleFeatured} onDelete={onDelete} />
+      <ProjectTable filtered={filtered} onEdit={onEdit} onToggleFeatured={onToggleFeatured} onDelete={onDelete} onOpenList={() => setListOpen(true)} />
+
+      <Modal open={listOpen} title="Project List" onClose={() => setListOpen(false)}>
+        <div className="space-y-3">
+          <div className="grid gap-2">
+            {filtered.length === 0 ? <p className="text-sm text-zinc-500">No matching projects.</p> : null}
+            {filtered.map((item, index) => (
+              <div key={item.id} className="rounded-2xl border border-white/10 bg-black/20 p-3 text-sm text-white">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="tracking-[0.06em]">{String(index + 1).padStart(2, '0')}. {item.title}</p>
+                    <p className="mt-1 text-xs text-zinc-400">{item.category || 'Uncategorized'} · {item.isVisible === false ? 'Hidden' : 'Live'}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="subtle" onClick={() => { onEdit(item); setListOpen(false); }}>EDIT</Button>
+                    <Button type="button" variant="subtle" onClick={() => { onToggleFeatured(item); }}>FEATURE</Button>
+                    <Button type="button" variant="danger" onClick={() => { onDelete(item.id); }}>DELETE</Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Modal>
     </section>
   );
 }
