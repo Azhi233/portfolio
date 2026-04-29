@@ -64,6 +64,7 @@ export async function initMinio() {
   await ensureBucket(PUBLIC_BUCKET);
   await ensureBucket(PRIVATE_BUCKET);
   await minioClient.setBucketPolicy(PUBLIC_BUCKET, JSON.stringify(buildPublicReadPolicy(PUBLIC_BUCKET)));
+  await minioClient.setBucketPolicy(PRIVATE_BUCKET, JSON.stringify(buildPublicReadPolicy(PRIVATE_BUCKET)));
 }
 
 function normalizeBaseUrl(baseUrl = '') {
