@@ -253,7 +253,9 @@ export default function ProjectsOverviewSection({ liveCount, featuredVideos, onR
 
       <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
         <FeaturedQueuePanel featuredVideos={featuredVideos} onReorderFeatured={onReorderFeatured} />
-        <ProjectFilterPanel query={query} category={category} onQueryChange={onQueryChange} onCategoryChange={onCategoryChange} loading={loading} notice={notice} noticeTone={noticeTone} error={error} deleting={deleting} deleteStatus={deleteStatus} />
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-500">
+          Project filtering is available in the Project List modal.
+        </div>
       </div>
 
       <div className="flex justify-end">
