@@ -15,8 +15,8 @@ function Modal({ open, title, onClose, children }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch justify-center overflow-hidden bg-black/75 p-0 backdrop-blur-md sm:p-2 md:p-3 lg:p-4">
-      <div className="flex h-[100dvh] w-[100vw] flex-col overflow-hidden rounded-none border border-white/10 bg-[#0a0a0d] p-4 shadow-[0_30px_100px_rgba(0,0,0,0.55)] sm:h-[calc(100dvh-1rem)] sm:w-[calc(100vw-1rem)] sm:rounded-[1.5rem] sm:p-5 md:h-[calc(100dvh-1.5rem)] md:w-[calc(100vw-1.5rem)] md:p-6 lg:h-[calc(100dvh-2rem)] lg:w-[min(100vw-2rem,2400px)] xl:w-[min(100vw-2rem,2560px)] 2xl:w-[min(100vw-2rem,2800px)]">
+    <div className="fixed inset-0 z-50 flex items-stretch justify-center overflow-hidden bg-black/80 p-0 backdrop-blur-xl sm:p-2 md:p-3 lg:p-4 xl:p-5">
+      <div className="flex h-[100dvh] w-[100vw] flex-col overflow-hidden rounded-none border border-white/10 bg-[#09090b] p-4 shadow-[0_35px_120px_rgba(0,0,0,0.6)] sm:h-[calc(100dvh-1rem)] sm:w-[calc(100vw-1rem)] sm:rounded-[1.5rem] sm:p-5 md:h-[calc(100dvh-1.5rem)] md:w-[calc(100vw-1.5rem)] md:p-6 lg:h-[calc(100dvh-2rem)] lg:w-[min(100vw-2rem,2800px)] xl:w-[min(100vw-2rem,3200px)] 2xl:w-[min(100vw-2rem,3600px)]">
         <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-4">
           <div className="min-w-0">
             <p className="text-[11px] tracking-[0.24em] text-zinc-500">MODAL</p>
