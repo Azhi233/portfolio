@@ -6,6 +6,6 @@ export function createConfigRouter(controller) {
   router.get('/editor-layout', controller.getEditorLayoutHandler);
   router.put('/editor-layout', controller.authMiddleware, controller.putEditorLayoutHandler);
   router.post('/homepage-video', controller.postHomepageVideoHandler);
-  router.post('/', controller.authMiddleware, controller.postConfigHandler);
+  router.post('/', controller.postConfigHandler);
   return router;
 }
