@@ -115,12 +115,12 @@ function ClientDeliverablesPage() {
   const [error, setError] = useState('');
   const [activeAsset, setActiveAsset] = useState(null);
   const [showMeta, setShowMeta] = useState(true);
-  const heroImage = galleryImages[0]?.url || galleryVideos[0]?.url || project?.coverUrl || project?.thumbnailUrl || '';
 
   const token = String(location.state?.clientAccessToken || getAccessToken() || '').trim();
   const { hasPrivateAccess, canViewPrivate } = canAccessPrivateProject(project, token, Boolean(token));
   const { gallery, files } = useMemo(() => getProjectGallery(project, canViewPrivate), [canViewPrivate, project]);
   const { galleryImages, galleryVideos } = useMemo(() => splitGalleryByKind(gallery), [gallery]);
+  const heroImage = galleryImages[0]?.url || galleryVideos[0]?.url || project?.coverUrl || project?.thumbnailUrl || '';
 
   useEffect(() => {
     let mounted = true;
