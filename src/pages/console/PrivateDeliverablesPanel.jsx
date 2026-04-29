@@ -181,6 +181,7 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
     });
   }, [externalPrivateProjects, loadedPrivateProjects]);
   const [draft, setDraft] = useState(makePrivateDraft());
+  const [selectedProject, setSelectedProject] = useState(null);
   const [uploadMeta, setUploadMeta] = useState({ title: '', category: 'Client Deliverables', description: '' });
   const [modalMode, setModalMode] = useState('');
   const [managerOpen, setManagerOpen] = useState(false);
@@ -203,24 +204,27 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
     setModalMode('');
     setManagerOpen(false);
     setRenameFileState({ open: false, projectId: '', fileIndex: -1, value: '' });
+    setSelectedProject(null);
     setProjectDirty(false);
     setState((prev) => ({ ...prev, error: '', notice: '' }));
   };
 
   const openNewProject = () => {
     setDraft(makePrivateDraft());
+    setSelectedProject(null);
     setUploadMeta({ title: '', category: 'Client Deliverables', description: '' });
     setProjectDirty(false);
     setState((prev) => ({ ...prev, error: '', notice: '' }));
-    setModalMode('new');
+    setModalMode('workspace');
   };
 
   const openExistingSelector = () => {
     setDraft(makePrivateDraft());
+    setSelectedProject(null);
     setProjectDirty(false);
     setState((prev) => ({ ...prev, error: '', notice: '' }));
     loadPrivateProjects().catch(() => {});
-    setModalMode('existing');
+    setModalMode('workspace');
   };
 
   const openProjectUpload = (project) => {
@@ -228,8 +232,7 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
     setDraft(normalized);
     setUploadMeta((prev) => ({ ...prev, category: normalized.category || prev.category || 'Client Deliverables' }));
     setProjectDirty(false);
-    setEditingManagerProjectId('');
-    setModalMode('upload');
+    setModalMode('workspace');
   };
 
   const openManagerProject = (project) => {
@@ -237,8 +240,7 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
     setDraft(normalized);
     setUploadMeta((prev) => ({ ...prev, category: normalized.category || prev.category || 'Client Deliverables' }));
     setProjectDirty(false);
-    setEditingManagerProjectId(String(project.id || ''));
-    setModalMode('upload');
+    setModalMode('workspace');
     setManagerOpen(false);
   };
 
@@ -407,7 +409,7 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
     return makePrivateDraft({ ...prev, privateFiles: items });
   });
 
-  const uploadModalOpen = modalMode === 'new' || modalMode === 'upload';
+  const uploadModalOpen = modalMode === 'workspace';
 
   return (
     <section className="rounded-3xl border border-violet-300/20 bg-gradient-to-br from-violet-400/10 via-white/[0.03] to-transparent p-4 md:p-5">
@@ -448,7 +450,7 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {privateProjects.length === 0 ? <p className="rounded-3xl border border-white/10 bg-black/20 p-5 text-sm text-zinc-500">暂无私密项目，请先新建。</p> : null}
             {privateProjects.map((project) => (
-              <button key={project.id} type="button" onClick={() => openProjectUpload(project)} className="rounded-3xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-200/40 hover:bg-white/[0.04]">
+              <button key={project.id} type="button" onClick={() => { openProjectUpload(project); setModalMode('upload'); }} className="rounded-3xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-200/40 hover:bg-white/[0.04]">
                 <p className="text-[10px] uppercase tracking-[0.24em] text-violet-200/60">{project.category || 'Client Deliverables'}</p>
                 <h3 className="mt-2 text-lg tracking-[0.08em] text-white">{project.title}</h3>
                 <p className="mt-2 text-sm text-zinc-500">{project.clientAgency || 'Private client'}</p>
@@ -461,6 +463,7 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
 
       <Modal open={uploadModalOpen} title={modalMode === 'new' ? '新建私密交付项目' : '上传私密交付文件'} onClose={closeAllModals}>
         <div className="grid gap-5">
+          {selectedProject ? <p className="text-xs uppercase tracking-[0.18em] text-violet-200/60">Selected project · {selectedProject.title}</p> : null}
           <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
