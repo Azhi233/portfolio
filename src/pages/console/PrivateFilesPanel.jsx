@@ -7,16 +7,6 @@ import Input from '../../components/Input.jsx';
 import MediaPicker from '../../components/MediaPicker.jsx';
 import ConsolePanelShell from './ConsolePanelShell.jsx';
 
-function groupFilesByType(files = []) {
-  return files.reduce((acc, file) => {
-    const type = String(file?.type || file?.kind || 'other').toLowerCase();
-    const key = type.startsWith('video') ? 'video' : type.startsWith('image') ? 'image' : type === 'private' ? 'private' : type || 'other';
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(file);
-    return acc;
-  }, {});
-}
-
 function createDraft(file = {}) {
   return {
     label: file?.label || '',
@@ -28,9 +18,9 @@ function createDraft(file = {}) {
   };
 }
 
-function PrivateFilesPanel() {
-  const [state, setState] = useState({ loading: true, saving: false, uploading: false, error: '', items: [], selectedProject: null, selectedFile: null, isOpen: false, draft: createDraft(), uploadStage: 'idle', uploadStatus: '', uploadError: '' });
-  const [openProjects, setOpenProjects] = useState({});
+export default function PrivateFilesPanel() {
+  const [state, setState] = useState({ loading: true, saving: false, uploading: false, error: '', items: [], draft: createDraft(), uploadStage: 'idle', uploadStatus: '', uploadError: '', isOpen: false, selectedProject: null, selectedFile: null });
+  const [listOpen, setListOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
 
@@ -41,14 +31,16 @@ function PrivateFilesPanel() {
       setState((prev) => ({ ...prev, loading: false, error: '', items: Array.isArray(projects) ? projects : [] }));
     } catch (error) {
       const message = error?.message || 'Failed to load private files.';
-      const is502 = /502/.test(message);
-      setState((prev) => ({ ...prev, loading: false, error: is502 ? '' : message, items: [] }));
+      setState((prev) => ({ ...prev, loading: false, error: /502/.test(message) ? '' : message, items: [] }));
     }
   };
 
   useEffect(() => { load(); }, []);
 
-  const rows = useMemo(() => state.items.map((project) => ({ id: project.id, title: project.title, category: project.category || project.title || '默认分类', files: Array.isArray(project.privateFiles) ? project.privateFiles.filter((item) => item?.enabled !== false) : [] })).filter((item) => item.files.length > 0), [state.items]);
+  const rows = useMemo(() => state.items
+    .map((project) => ({ id: project.id, title: project.title, category: project.category || project.title || '默认分类', project, files: Array.isArray(project.privateFiles) ? project.privateFiles.filter((item) => item?.enabled !== false) : [] }))
+    .filter((item) => item.files.length > 0), [state.items]);
+
   const filteredRows = useMemo(() => {
     const q = String(query || '').trim().toLowerCase();
     return rows
@@ -63,13 +55,14 @@ function PrivateFilesPanel() {
       }))
       .filter((row) => row.files.length > 0);
   }, [rows, query, typeFilter]);
+
   const totalFiles = filteredRows.reduce((sum, item) => sum + item.files.length, 0);
 
-  const openEditor = (project) => setState((prev) => ({ ...prev, selectedProject: project, selectedFile: null, isOpen: true, draft: createDraft(), uploadStage: 'idle', uploadStatus: '', uploadError: '' }));
-  const openReplaceEditor = (project, file) => setState((prev) => ({ ...prev, selectedProject: project, selectedFile: file, isOpen: true, draft: createDraft(file), uploadStage: 'idle', uploadStatus: '', uploadError: '' }));
-  const setAllProjectsOpen = (nextOpen) => setOpenProjects(Object.fromEntries(filteredRows.map((row) => [row.id, nextOpen])));
+  const openEditor = (project, file = null) => {
+    setState((prev) => ({ ...prev, isOpen: true, selectedProject: project, selectedFile: file, draft: createDraft(file || {}), uploadStage: 'idle', uploadStatus: '', uploadError: '' }));
+  };
 
-  const addFile = async () => {
+  const saveFile = async () => {
     if (!state.selectedProject) return;
     setState((prev) => ({ ...prev, saving: true, error: '' }));
     try {
@@ -81,21 +74,7 @@ function PrivateFilesPanel() {
       await load();
       setState((prev) => ({ ...prev, saving: false, isOpen: false, selectedProject: null, selectedFile: null }));
     } catch (error) {
-      setState((prev) => ({ ...prev, saving: false, error: error.message || 'Failed to save private file.' }));
-    }
-  };
-
-  const deleteFile = async (project, file) => {
-    if (!project || !file) return;
-    setState((prev) => ({ ...prev, saving: true, error: '' }));
-    try {
-      const currentFiles = Array.isArray(project.privateFiles) ? project.privateFiles : [];
-      const nextFiles = currentFiles.filter((item) => item.id !== file.id);
-      await fetchJson(`/projects/${project.id}`, { method: 'PUT', data: { ...project, privateFiles: nextFiles } });
-      await load();
-      setState((prev) => ({ ...prev, saving: false }));
-    } catch (error) {
-      setState((prev) => ({ ...prev, saving: false, error: error.message || 'Failed to delete private file.' }));
+      setState((prev) => ({ ...prev, saving: false, error: error?.message || 'Failed to save private file.' }));
     }
   };
 
@@ -109,134 +88,74 @@ function PrivateFilesPanel() {
       setState((prev) => ({ ...prev, uploading: false, uploadStage: 'success', uploadStatus: `Uploaded: ${result.url || file.name}`, draft: { ...prev.draft, url: result.url, name: file.name, type: file.type || prev.draft.type } }));
     } catch (error) {
       const message = error?.message || 'Failed to upload private file.';
-      const is502 = /502/.test(message);
-      setState((prev) => ({ ...prev, uploading: false, uploadStage: 'error', uploadError: is502 ? '' : message, error: is502 ? '' : message }));
+      setState((prev) => ({ ...prev, uploading: false, uploadStage: 'error', uploadError: /502/.test(message) ? '' : message, error: /502/.test(message) ? '' : message }));
     }
   };
 
   return (
     <>
-      <ConsolePanelShell eyebrow="DELIVERY" title="Private Files" description="私密交付文件的项目分布。" badge={{ label: 'DELIVERY', tone: 'success' }}>
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_0_40px_rgba(255,255,255,0.03)]">
-          <div className="grid gap-4 rounded-[1.35rem] border border-white/10 bg-black/25 p-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)]">
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs tracking-[0.16em] text-zinc-500">{filteredRows.length} PROJECT(S) / {totalFiles} FILE(S)</p>
-                  {state.loading ? <p className="mt-2 text-sm text-zinc-400">Loading private files...</p> : null}
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button type="button" variant="subtle" onClick={load}>REFRESH</Button>
-                  <Button type="button" variant="subtle" onClick={() => setAllProjectsOpen(true)}>EXPAND ALL</Button>
-                  <Button type="button" variant="subtle" onClick={() => setAllProjectsOpen(false)}>COLLAPSE ALL</Button>
-                </div>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_160px]">
-                <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search project / label / URL" />
-                <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none">
-                  <option value="all">All</option>
-                  <option value="video">Video</option>
-                  <option value="image">Image</option>
-                  <option value="private">Private</option>
-                  <option value="zip">Zip</option>
-                  <option value="pdf">PDF</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-
-              {state.error ? <p className="py-2 text-sm text-rose-300">{state.error}</p> : null}
-
-              <div className="grid gap-3">
-                {filteredRows.length === 0 ? <p className="text-sm text-zinc-500">No private files yet.</p> : null}
-                {filteredRows.map((item) => {
-                  const grouped = groupFilesByType(item.files);
-                  const isOpen = Boolean(openProjects[item.id]);
-                  return (
-                    <div key={item.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                      <button type="button" className="flex w-full items-center justify-between gap-4 text-left" onClick={() => setOpenProjects((prev) => ({ ...prev, [item.id]: !prev[item.id] }))}>
-                        <div>
-                          <p className="text-sm tracking-[0.08em] text-white">{item.title}</p>
-                          <p className="mt-1 text-sm text-zinc-400">Category · {item.category}</p>
-                          <p className="mt-1 text-sm text-zinc-400">{item.files.length} private files</p>
-                        </div>
-                        <Badge tone="default">{isOpen ? 'COLLAPSE' : 'EXPAND'}</Badge>
-                      </button>
-
-                      {isOpen ? (
-                        <div className="mt-4 space-y-4 border-t border-white/10 pt-4">
-                          {Object.entries(grouped).map(([type, files]) => (
-                            <div key={type} className="space-y-2">
-                              <p className="text-xs uppercase tracking-[0.14em] text-zinc-500">{type} ({files.length})</p>
-                              <div className="grid gap-2">
-                                {files.slice(0, 3).map((file) => (
-                                  <div key={file.id || file.url} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2">
-                                    <div className="min-w-0">
-                                      <p className="truncate text-sm tracking-[0.06em] text-white">{file.label || file.name || file.url}</p>
-                                      <p className="mt-1 truncate text-xs text-zinc-400">{file.url}</p>
-                                    </div>
-                                    <div className="flex gap-2">
-                                      <Button type="button" variant="subtle" onClick={() => openReplaceEditor(state.items.find((project) => project.id === item.id), file)}>REPLACE</Button>
-                                      <Button type="button" variant="subtle" onClick={() => deleteFile(state.items.find((project) => project.id === item.id), file)}>DELETE</Button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                          <div className="pt-2">
-                            <Button type="button" variant="subtle" onClick={() => openEditor(state.items.find((project) => project.id === item.id))}>ADD FILE</Button>
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs tracking-[0.16em] text-zinc-500">{state.selectedProject ? `PROJECT · ${state.selectedProject.title}` : 'PRIVATE FILE EDITOR'}</p>
-                  <h3 className="mt-2 text-lg tracking-[0.08em] text-white">{state.selectedFile ? 'Edit Private File' : 'Add Private File'}</h3>
-                </div>
-                <Badge tone={state.uploadStage === 'error' ? 'danger' : state.uploadStage === 'success' ? 'success' : 'default'}>{state.uploadStage.toUpperCase()}</Badge>
-              </div>
-
-              <div className="space-y-3">
-                <label className="block">
-                  <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Label</p>
-                  <Input value={state.draft.label} onChange={(event) => setState((prev) => ({ ...prev, draft: { ...prev.draft, label: event.target.value } }))} />
-                </label>
-                <label className="block">
-                  <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Name</p>
-                  <Input value={state.draft.name} onChange={(event) => setState((prev) => ({ ...prev, draft: { ...prev.draft, name: event.target.value } }))} />
-                </label>
-                <label className="block">
-                  <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">URL</p>
-                  <Input value={state.draft.url} onChange={(event) => setState((prev) => ({ ...prev, draft: { ...prev.draft, url: event.target.value } }))} />
-                </label>
-                <div className="rounded-2xl border border-white/10 bg-black/25 p-3">
-                  <MediaPicker label="Upload File" accept="*/*" value={state.draft.url} uploading={state.uploading} helperText="Uploads to MinIO and stores the returned URL." onPick={(file) => uploadPrivateFile(file)} />
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-black/25 p-3 text-xs text-zinc-400">
-                  <p>Path: `Private Files / {state.selectedProject?.category || state.selectedProject?.title || '默认分类'}`</p>
-                  <p className="mt-2">{state.uploadStatus || 'Upload status will appear here.'}</p>
-                  {state.uploadError ? <p className="mt-2 text-rose-300">{state.uploadError}</p> : null}
-                </div>
-              </div>
-
-              <div className="mt-5 flex items-center justify-end gap-3 border-t border-white/10 pt-4">
-                <Button type="button" variant="subtle" onClick={() => setState((prev) => ({ ...prev, isOpen: false, selectedProject: null, selectedFile: null }))}>CANCEL</Button>
-                <Button type="button" variant="primary" onClick={addFile}>{state.saving ? 'SAVING...' : 'SAVE FILE'}</Button>
-              </div>
-            </div>
-          </div>
+      <ConsolePanelShell eyebrow="DELIVERY" title="Private Files" description="私密交付文件管理。" badge={{ label: 'DELIVERY', tone: 'success' }}>
+        <div className="flex items-center justify-end gap-3 rounded-3xl border border-white/10 bg-black/25 p-4">
+          <Badge tone="success">{filteredRows.length} PROJECT(S) / {totalFiles} FILE(S)</Badge>
+          <Button type="button" variant="subtle" onClick={load}>REFRESH</Button>
+          <Button type="button" variant="primary" onClick={() => setState((prev) => ({ ...prev, isOpen: true, selectedProject: null, selectedFile: null, draft: createDraft(), uploadStage: 'idle', uploadStatus: '', uploadError: '' }))}>UPLOAD</Button>
+          <Button type="button" variant="subtle" onClick={() => setListOpen(true)}>OPEN PROJECT LIST</Button>
         </div>
       </ConsolePanelShell>
+
+      <Modal open={listOpen} title="Private Files" onClose={() => setListOpen(false)}>
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-3">
+          <input value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-[220px] flex-1 border-b border-white/15 bg-transparent px-0 py-3 text-sm text-white outline-none transition placeholder:text-white/40 focus:border-white/40" placeholder="Search project / label / URL" />
+          <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none">
+            <option value="all">All</option>
+            <option value="video">Video</option>
+            <option value="image">Image</option>
+            <option value="private">Private</option>
+            <option value="zip">Zip</option>
+            <option value="pdf">PDF</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div className="grid gap-3">
+          {filteredRows.length === 0 ? <p className="text-sm text-zinc-500">No private files yet.</p> : null}
+          {filteredRows.map((item) => (
+            <div key={item.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm tracking-[0.08em] text-white">{item.title}</p>
+                  <p className="mt-1 text-sm text-zinc-400">Category · {item.category}</p>
+                  <p className="mt-1 text-sm text-zinc-400">{item.files.length} private files</p>
+                </div>
+                <Button type="button" variant="subtle" onClick={() => openEditor(item.project)}>
+                  EDIT
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Modal>
+
+      <Modal open={state.isOpen} title="Private File Editor" onClose={() => setState((prev) => ({ ...prev, isOpen: false, selectedProject: null, selectedFile: null }))}>
+        <div className="grid gap-4">
+          <label className="block">
+            <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Label</p>
+            <Input value={state.draft.label} onChange={(event) => setState((prev) => ({ ...prev, draft: { ...prev.draft, label: event.target.value } }))} />
+          </label>
+          <label className="block">
+            <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Name</p>
+            <Input value={state.draft.name} onChange={(event) => setState((prev) => ({ ...prev, draft: { ...prev.draft, name: event.target.value } }))} />
+          </label>
+          <label className="block">
+            <p className="mb-2 text-xs tracking-[0.12em] text-white/80">URL</p>
+            <Input value={state.draft.url} onChange={(event) => setState((prev) => ({ ...prev, draft: { ...prev.draft, url: event.target.value } }))} />
+          </label>
+          <MediaPicker label="Upload File" accept="*/*" value={state.draft.url} uploading={state.uploading} helperText="Uploads to MinIO and stores the returned URL." onPick={uploadPrivateFile} />
+          <div className="flex items-center justify-end gap-3">
+            <Button type="button" variant="subtle" onClick={() => setState((prev) => ({ ...prev, isOpen: false, selectedProject: null, selectedFile: null }))}>CANCEL</Button>
+            <Button type="button" variant="primary" onClick={saveFile}>{state.saving ? 'SAVING...' : 'SAVE FILE'}</Button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }
-
-export default PrivateFilesPanel;
