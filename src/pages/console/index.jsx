@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import ProjectsPanel from './ProjectsPanel.jsx';
 import HomepageVideoPanel from './HomepageVideoPanel.jsx';
 import AnalyticsPanel from './AnalyticsPanel.jsx';
-import PrivateFilesPanel from './PrivateFilesPanel.jsx';
+import HomepageCopyPanel from './HomepageCopyPanel.jsx';
 import Button from '../../components/Button.jsx';
 import ConsolePanelShell from './ConsolePanelShell.jsx';
 import { fetchJson, getAccessToken, storeAccessToken } from '../../utils/api.js';
@@ -137,7 +137,7 @@ function ConsoleHome() {
 
         <div key={`sync-private-${syncTick}`} className="grid gap-6 xl:grid-cols-1">
           <div className={panelCardClass}>
-            <PrivateFilesPanel />
+            <HomepageCopyPanel />
           </div>
         </div>
       </section>
