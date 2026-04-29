@@ -158,19 +158,80 @@ function ProjectFilterPanel({ query, category, onQueryChange, onCategoryChange, 
   );
 }
 
-function ProjectTable({ filtered, onEdit, onToggleFeatured, onDelete, onOpenList }) {
+function ProjectListModal({ open, items, onClose, onEdit, onToggleFeatured, onDelete, onReorderFeatured }) {
+  const [dragIndex, setDragIndex] = useState(null);
+
   return (
-    <div className="overflow-hidden border-b border-white/10">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-zinc-600">Works are now managed in a separate popup list.</p>
-        <Button type="button" variant="subtle" onClick={onOpenList}>OPEN PROJECT LIST</Button>
+    <Modal open={open} title="Project List" onClose={onClose}>
+      <div className="grid h-[calc(100dvh-8rem)] gap-4 xl:grid-cols-[1fr_1.8fr]">
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+          <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-500">Quick Stats</p>
+          <div className="mt-3 grid gap-3 text-sm text-zinc-300">
+            <div className="rounded-xl border border-white/10 bg-black/25 p-3">Projects · {items.length}</div>
+            <div className="rounded-xl border border-white/10 bg-black/25 p-3">Drag to reorder featured queue from the main page card.</div>
+            <div className="rounded-xl border border-white/10 bg-black/25 p-3">Use the actions on the right to edit, feature, or delete.</div>
+          </div>
+        </div>
+        <div className="min-h-0 overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+          <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-500">Project Records</p>
+              <p className="mt-1 text-sm text-zinc-400">{items.length} items</p>
+            </div>
+            <Badge tone="warning">SCROLL</Badge>
+          </div>
+          <div className="max-h-[calc(100dvh-16rem)] overflow-y-auto">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="border-b border-white/10 text-[10px] uppercase tracking-[0.24em] text-zinc-500">
+                  <th className="w-16 py-3 pl-4 pr-3 font-normal">#</th>
+                  <th className="py-3 pr-4 font-normal">Project</th>
+                  <th className="w-32 py-3 pr-3 font-normal">Status</th>
+                  <th className="w-28 py-3 pr-3 font-normal">Featured</th>
+                  <th className="w-28 py-3 pr-3 font-normal">Edit</th>
+                  <th className="w-28 py-3 pr-4 text-right font-normal">Delete</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.length === 0 ? (
+                  <tr><td colSpan="6" className="py-6 pl-4 text-sm text-zinc-500">No matching projects.</td></tr>
+                ) : items.map((item, index) => (
+                  <tr key={item.id} className="border-b border-white/10 text-sm text-white last:border-b-0">
+                    <td className="w-14 py-4 pl-4 pr-3 text-[11px] text-white/60">{String(index + 1).padStart(2, '0')}</td>
+                    <td className="py-4 pr-4">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium tracking-[0.02em] text-white">{item.title}</p>
+                        <p className="mt-1 truncate text-[11px] text-white/60">{item.category || 'Uncategorized'}</p>
+                      </div>
+                    </td>
+                    <td className="w-28 py-4 pr-3 text-white/75">{item.isVisible === false ? 'Hidden' : 'Live'}</td>
+                    <td className="w-24 py-4 pr-3">
+                      <button type="button" onClick={() => onToggleFeatured(item)} className="inline-flex items-center justify-center text-white transition hover:opacity-70" aria-label={item.isFeatured ? 'Unfeature project' : 'Feature project'}>
+                        <StarIcon filled={Boolean(item.isFeatured)} />
+                      </button>
+                    </td>
+                    <td className="w-24 py-4 pr-3">
+                      <button type="button" onClick={() => onEdit(item)} className="inline-flex items-center justify-center text-white transition hover:opacity-70" aria-label="Edit project">
+                        <EditIcon />
+                      </button>
+                    </td>
+                    <td className="w-24 py-4 pr-4 text-right">
+                      <button type="button" onClick={() => onDelete(item.id)} className="inline-flex items-center justify-center text-white transition hover:opacity-70" aria-label="Delete project">
+                        <TrashIcon />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
 export default function ProjectsOverviewSection({ liveCount, featuredVideos, onRefresh, onUpload, query, category, onQueryChange, onCategoryChange, loading, notice, noticeTone, error, deleting, deleteStatus, filtered, onEdit, onToggleFeatured, onDelete, onReorderFeatured }) {
-  const [listOpen, setListOpen] = useState(false);
   return (
     <section className="space-y-6">
       <div className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-end lg:justify-between">
@@ -191,30 +252,7 @@ export default function ProjectsOverviewSection({ liveCount, featuredVideos, onR
         <ProjectFilterPanel query={query} category={category} onQueryChange={onQueryChange} onCategoryChange={onCategoryChange} loading={loading} notice={notice} noticeTone={noticeTone} error={error} deleting={deleting} deleteStatus={deleteStatus} />
       </div>
 
-      <ProjectTable filtered={filtered} onEdit={onEdit} onToggleFeatured={onToggleFeatured} onDelete={onDelete} onOpenList={() => setListOpen(true)} />
-
-      <Modal open={listOpen} title="Project List" onClose={() => setListOpen(false)}>
-        <div className="space-y-3">
-          <div className="grid gap-2">
-            {filtered.length === 0 ? <p className="text-sm text-zinc-500">No matching projects.</p> : null}
-            {filtered.map((item, index) => (
-              <div key={item.id} className="rounded-2xl border border-white/10 bg-black/20 p-3 text-sm text-white">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="tracking-[0.06em]">{String(index + 1).padStart(2, '0')}. {item.title}</p>
-                    <p className="mt-1 text-xs text-zinc-400">{item.category || 'Uncategorized'} · {item.isVisible === false ? 'Hidden' : 'Live'}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button type="button" variant="subtle" onClick={() => { onEdit(item); setListOpen(false); }}>EDIT</Button>
-                    <Button type="button" variant="subtle" onClick={() => { onToggleFeatured(item); }}>FEATURE</Button>
-                    <Button type="button" variant="danger" onClick={() => { onDelete(item.id); }}>DELETE</Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Modal>
+      <ProjectListModal open={listOpen} items={filtered} onClose={() => setListOpen(false)} onEdit={onEdit} onToggleFeatured={onToggleFeatured} onDelete={onDelete} onReorderFeatured={onReorderFeatured} />
     </section>
   );
 }
