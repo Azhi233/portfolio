@@ -535,6 +535,7 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
               uploadStage={state.uploadStage}
               uploadStatus={state.uploadStatus}
               uploadTarget="auto"
+              defaultCategory={uploadMeta.category || draft.category || 'Client Deliverables'}
               onUpload={(file, kind, meta) => uploadDeliverable(file, kind, { ...uploadMeta, ...meta, category: meta.category || uploadMeta.category, description: meta.description || uploadMeta.description })}
               onRemove={removePrivateFile}
               onUpdate={(index, item) => {

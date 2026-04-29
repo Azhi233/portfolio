@@ -9,10 +9,10 @@ function getKind(item = {}) {
   return String(item.kind || '').startsWith('video') || /\.(mp4|webm|mov|ogg)(\?|#|$)/i.test(String(item.url || '')) ? 'video' : 'image';
 }
 
-export default function ProjectMediaUploader({ items = [], uploading = false, progress = 0, uploadStage = 'idle', uploadStatus = '', uploadTarget = 'auto', onUpload, onRemove, onUpdate, onMoveUp, onMoveDown, onReorder }) {
+export default function ProjectMediaUploader({ items = [], uploading = false, progress = 0, uploadStage = 'idle', uploadStatus = '', uploadTarget = 'auto', defaultCategory = 'Client Deliverables', onUpload, onRemove, onUpdate, onMoveUp, onMoveDown, onReorder }) {
   const [dragIndex, setDragIndex] = useState(null);
   const [batchFiles, setBatchFiles] = useState([]);
-  const [category, setCategory] = useState('默认分类');
+  const [category, setCategory] = useState(defaultCategory || 'Client Deliverables');
 
   const batchCount = batchFiles.length;
 

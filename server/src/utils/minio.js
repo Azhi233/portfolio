@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import path from 'node:path';
 import { minioClient, minioPresignExpiresSeconds } from './minioClient.js';
 
@@ -28,7 +27,7 @@ function safePathSegment(value = '', fallback = 'untitled') {
   return segment || fallback;
 }
 
-function buildObjectName(fileName = '', isPrivate = false, options = {}) {
+function buildObjectName(fileName = '', options = {}) {
   const sections = Array.isArray(options.sections) ? options.sections : [];
   const normalizedSections = sections.map((segment) => safePathSegment(segment)).filter(Boolean);
   const displayName = String(options.displayName || path.parse(fileName).name || 'file').trim();
@@ -84,7 +83,7 @@ function getPublicBaseUrl(options = {}) {
 export async function uploadFile(fileStream, fileName, isPrivate = false, contentType = 'application/octet-stream', options = {}) {
   ensureClient();
   const bucketName = isPrivate ? PRIVATE_BUCKET : PUBLIC_BUCKET;
-  const objectName = buildObjectName(fileName, isPrivate, options);
+  const objectName = buildObjectName(fileName, options);
   await ensureBucket(bucketName);
   await minioClient.putObject(bucketName, objectName, fileStream, undefined, { 'Content-Type': contentType });
 
