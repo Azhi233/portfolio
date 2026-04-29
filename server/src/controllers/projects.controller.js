@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { createProject, editProject, getProjectById, listProjects, removeProject } from '../services/projects.service.js';
-import { deleteObject, getPresignedUrl } from '../utils/minio.js';
+import { deleteObject } from '../utils/minio.js';
 import { createMediaAsset } from '../services/media.service.js';
 import {
   attachVideoAspectRatio,
@@ -70,14 +70,14 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
       const parsedRef = extractObjectRef(file?.url);
       const objectName = String(file?.objectName || '').trim() || parsedRef?.objectName || '';
       const bucketName = String(file?.bucketName || '').trim() || parsedRef?.bucketName || '';
+      const directUrl = String(file?.url || '').trim();
+      if (!objectName && directUrl) {
+        return { ...file, bucketName, url: directUrl };
+      }
       if (!objectName) return file;
       if (!file?.objectName && objectName) shouldPersist = true;
-      try {
-        const url = await getPresignedUrl(objectName);
-        return { ...file, bucketName, objectName, url };
-      } catch {
-        return { ...file, bucketName, objectName };
-      }
+      const url = bucketName && objectName ? `${process.env.MINIO_PUBLIC_BASE_URL || process.env.PUBLIC_FILE_BASE_URL || ''}`.trim() ? `${String(process.env.MINIO_PUBLIC_BASE_URL || process.env.PUBLIC_FILE_BASE_URL || '').replace(/\/+$/, '')}/${bucketName}/${objectName}` : directUrl : directUrl;
+      return { ...file, bucketName, objectName, url: url || directUrl };
     }));
 
     const hydrated = { ...project, privateFiles };

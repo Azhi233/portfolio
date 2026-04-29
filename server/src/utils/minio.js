@@ -102,8 +102,17 @@ export async function uploadFile(fileStream, fileName, isPrivate = false, conten
     return { url: `${protocol}://${host}/${bucketName}/${objectName}`, objectName, isPrivate: false };
   }
 
-  const url = await minioClient.presignedGetObject(bucketName, objectName, minioPresignExpiresSeconds);
-  return { url, objectName, isPrivate: true };
+  const explicitBaseUrl = getPublicBaseUrl(options);
+  if (explicitBaseUrl) {
+    return { url: `${explicitBaseUrl}/${bucketName}/${objectName}`, objectName, isPrivate: true };
+  }
+
+  const endpoint = process.env.MINIO_ENDPOINT || '';
+  const port = process.env.MINIO_PORT || '9000';
+  const useSSL = String(process.env.MINIO_USE_SSL || '').toLowerCase() === 'true';
+  const protocol = useSSL ? 'https' : 'http';
+  const host = port && !['80', '443'].includes(String(port)) ? `${endpoint}:${port}` : endpoint;
+  return { url: `${protocol}://${host}/${bucketName}/${objectName}`, objectName, isPrivate: true };
 }
 
 export async function deleteObject(bucketName, objectName) {
