@@ -178,6 +178,43 @@ function ProjectFilterPanel({ query, category, typeFilter, onQueryChange, onCate
   );
 }
 
+function FeaturedQueueModal({ open, featuredVideos, onClose, onReorderFeatured }) {
+  return (
+    <Modal open={open} title="Featured Queue" onClose={onClose}>
+      <div className="overflow-hidden border-b border-white/10">
+        <table className="w-full border-collapse text-left">
+          <thead>
+            <tr className="border-b border-white/10 text-[10px] uppercase tracking-[0.24em] text-zinc-500">
+              <th className="w-16 py-3 pr-3 font-normal">#</th>
+              <th className="py-3 pr-4 font-normal">Project</th>
+              <th className="w-28 py-3 pr-3 font-normal">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {featuredVideos.length === 0 ? (
+              <tr>
+                <td colSpan="3" className="py-6 text-sm text-zinc-600">No featured projects yet.</td>
+              </tr>
+            ) : featuredVideos.map((item, index) => (
+              <tr key={item.id} className="border-b border-white/10 text-sm text-white last:border-b-0">
+                <td className="w-14 py-3 pr-3 text-[11px] text-white/60">{String(index + 1).padStart(2, '0')}</td>
+                <td className="py-3 pr-4">
+                  <p className="truncate text-sm font-medium tracking-[0.02em] text-white">{item.title}</p>
+                </td>
+                <td className="w-28 py-3 pr-3">
+                  <button type="button" className="inline-flex items-center justify-center rounded-full p-1.5 text-white transition hover:bg-white/5 hover:opacity-80" aria-label="Drag to reorder">
+                    <span className="text-[10px] tracking-[0.18em] text-zinc-400">DRAG</span>
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Modal>
+  );
+}
+
 function ProjectListModal({ open, items, onClose, onEdit, onToggleFeatured, onDelete, query, category, typeFilter, onQueryChange, onCategoryChange, onTypeFilterChange }) {
   return (
     <Modal open={open} title="Project List" onClose={onClose}>
@@ -225,6 +262,7 @@ function ProjectListModal({ open, items, onClose, onEdit, onToggleFeatured, onDe
 
 export default function ProjectsOverviewSection({ liveCount, featuredVideos, onRefresh, onUpload, query, category, onQueryChange, onCategoryChange, loading, notice, noticeTone, error, deleting, deleteStatus, filtered, onEdit, onToggleFeatured, onDelete, onReorderFeatured }) {
   const [listOpen, setListOpen] = useState(false);
+  const [queueOpen, setQueueOpen] = useState(false);
   const [listQuery, setListQuery] = useState('');
   const [listCategory, setListCategory] = useState('');
   const [listType, setListType] = useState('all');
@@ -242,8 +280,10 @@ export default function ProjectsOverviewSection({ liveCount, featuredVideos, onR
         <Badge tone="success">{liveCount} LIVE</Badge>
         <Button type="button" variant="subtle" onClick={onRefresh}>REFRESH</Button>
         <Button type="button" variant="primary" onClick={onUpload}>UPLOAD</Button>
+        <Button type="button" variant="subtle" onClick={() => setQueueOpen(true)}>OPEN FEATURED QUEUE</Button>
         <Button type="button" variant="subtle" onClick={() => setListOpen(true)}>OPEN PROJECT LIST</Button>
       </div>
+      <FeaturedQueueModal open={queueOpen} featuredVideos={featuredVideos} onClose={() => setQueueOpen(false)} onReorderFeatured={onReorderFeatured} />
       <ProjectListModal
         open={listOpen}
         items={modalItems}
