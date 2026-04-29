@@ -40,6 +40,11 @@ function progressPatch(prev, stage, progress, fileName) {
   };
 }
 
+function createLocalId(prefix = 'deliverable') {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
   const privateProjects = useMemo(() => projects.filter((item) => String(item.visibility || '').toLowerCase() === 'private'), [projects]);
   const [mode, setMode] = useState('new');
@@ -92,7 +97,7 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
       });
       const resolvedKind = kind || (uploadFileObject?.type?.startsWith('video/') ? 'video' : 'image');
       const nextFile = {
-        id: crypto.randomUUID(),
+        id: createLocalId('private-file'),
         title: String(meta.title || uploadFileObject?.name || file.name || '').trim(),
         label: String(meta.title || uploadFileObject?.name || file.name || '').trim(),
         url: result?.url,

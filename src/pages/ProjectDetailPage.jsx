@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
-import { fetchJson } from '../utils/api.js';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { fetchJson, getAccessToken } from '../utils/api.js';
 import { useI18n } from '../context/I18nContext.jsx';
 import Card from '../components/Card.jsx';
 import Button from '../components/Button.jsx';
@@ -21,7 +21,7 @@ function ProjectDetailPage() {
   const [downloadMessage, setDownloadMessage] = useState('');
   const [unlockMessage, setUnlockMessage] = useState('');
 
-  const token = String(location.state?.clientAccessToken || '').trim();
+  const token = String(location.state?.clientAccessToken || getAccessToken() || '').trim();
   const { privateAccessCode, hasPrivateAccess, canViewPrivate } = canAccessPrivateProject(project, token, showAccess);
 
   useEffect(() => {
@@ -56,11 +56,15 @@ function ProjectDetailPage() {
   useEffect(() => {
     if (!project || !hasPrivateAccess) return;
     if (token && token.length > 0) {
-      setAccessCode(privateAccessCode);
-      setShowAccess(true);
-      setUnlockMessage(t('projectDetail.accessGranted', 'Access granted. Private files are now visible.'));
+      navigate(`/client-deliverables/${project.id}`, {
+        replace: true,
+        state: {
+          clientAccessToken: token,
+          clientAccessPassword: location.state?.clientAccessPassword || '',
+        },
+      });
     }
-  }, [hasPrivateAccess, privateAccessCode, project, t, token]);
+  }, [hasPrivateAccess, location.state?.clientAccessPassword, navigate, project, token]);
 
   const { gallery, files } = useMemo(() => getProjectGallery(project, canViewPrivate), [canViewPrivate, project]);
   const { galleryImages, galleryVideos } = useMemo(() => splitGalleryByKind(gallery), [gallery]);
