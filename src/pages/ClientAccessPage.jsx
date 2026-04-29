@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchJson, storeAccessToken } from '../utils/api.js';
 import { useI18n } from '../context/I18nContext.jsx';
@@ -26,8 +26,14 @@ function ClientAccessPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [hint, setHint] = useState('');
+  const [matchedCustomer, setMatchedCustomer] = useState('');
 
   const canUseStored = useMemo(() => Boolean(readStoredPassword()), []);
+
+  useEffect(() => {
+    const stored = readStoredPassword();
+    if (stored) setPassword(stored);
+  }, []);
 
   const unlock = async (nextPassword = password) => {
     const normalizedPassword = normalizePassword(nextPassword);
@@ -40,6 +46,7 @@ function ClientAccessPage() {
     setLoading(true);
     setError('');
     setHint('');
+    setMatchedCustomer('');
 
     try {
       const response = await fetchJson('/client-access/unlock', {
@@ -57,6 +64,7 @@ function ClientAccessPage() {
 
       storePassword(normalizedPassword);
       storeAccessToken(token);
+      setMatchedCustomer(String(matchedProject.customerName || matchedProject.title || '').trim());
       setPassword(normalizedPassword);
       navigate(`/projects/${matchedProject.id}`, {
         state: {
@@ -92,7 +100,8 @@ function ClientAccessPage() {
           <div className="min-h-[26px] text-center">
             {error ? <p className="text-[10px] leading-5 text-rose-600">{error}</p> : null}
             {!error && hint ? <p className="text-[10px] leading-5 text-[#161616]/50">{hint}</p> : null}
-            {!error && !hint && canUseStored ? (
+            {!error && !hint && matchedCustomer ? <p className="text-[10px] leading-5 text-[#161616]/50">{matchedCustomer}</p> : null}
+            {!error && !hint && !matchedCustomer && canUseStored ? (
               <button type="button" onClick={() => unlock(readStoredPassword())} className="mt-1 text-[11px] uppercase tracking-[0.12em] text-[#161616]/28 transition hover:text-[#161616]/45">
                 {t('clientAccess.useStored', 'Use last password')}
               </button>

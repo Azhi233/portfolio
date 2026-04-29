@@ -7,12 +7,12 @@ import MediaPreview from '../../components/MediaPreview.jsx';
 
 function SectionShell({ eyebrow, title, subtitle, children, className = '' }) {
   return (
-    <section className={`border-b border-white/10 py-5 ${className}`.trim()}>
-      <div className="mb-3 flex items-start justify-between gap-4">
+    <section className={`border-b border-white/10 py-4 last:border-b-0 ${className}`.trim()}>
+      <div className="mb-2 flex items-start justify-between gap-3">
         <div>
           <p className="text-[10px] tracking-[0.2em] text-zinc-500">{eyebrow}</p>
           <h3 className="mt-1 text-base tracking-[0.08em] text-white md:text-lg">{title}</h3>
-          {subtitle ? <p className="mt-2 text-sm leading-7 text-zinc-400">{subtitle}</p> : null}
+          {subtitle ? <p className="mt-1 text-sm leading-6 text-zinc-400">{subtitle}</p> : null}
         </div>
       </div>
       {children}
@@ -23,10 +23,7 @@ function SectionShell({ eyebrow, title, subtitle, children, className = '' }) {
 export function ProjectBasicInfoSection({ draft, onUpdateDraft, onRefresh }) {
   return (
     <SectionShell eyebrow="BASIC INFO" title="Project Details" subtitle="基础信息和项目可见内容。">
-      <div className="mb-4 flex justify-end">
-        <Button type="button" variant="subtle" onClick={onRefresh}>REFRESH</Button>
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         <label className="block md:col-span-2">
           <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Title</p>
           <Input value={draft.title} onChange={(event) => onUpdateDraft({ title: event.target.value })} />
@@ -67,6 +64,9 @@ export function ProjectBasicInfoSection({ draft, onUpdateDraft, onRefresh }) {
           <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Role</p>
           <Input value={draft.role || ''} onChange={(event) => onUpdateDraft({ role: event.target.value })} />
         </label>
+      </div>
+      <div className="mt-3 flex justify-end">
+        <Button type="button" variant="subtle" onClick={onRefresh}>REFRESH</Button>
       </div>
     </SectionShell>
   );
