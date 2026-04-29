@@ -66,18 +66,23 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
   async function hydratePrivateFileUrls(project, { persistBackfill = false } = {}) {
     if (!Array.isArray(project?.privateFiles) || project.privateFiles.length === 0) return project;
     let shouldPersist = false;
+    const publicBaseUrl = String(process.env.MINIO_PUBLIC_BASE_URL || process.env.PUBLIC_FILE_BASE_URL || '').trim().replace(/\/+$/, '');
+
     const privateFiles = await Promise.all(project.privateFiles.map(async (file) => {
       const parsedRef = extractObjectRef(file?.url);
       const objectName = String(file?.objectName || '').trim() || parsedRef?.objectName || '';
       const bucketName = String(file?.bucketName || '').trim() || parsedRef?.bucketName || '';
       const directUrl = String(file?.url || '').trim();
-      if (!objectName && directUrl) {
-        return { ...file, bucketName, url: directUrl };
+
+      if (objectName && !file?.objectName) shouldPersist = true;
+      if (bucketName && !file?.bucketName) shouldPersist = true;
+
+      if (!objectName) {
+        return directUrl ? { ...file, bucketName, url: directUrl } : file;
       }
-      if (!objectName) return file;
-      if (!file?.objectName && objectName) shouldPersist = true;
-      const url = bucketName && objectName ? `${process.env.MINIO_PUBLIC_BASE_URL || process.env.PUBLIC_FILE_BASE_URL || ''}`.trim() ? `${String(process.env.MINIO_PUBLIC_BASE_URL || process.env.PUBLIC_FILE_BASE_URL || '').replace(/\/+$/, '')}/${bucketName}/${objectName}` : directUrl : directUrl;
-      return { ...file, bucketName, objectName, url: url || directUrl };
+
+      const url = publicBaseUrl ? `${publicBaseUrl}/${bucketName || 'private-docs'}/${objectName}` : directUrl;
+      return { ...file, bucketName: bucketName || 'private-docs', objectName, url: url || directUrl };
     }));
 
     const hydrated = { ...project, privateFiles };
