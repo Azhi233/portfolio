@@ -181,25 +181,23 @@ function ProjectFilterPanel({ query, category, typeFilter, onQueryChange, onCate
 function ProjectListModal({ open, items, onClose, onEdit, onToggleFeatured, onDelete, query, category, typeFilter, onQueryChange, onCategoryChange, onTypeFilterChange }) {
   return (
     <Modal open={open} title="Project List" onClose={onClose}>
-      <div className="grid gap-4 xl:grid-cols-[300px_1fr]">
-        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-          <ProjectFilterPanel
-            query={query}
-            category={category}
-            typeFilter={typeFilter}
-            onQueryChange={onQueryChange}
-            onCategoryChange={onCategoryChange}
-            onTypeFilterChange={onTypeFilterChange}
-            loading={false}
-            notice=""
-            noticeTone="success"
-            error=""
-            deleting={false}
-            deleteStatus=""
-          />
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-3">
+        <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/25 p-1">
+          {[
+            ['all', '全部'],
+            ['video', '视频'],
+            ['image', '图片'],
+          ].map(([value, label]) => (
+            <button key={value} type="button" onClick={() => onTypeFilterChange(value)} className={`rounded-xl px-3 py-2 text-xs tracking-[0.12em] transition ${typeFilter === value ? 'bg-white text-black' : 'bg-transparent text-zinc-400 hover:bg-white/5 hover:text-white'}`}>
+              {label}
+            </button>
+          ))}
         </div>
-        <div className="overflow-hidden border-b border-white/10">
-          <table className="w-full border-collapse text-left">
+        <input value={query} onChange={(event) => onQueryChange(event.target.value)} className="min-w-[220px] flex-1 border-b border-white/15 bg-transparent px-0 py-3 text-sm text-white outline-none transition placeholder:text-white/40 focus:border-white/40" placeholder="Search title, description, category..." />
+        <input value={category} onChange={(event) => onCategoryChange(event.target.value)} className="min-w-[180px] border-b border-white/15 bg-transparent px-0 py-3 text-sm text-white outline-none transition placeholder:text-white/40 focus:border-white/40" placeholder="all" />
+      </div>
+      <div className="overflow-hidden border-b border-white/10">
+        <table className="w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-white/10 text-[10px] uppercase tracking-[0.24em] text-zinc-500">
               <th className="w-16 py-3 pr-3 font-normal">#</th>
