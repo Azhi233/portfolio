@@ -1,55 +1,42 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { fetchJson, uploadFile } from '../../utils/api.js';
+import { useEffect, useMemo, useState } from 'react';
+import { fetchJson } from '../../utils/api.js';
 import Badge from '../../components/Badge.jsx';
 import Button from '../../components/Button.jsx';
 import Modal from '../../components/Modal.jsx';
-import Input from '../../components/Input.jsx';
 import ConsolePanelShell from './ConsolePanelShell.jsx';
 
-function createDraft(file = {}) {
+const DEFAULT_COPY = `CINEMATIC VISUALS FOR
+INDUSTRY & PRODUCT
+
+A QUIET VISUAL
+PORTFOLIO BUILT AROUND
+LARGE IMAGERY, MINIMAL
+TEXT, AND HIGHLY
+CURATED MOTION`;
+
+function createDraft(source = {}) {
   return {
-    label: file?.label || '',
-    name: file?.name || '',
-    url: file?.url || '',
-    type: file?.type || 'zip',
-    enabled: file?.enabled !== false,
-    sortOrder: file?.sortOrder || 0,
-    customerName: file?.customerName || '',
-    accessPassword: file?.accessPassword || '',
+    homeVideoCaption: source?.homeVideoCaption || '',
   };
 }
 
 export default function PrivateFilesPanel() {
-  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
-  const [listOpen, setListOpen] = useState(false);
-  const [editor, setEditor] = useState({ open: false, project: null, file: null, draft: createDraft() });
-  const [query, setQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [uploadStatus, setUploadStatus] = useState('');
-  const [uploadError, setUploadError] = useState('');
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [selectedUploadFile, setSelectedUploadFile] = useState(null);
-  const [selectedBatchFiles, setSelectedBatchFiles] = useState([]);
-  const [pendingUploads, setPendingUploads] = useState([]);
-  const [renamingBatchFileId, setRenamingBatchFileId] = useState('');
-  const [renameDraft, setRenameDraft] = useState('');
-  const uploadInputRef = useRef(null);
-  const batchUploadInputRef = useRef(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [draft, setDraft] = useState(createDraft());
 
   const load = async () => {
     setLoading(true);
     setError('');
     try {
-      const projects = await fetchJson('/projects');
-      setItems(Array.isArray(projects) ? projects : []);
+      const config = await fetchJson('/config');
+      const homepageVideo = config?.['homepage-video'] || {};
+      setDraft(createDraft(homepageVideo));
     } catch (err) {
-      const message = err?.message || 'Failed to load private files.';
-      setError(/502/.test(message) ? '' : message);
-      setItems([]);
+      setError(err?.message || 'Failed to load homepage video copy.');
     } finally {
       setLoading(false);
     }
@@ -59,560 +46,225 @@ export default function PrivateFilesPanel() {
     load();
   }, []);
 
-  const rows = useMemo(() => items
-    .map((project) => ({
-      id: project.id,
-      title: project.title,
-      category: project.category || project.title || '默认分类',
-      project,
-      files: Array.isArray(project.privateFiles) ? project.privateFiles.filter((file) => file?.enabled !== false) : [],
-    }))
-    .filter((item) => item.files.length > 0), [items]);
-
-  const filteredRows = useMemo(() => {
-    const q = String(query || '').trim().toLowerCase();
-    return rows
-      .map((row) => ({
-        ...row,
-        files: row.files.filter((file) => {
-          const matchesQuery = !q || [row.title, row.category, file.label, file.name, file.url].filter(Boolean).some((value) => String(value).toLowerCase().includes(q));
-          const fileType = String(file?.type || file?.kind || 'other').toLowerCase();
-          const matchesType = typeFilter === 'all' || fileType.startsWith(typeFilter);
-          return matchesQuery && matchesType;
-        }),
-      }))
-      .filter((row) => row.files.length > 0);
-  }, [rows, query, typeFilter]);
-
-  const totalFiles = filteredRows.reduce((sum, item) => sum + item.files.length, 0);
-
-  const resetUploadState = () => {
-    setUploadStatus('');
-    setUploadError('');
-    setUploadProgress(0);
-    setSelectedUploadFile(null);
-    setSelectedBatchFiles([]);
-    setPendingUploads([]);
-    setRenamingBatchFileId('');
-    setRenameDraft('');
-    if (uploadInputRef.current) uploadInputRef.current.value = '';
-    if (batchUploadInputRef.current) batchUploadInputRef.current.value = '';
-  };
-
-  const openEditor = (project, file = null) => {
-    setEditor({ open: true, project, file, draft: createDraft(file || {}) });
-    resetUploadState();
-  };
-
-  const saveFile = async () => {
-    if (!editor.project) return;
+  const save = async () => {
     setSaving(true);
     setError('');
     try {
-      const currentFiles = Array.isArray(editor.project.privateFiles) ? editor.project.privateFiles : [];
-      const nextFiles = editor.file
-        ? currentFiles.map((file) => (file.id === editor.file.id ? { ...file, ...editor.draft } : file))
-        : [...currentFiles, { id: crypto.randomUUID(), ...editor.draft }];
-
-      await fetchJson(`/projects/${editor.project.id}`, {
-        method: 'PUT',
-        data: {
-          ...editor.project,
-          customerName: editor.draft.customerName || editor.project.customerName || '',
-          accessPassword: editor.draft.accessPassword || editor.project.accessPassword || '',
-          privateFiles: nextFiles,
-        },
+      await fetchJson('/config/homepage-video', {
+        method: 'POST',
+        data: { homeVideoCaption: draft.homeVideoCaption || '' },
       });
-
       await load();
-      setEditor({ open: false, project: null, file: null, draft: createDraft() });
+      setEditorOpen(false);
     } catch (err) {
-      setError(err?.message || 'Failed to save private file.');
+      setError(err?.message || 'Failed to save homepage video copy.');
     } finally {
       setSaving(false);
     }
   };
 
-  const uploadSelectedFile = async () => {
-    if (!selectedUploadFile || !editor.project) return;
-    setUploading(true);
-    setUploadError('');
-    setUploadStatus(`Uploading ${selectedUploadFile.name}...`);
-    setUploadProgress(0);
-    try {
-      const uploaded = await uploadFile(selectedUploadFile, 'private', (event) => {
-        if (!event?.total) return;
-        const nextProgress = Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100)));
-        setUploadProgress(nextProgress);
-        setUploadStatus(`Uploading ${selectedUploadFile.name}... ${nextProgress}%`);
-      }, {
-        customerName: editor.draft.customerName || editor.project.customerName || '',
-        accessPassword: editor.draft.accessPassword || editor.project.accessPassword || '',
-        label: editor.draft.label || selectedUploadFile.name,
-        name: editor.draft.name || selectedUploadFile.name,
-      });
+  const styleVariants = [
+    {
+      id: 'cinematic',
+      label: 'Cinematic',
+      text: `CINEMATIC VISUALS FOR
+INDUSTRY & PRODUCT
 
-      const uploadedUrl = uploaded?.url || uploaded?.data?.url || uploaded?.location || '';
-      if (!uploadedUrl) {
-        throw new Error('Upload succeeded but no file URL was returned.');
-      }
+A QUIET VISUAL
+PORTFOLIO BUILT AROUND
+LARGE IMAGERY, MINIMAL
+TEXT, AND HIGHLY
+CURATED MOTION`,
+    },
+    {
+      id: 'minimal',
+      label: 'Minimal',
+      text: 'A restrained moving image statement for modern brands, products, and environments.',
+    },
+    {
+      id: 'editorial',
+      label: 'Editorial',
+      text: 'Built for motion-led storytelling with a calm, premium, editorial tone.',
+    },
+    {
+      id: 'bilingual',
+      label: 'Bilingual',
+      text: `A QUIET VISUAL PORTFOLIO
 
-      setEditor((prev) => ({
-        ...prev,
-        draft: {
-          ...prev.draft,
-          url: uploadedUrl,
-          name: prev.draft.name || selectedUploadFile.name,
-          label: prev.draft.label || selectedUploadFile.name,
-        },
-      }));
-      setUploadStatus('Upload complete. URL filled automatically.');
-      setUploadProgress(100);
-    } catch (err) {
-      setUploadError(err?.message || 'Failed to upload file.');
-      setUploadStatus('');
-      setUploadProgress(0);
-    } finally {
-      setUploading(false);
-    }
+安静、克制、以影像为核心的作品集`,
+    },
+  ];
+
+  const charCount = String(draft.homeVideoCaption || '').trim().length;
+  const lineCount = String(draft.homeVideoCaption || '').split('\n').filter((line) => String(line).trim()).length;
+  const wordCount = String(draft.homeVideoCaption || '').trim().split(/\s+/).filter(Boolean).length;
+
+  const resetToDefault = () => {
+    setDraft({ homeVideoCaption: '' });
+    setEditorOpen(true);
   };
 
-  const addBatchFilesToPending = () => {
-    if (!editor.project || selectedBatchFiles.length === 0) return;
-    const nextItems = selectedBatchFiles.map((file) => ({
-      id: crypto.randomUUID(),
-      file,
-      status: 'pending',
-      progress: 0,
-      url: '',
-      error: '',
-      customName: file.name,
-    }));
-    setPendingUploads((prev) => [...prev, ...nextItems]);
-    setSelectedBatchFiles([]);
-    setUploadStatus(`${selectedBatchFiles.length} file(s) added to the confirmation queue.`);
-    setUploadError('');
-    if (batchUploadInputRef.current) batchUploadInputRef.current.value = '';
+  const applyPreset = (text) => {
+    setDraft({ homeVideoCaption: text });
+    setEditorOpen(true);
   };
 
-  const removeSelectedBatchFile = (target) => {
-    setSelectedBatchFiles((prev) => prev.filter((file) => `${file.name}-${file.size}-${file.lastModified}` !== `${target.name}-${target.size}-${target.lastModified}`));
-  };
-
-  const removePendingUpload = (id) => {
-    setPendingUploads((prev) => prev.filter((item) => item.id !== id));
-    if (renamingBatchFileId === id) {
-      setRenamingBatchFileId('');
-      setRenameDraft('');
-    }
-  };
-
-  const startRenamePendingUpload = (item) => {
-    setRenamingBatchFileId(item.id);
-    setRenameDraft(item.customName || item.file.name || '');
-  };
-
-  const saveSelectedBatchFileName = (target) => {
-    const nextName = String(renameDraft || '').trim();
-    if (!nextName) return;
-    const key = `${target.name}-${target.size}-${target.lastModified}`;
-    setSelectedBatchFiles((prev) => prev.map((item) => (
-      `${item.name}-${item.size}-${item.lastModified}` === key
-        ? { ...item, customName: nextName }
-        : item
-    )));
-    setRenamingBatchFileId('');
-    setRenameDraft('');
-  };
-
-  const saveRenamePendingUpload = (id) => {
-    const nextName = String(renameDraft || '').trim();
-    if (!nextName) return;
-    setPendingUploads((prev) => prev.map((entry) => (entry.id === id ? { ...entry, customName: nextName } : entry)));
-    setRenamingBatchFileId('');
-    setRenameDraft('');
-  };
-
-  const clearAllPendingUploads = () => {
-    setPendingUploads([]);
-    setRenamingBatchFileId('');
-    setRenameDraft('');
-    setUploadStatus('Confirmation queue cleared.');
-  };
-
-  const movePendingUpload = (id, direction) => {
-    setPendingUploads((prev) => {
-      const index = prev.findIndex((item) => item.id === id);
-      if (index < 0) return prev;
-      const nextIndex = index + direction;
-      if (nextIndex < 0 || nextIndex >= prev.length) return prev;
-      const next = [...prev];
-      const [item] = next.splice(index, 1);
-      next.splice(nextIndex, 0, item);
-      return next;
-    });
-  };
-
-  const uploadAllPendingItems = async () => {
-    const queue = pendingUploads.filter((item) => item.status !== 'uploaded');
-    for (const item of queue) {
-      // eslint-disable-next-line no-await-in-loop
-      await uploadPendingItem(item);
-    }
-  };
-
-  const uploadPendingItem = async (item) => {
-    if (!editor.project) return;
-    setPendingUploads((prev) => prev.map((entry) => (entry.id === item.id ? { ...entry, status: 'uploading', error: '', progress: 0 } : entry)));
-    try {
-      const uploaded = await uploadFile(item.file, 'private', (event) => {
-        if (!event?.total) return;
-        const nextProgress = Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100)));
-        setPendingUploads((prev) => prev.map((entry) => (entry.id === item.id ? { ...entry, progress: nextProgress } : entry)));
-      }, {
-        customerName: editor.draft.customerName || editor.project.customerName || '',
-        accessPassword: editor.draft.accessPassword || editor.project.accessPassword || '',
-        label: item.file.name,
-        name: item.file.name,
-      });
-
-      const uploadedUrl = uploaded?.url || uploaded?.data?.url || uploaded?.location || '';
-      if (!uploadedUrl) throw new Error('Upload succeeded but no file URL was returned.');
-
-      setPendingUploads((prev) => prev.map((entry) => (entry.id === item.id ? { ...entry, status: 'uploaded', progress: 100, url: uploadedUrl } : entry)));
-    } catch (err) {
-      setPendingUploads((prev) => prev.map((entry) => (entry.id === item.id ? { ...entry, status: 'error', error: err?.message || 'Failed to upload file.' } : entry)));
-    }
-  };
-
-  const confirmPendingUploads = async () => {
-    if (!editor.project || pendingUploads.length === 0) return;
-    const readyItems = pendingUploads.filter((item) => item.status === 'uploaded' && item.url);
-    if (readyItems.length === 0) return;
-
-    setSaving(true);
-    setError('');
-    try {
-      const currentFiles = Array.isArray(editor.project.privateFiles) ? editor.project.privateFiles : [];
-      const nextFiles = [
-        ...currentFiles,
-        ...readyItems.map((item) => ({
-          id: crypto.randomUUID(),
-          label: item.customName || item.file.name,
-          name: item.customName || item.file.name,
-          url: item.url,
-          type: item.file.type || 'file',
-          enabled: true,
-          sortOrder: currentFiles.length,
-          customerName: editor.draft.customerName || editor.project.customerName || '',
-          accessPassword: editor.draft.accessPassword || editor.project.accessPassword || '',
-        })),
-      ];
-
-      await fetchJson(`/projects/${editor.project.id}`, {
-        method: 'PUT',
-        data: {
-          ...editor.project,
-          customerName: editor.draft.customerName || editor.project.customerName || '',
-          accessPassword: editor.draft.accessPassword || editor.project.accessPassword || '',
-          privateFiles: nextFiles,
-        },
-      });
-
-      await load();
-      setPendingUploads((prev) => prev.filter((item) => !(item.status === 'uploaded' && item.url)));
-      setRenamingBatchFileId('');
-      setRenameDraft('');
-      setUploadStatus(`${readyItems.length} file(s) confirmed and saved.`);
-    } catch (err) {
-      setError(err?.message || 'Failed to confirm batch uploads.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const uploadProgressWidth = `${Math.max(0, Math.min(100, uploadProgress))}%`;
-
-
+  const copyLength = useMemo(() => String(draft.homeVideoCaption || '').trim().length, [draft.homeVideoCaption]);
+  const isCustom = Boolean(String(draft.homeVideoCaption || '').trim());
 
   return (
     <>
-      <ConsolePanelShell eyebrow="DELIVERY" title="Private Files" description="私密交付文件管理。" badge={{ label: 'DELIVERY', tone: 'success' }}>
+      <ConsolePanelShell
+        eyebrow="HOMEPAGE COPY"
+        title="Homepage Video Caption"
+        description="把首页大屏视频左下角文案当成一段品牌文案来管理，而不是一张配置表单。"
+        badge={{ label: 'COPY SYSTEM', tone: 'warning' }}
+      >
         {error ? <p className="mb-3 text-sm text-rose-300">{error}</p> : null}
-        <div className="flex items-center justify-end gap-3 rounded-3xl border border-white/10 bg-black/25 p-4">
-          <Badge tone="success">{filteredRows.length} PROJECT(S) / {totalFiles} FILE(S)</Badge>
-          <Button type="button" variant="subtle" onClick={load}>REFRESH</Button>
-          <Button type="button" variant="primary" onClick={() => setEditor({ open: true, project: null, file: null, draft: createDraft() })}>UPLOAD</Button>
-          <Button type="button" variant="subtle" onClick={() => setListOpen(true)}>OPEN PROJECT LIST</Button>
+
+        <div className="grid gap-4 rounded-3xl border border-white/10 bg-black/25 p-4 md:grid-cols-[1.15fr_0.85fr] md:items-start">
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge tone={isCustom ? 'success' : 'warning'}>{isCustom ? 'ACTIVE COPY' : 'DEFAULT COPY'}</Badge>
+              <span className="text-xs tracking-[0.14em] text-white/45">{charCount ? `${charCount} chars` : 'empty'}</span>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Homepage left-bottom overlay</p>
+              <p className="mt-3 whitespace-pre-line text-sm leading-7 tracking-[0.18em] text-white/80">
+                {draft.homeVideoCaption || DEFAULT_COPY}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2 text-[11px] tracking-[0.14em] text-white/45">
+                <span>LINES {lineCount || '0'}</span>
+                <span>•</span>
+                <span>WORDS {wordCount || '0'}</span>
+                <span>•</span>
+                <span>{charCount ? `${charCount} CHARS` : 'EMPTY'}</span>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              {styleVariants.map((variant) => (
+                <button
+                  key={variant.id}
+                  type="button"
+                  onClick={() => applyPreset(variant.text)}
+                  className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-left transition hover:border-white/20 hover:bg-white/[0.07]"
+                >
+                  <p className="text-[11px] tracking-[0.18em] text-white/45">Preset</p>
+                  <p className="mt-2 text-sm tracking-[0.12em] text-white">{variant.label}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 md:items-end">
+            <Button type="button" variant="subtle" onClick={load} disabled={loading}>
+              REFRESH
+            </Button>
+            <Button type="button" variant="subtle" onClick={() => setPreviewOpen(true)}>
+              PREVIEW
+            </Button>
+            <Button type="button" variant="primary" onClick={() => setEditorOpen(true)}>
+              EDIT COPY
+            </Button>
+            <Button type="button" variant="subtle" onClick={resetToDefault}>
+              RESET TO DEFAULT
+            </Button>
+          </div>
         </div>
       </ConsolePanelShell>
 
-      <Modal open={listOpen} title="Private Files" onClose={() => setListOpen(false)}>
-        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-3">
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            className="min-w-[220px] flex-1 border-b border-white/15 bg-transparent px-0 py-3 text-sm text-white outline-none transition placeholder:text-white/40 focus:border-white/40"
-            placeholder="Search project / label / URL"
-          />
-          <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none">
-            <option value="all">All</option>
-            <option value="video">Video</option>
-            <option value="image">Image</option>
-            <option value="private">Private</option>
-            <option value="zip">Zip</option>
-            <option value="pdf">PDF</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-
-        <div className="grid gap-3">
-          {loading ? <p className="text-sm text-zinc-400">Loading private files...</p> : null}
-          {!loading && filteredRows.length === 0 ? <p className="text-sm text-zinc-500">No private files yet.</p> : null}
-          {filteredRows.map((item) => (
-            <div key={item.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm tracking-[0.08em] text-white">{item.title}</p>
-                  <p className="mt-1 text-sm text-zinc-400">Category · {item.category}</p>
-                  <p className="mt-1 text-sm text-zinc-400">{item.files.length} private files</p>
-                </div>
-                <Button type="button" variant="subtle" onClick={() => openEditor(item.project)}>EDIT</Button>
+      <Modal open={previewOpen} title="Homepage Video Copy Preview" onClose={() => setPreviewOpen(false)}>
+        <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Preview card</p>
+          <div className="mt-4 overflow-hidden rounded-[1.75rem] border border-white/10 bg-gradient-to-br from-white/[0.06] to-black/35 p-5">
+            <div className="flex min-h-[280px] items-end rounded-[1.4rem] border border-white/10 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.12),transparent_45%),linear-gradient(180deg,rgba(255,255,255,0.06),rgba(0,0,0,0.45))] p-4">
+              <div className="max-w-[24rem] rounded-[1.4rem] border border-white/10 bg-black/40 px-4 py-4 shadow-[0_12px_40px_rgba(0,0,0,0.3)] backdrop-blur-[4px]">
+                <p className="text-[10px] uppercase tracking-[0.28em] text-white/45">Left bottom copy</p>
+                <p className="mt-3 whitespace-pre-line text-[11px] leading-6 tracking-[0.24em] text-white/82">
+                  {draft.homeVideoCaption || DEFAULT_COPY}
+                </p>
               </div>
             </div>
-          ))}
+          </div>
+          <div className="mt-6 flex justify-end">
+            <Button type="button" variant="subtle" onClick={() => setPreviewOpen(false)}>
+              CLOSE
+            </Button>
+          </div>
         </div>
       </Modal>
 
-      <Modal open={editor.open} title="Private File Editor" onClose={() => { setEditor({ open: false, project: null, file: null, draft: createDraft() }); resetUploadState(); }}>
+      <Modal open={editorOpen} title="Edit Homepage Video Copy" onClose={() => setEditorOpen(false)}>
         <div className="grid gap-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block">
-              <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Customer Name</p>
-              <Input value={editor.draft.customerName} onChange={(event) => setEditor((prev) => ({ ...prev, draft: { ...prev.draft, customerName: event.target.value } }))} />
-            </label>
-            <label className="block">
-              <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Access Password</p>
-              <Input type="password" value={editor.draft.accessPassword} onChange={(event) => setEditor((prev) => ({ ...prev, draft: { ...prev.draft, accessPassword: event.target.value } }))} />
-            </label>
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] tracking-[0.18em] text-white/45">COPY MODE</p>
+                <p className="mt-1 text-sm tracking-[0.12em] text-white">Homepage video caption</p>
+              </div>
+              <Badge tone={draft.homeVideoCaption ? 'success' : 'warning'}>{draft.homeVideoCaption ? 'CUSTOM' : 'DEFAULT'}</Badge>
+            </div>
+            <p className="mt-3 text-xs leading-5 text-white/55">
+              这段文案会直接渲染到首页视频左下角。建议控制在 3 到 6 行，保持克制、留白和品牌感。
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {styleVariants.map((variant) => (
+              <button
+                key={variant.id}
+                type="button"
+                onClick={() => setDraft({ homeVideoCaption: variant.text })}
+                className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-left transition hover:border-white/20 hover:bg-white/[0.07]"
+              >
+                <p className="text-[11px] tracking-[0.18em] text-white/45">Preset</p>
+                <p className="mt-2 text-sm tracking-[0.12em] text-white">{variant.label}</p>
+                <p className="mt-3 line-clamp-3 whitespace-pre-line text-xs leading-5 text-white/45">
+                  {variant.text}
+                </p>
+              </button>
+            ))}
           </div>
 
           <label className="block">
-            <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Label</p>
-            <Input value={editor.draft.label} onChange={(event) => setEditor((prev) => ({ ...prev, draft: { ...prev.draft, label: event.target.value } }))} />
-          </label>
-          <label className="block">
-            <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Name</p>
-            <Input value={editor.draft.name} onChange={(event) => setEditor((prev) => ({ ...prev, draft: { ...prev.draft, name: event.target.value } }))} />
-          </label>
-          <label className="block">
-            <p className="mb-2 text-xs tracking-[0.12em] text-white/80">URL</p>
-            <Input value={editor.draft.url} onChange={(event) => setEditor((prev) => ({ ...prev, draft: { ...prev.draft, url: event.target.value } }))} />
+            <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Left Bottom Copy</p>
+            <textarea
+              value={draft.homeVideoCaption}
+              onChange={(event) => setDraft((prev) => ({ ...prev, homeVideoCaption: event.target.value }))}
+              rows={10}
+              className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm leading-7 tracking-[0.14em] text-white outline-none transition placeholder:text-white/30 focus:border-white/30"
+              placeholder={DEFAULT_COPY}
+            />
           </label>
 
-          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="inline-flex cursor-pointer items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs tracking-[0.16em] text-zinc-200 transition hover:border-white/20 hover:bg-white/[0.08]">
-                CHOOSE LOCAL FILE
-                <input
-                  ref={uploadInputRef}
-                  type="file"
-                  className="hidden"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0] || null;
-                    setSelectedUploadFile(file);
-                    setUploadError('');
-                    setUploadProgress(0);
-                    setUploadStatus(file ? `Selected ${file.name}` : '');
-                  }}
-                />
-              </label>
-              <Button type="button" variant="primary" disabled={!selectedUploadFile || uploading} onClick={uploadSelectedFile}>
-                {uploading ? 'UPLOADING...' : 'UPLOAD SELECTED FILE'}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+            <p className="text-[11px] tracking-[0.18em] text-white/45">{copyLength ? `${copyLength} characters` : 'No copy yet'}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="subtle" onClick={() => setDraft({ homeVideoCaption: DEFAULT_COPY })}>
+                APPLY DEFAULT
               </Button>
-              {selectedUploadFile ? <span className="text-xs tracking-[0.12em] text-zinc-400">{selectedUploadFile.name}</span> : null}
-            </div>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
-              <div className="h-full rounded-full bg-white transition-[width] duration-150" style={{ width: uploadProgressWidth }} />
-            </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] tracking-[0.14em] text-zinc-500">
-              <span>{uploadStatus || 'Select a local file to upload.'}</span>
-              <span>{uploadProgress}%</span>
-            </div>
-            {uploadError ? <p className="mt-2 text-xs text-rose-300">{uploadError}</p> : null}
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="inline-flex cursor-pointer items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs tracking-[0.16em] text-zinc-200 transition hover:border-white/20 hover:bg-white/[0.08]">
-                CHOOSE MULTIPLE FILES
-                <input
-                  ref={batchUploadInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={(event) => {
-                    const files = Array.from(event.target.files || []);
-                    setSelectedBatchFiles((prev) => {
-                      const existingKeys = new Set(prev.map((file) => `${file.name}-${file.size}-${file.lastModified}`));
-                      const merged = [...prev];
-                      files.forEach((file) => {
-                        const key = `${file.name}-${file.size}-${file.lastModified}`;
-                        if (!existingKeys.has(key)) {
-                          existingKeys.add(key);
-                          merged.push(file);
-                        }
-                      });
-                      return merged;
-                    });
-                    setUploadError('');
-                    setUploadStatus(files.length ? `${files.length} file(s) added to the selection.` : '');
-                  }}
-                />
-              </label>
-              <Button type="button" variant="primary" disabled={selectedBatchFiles.length === 0} onClick={addBatchFilesToPending}>
-                ADD TO CONFIRMATION QUEUE
+              <Button type="button" variant="subtle" onClick={() => setDraft({ homeVideoCaption: '' })}>
+                CLEAR
               </Button>
-              {selectedBatchFiles.length ? <span className="text-xs tracking-[0.12em] text-zinc-400">{selectedBatchFiles.length} file(s)</span> : null}
+              <Button
+                type="button"
+                variant="subtle"
+                onClick={() => setDraft({ homeVideoCaption: String(draft.homeVideoCaption || '').split('\n').slice(0, 6).join('\n') })}
+              >
+                TRIM TO 6 LINES
+              </Button>
             </div>
-            {selectedBatchFiles.length ? (
-              <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[11px] tracking-[0.14em] text-zinc-500">Waiting for confirmation</p>
-                  <Button type="button" variant="subtle" onClick={() => { setSelectedBatchFiles([]); setRenamingBatchFileId(''); setRenameDraft(''); if (batchUploadInputRef.current) batchUploadInputRef.current.value = ''; }}>
-                    CLEAR ALL
-                  </Button>
-                </div>
-                <div className="mt-3 grid gap-2">
-                  {selectedBatchFiles.map((file) => (
-                    <div key={`${file.name}-${file.size}-${file.lastModified}`} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-zinc-200">
-                      {renamingBatchFileId === `${file.name}-${file.size}-${file.lastModified}` ? (
-                        <div className="flex flex-1 items-center gap-2">
-                          <button
-                            type="button"
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-zinc-300 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
-                            onClick={() => removeSelectedBatchFile(file)}
-                            aria-label={`Remove ${file.customName || file.name}`}
-                            title="Remove"
-                          >
-                            🗑
-                          </button>
-                          <Input value={renameDraft} onChange={(event) => setRenameDraft(event.target.value)} />
-                          <Button type="button" variant="primary" onClick={() => saveSelectedBatchFileName(file)}>
-                            SAVE
-                          </Button>
-                          <Button type="button" variant="subtle" onClick={() => { setRenamingBatchFileId(''); setRenameDraft(''); }}>
-                            CANCEL
-                          </Button>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex min-w-0 flex-1 items-center gap-2">
-                            <button
-                              type="button"
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-zinc-300 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
-                              onClick={() => removeSelectedBatchFile(file)}
-                              aria-label={`Remove ${file.customName || file.name}`}
-                              title="Remove"
-                            >
-                              🗑
-                            </button>
-                            <span className="truncate">{file.customName || file.name}</span>
-                          </div>
-                          <button
-                            type="button"
-                            className="text-[11px] tracking-[0.14em] text-zinc-400 transition hover:text-white"
-                            onClick={() => {
-                              setRenamingBatchFileId(`${file.name}-${file.size}-${file.lastModified}`);
-                              setRenameDraft(file.customName || file.name || '');
-                            }}
-                          >
-                            RENAME
-                          </button>
-                        </>
-                      )}
-                      <span className="text-[11px] tracking-[0.12em] text-zinc-500">{Math.round(file.size / 1024)} KB</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {pendingUploads.length ? (
-              <div className="mt-4 grid gap-2">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[11px] tracking-[0.14em] text-zinc-500">Confirmation queue</p>
-                  <div className="flex items-center gap-2">
-                    <Button type="button" variant="subtle" onClick={clearAllPendingUploads}>
-                      CLEAR ALL
-                    </Button>
-                    <Button type="button" variant="subtle" onClick={uploadAllPendingItems} disabled={pendingUploads.length === 0 || pendingUploads.every((item) => item.status === 'uploaded' && item.url)}>
-                      UPLOAD ALL
-                    </Button>
-                    <Button type="button" variant="primary" disabled={saving || pendingUploads.every((item) => item.status !== 'uploaded' || !item.url)} onClick={confirmPendingUploads}>
-                      {saving ? 'SAVING...' : 'CONFIRM UPLOADED FILES'}
-                    </Button>
-                  </div>
-                </div>
-                {pendingUploads.map((item) => (
-                  <div key={item.id} className="rounded-2xl border border-white/10 bg-black/30 p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        {renamingBatchFileId === item.id ? (
-                          <div className="flex items-center gap-2">
-                            <Input value={renameDraft} onChange={(event) => setRenameDraft(event.target.value)} />
-                            <Button type="button" variant="primary" onClick={() => saveRenamePendingUpload(item.id)}>
-                              SAVE
-                            </Button>
-                            <Button type="button" variant="subtle" onClick={() => { setRenamingBatchFileId(''); setRenameDraft(''); }}>
-                              CANCEL
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <p className="truncate text-sm text-white">{item.customName || item.file.name}</p>
-                            <button
-                              type="button"
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-zinc-300 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
-                              onClick={() => removePendingUpload(item.id)}
-                              aria-label={`Remove ${item.customName || item.file.name}`}
-                              title="Remove"
-                            >
-                              🗑
-                            </button>
-                          </div>
-                        )}
-                        <p className="mt-1 text-[11px] tracking-[0.12em] text-zinc-500">{item.status}</p>
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
-                          <div className="h-full rounded-full bg-white transition-[width] duration-150" style={{ width: `${Math.max(0, Math.min(100, item.progress))}%` }} />
-                        </div>
-                        {item.error ? <p className="mt-2 text-xs text-rose-300">{item.error}</p> : null}
-                        {item.url ? <p className="mt-2 truncate text-xs text-emerald-300">{item.url}</p> : null}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button type="button" variant="subtle" onClick={() => movePendingUpload(item.id, -1)} disabled={pendingUploads[0]?.id === item.id}>
-                          UP
-                        </Button>
-                        <Button type="button" variant="subtle" onClick={() => movePendingUpload(item.id, 1)} disabled={pendingUploads[pendingUploads.length - 1]?.id === item.id}>
-                          DOWN
-                        </Button>
-                        <Button type="button" variant="subtle" onClick={() => uploadPendingItem(item)} disabled={item.status === 'uploading'}>
-                          UPLOAD
-                        </Button>
-                        <Button type="button" variant="subtle" onClick={() => startRenamePendingUpload(item)}>
-                          RENAME
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
           </div>
 
           <div className="flex items-center justify-end gap-3">
-            <Button type="button" variant="subtle" onClick={() => { setEditor({ open: false, project: null, file: null, draft: createDraft() }); resetUploadState(); }}>CANCEL</Button>
-            <Button type="button" variant="primary" onClick={saveFile}>{saving ? 'SAVING...' : 'SAVE FILE'}</Button>
+            <Button type="button" variant="subtle" onClick={() => setEditorOpen(false)}>
+              CANCEL
+            </Button>
+            <Button type="button" variant="primary" onClick={save} disabled={saving}>
+              {saving ? 'SAVING...' : 'SAVE COPY'}
+            </Button>
           </div>
         </div>
       </Modal>

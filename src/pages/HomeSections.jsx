@@ -3,20 +3,40 @@ import Button from '../components/Button.jsx';
 import Badge from '../components/Badge.jsx';
 import MediaPreview from '../components/MediaPreview.jsx';
 
-export function HomeHeroSection({ t, homeVideoUrl, homeVideoTitle }) {
+export function HomeHeroSection({ t, homeVideoUrl, homeVideoTitle, homeVideoCaption }) {
+  const captionLines = String(homeVideoCaption || '').trim();
+  const captionPreview = captionLines.split('\n').slice(0, 6).join('\n');
+  const captionWords = captionLines.split(/\s+/).filter(Boolean).length;
+  const fontSizeClass = captionWords > 28 ? 'text-[10px] leading-5 tracking-[0.2em]' : captionWords > 16 ? 'text-[11px] leading-6 tracking-[0.22em]' : 'text-[12px] leading-7 tracking-[0.24em]';
+
   return (
     <section className="space-y-6">
       <p className="text-[11px] tracking-[0.32em] text-zinc-500">{t('home.eyebrow')}</p>
       <h1 className="max-w-4xl font-serif text-5xl leading-[1.02] tracking-[0.08em] text-white md:text-7xl">{t('home.title')}</h1>
       {homeVideoTitle ? <p className="text-[11px] tracking-[0.22em] text-zinc-500">{homeVideoTitle}</p> : null}
-      {homeVideoUrl ? (
-        <video className="mt-2 h-auto w-full max-h-[72vh] object-cover" src={homeVideoUrl} autoPlay loop muted playsInline controls={false} preload="metadata" />
-      ) : (
-        <div className="mt-2 border border-dashed border-white/15 px-6 py-16 text-sm text-zinc-400">
-          No homepage video uploaded yet.
-          <div className="mt-2 text-xs text-zinc-500">Upload one in Console → Config → Homepage Video.</div>
-        </div>
-      )}
+      <div className="relative mt-2 overflow-hidden rounded-[2rem] border border-white/10 bg-black/25">
+        {homeVideoUrl ? (
+          <video className="h-auto w-full max-h-[72vh] object-cover" src={homeVideoUrl} autoPlay loop muted playsInline controls={false} preload="metadata" />
+        ) : (
+          <div className="border border-dashed border-white/15 px-6 py-16 text-sm text-zinc-400">
+            No homepage video uploaded yet.
+            <div className="mt-2 text-xs text-zinc-500">Upload one in Console → Homepage Copy → Homepage Video.</div>
+          </div>
+        )}
+        {captionLines ? (
+          <>
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/55 via-black/20 to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-start p-4 sm:p-6 md:p-8">
+              <div className="max-w-[30rem] rounded-[1.5rem] border border-white/10 bg-black/42 px-4 py-4 shadow-[0_12px_40px_rgba(0,0,0,0.28)] backdrop-blur-[6px] sm:px-5 sm:py-5">
+                <p className="text-[10px] uppercase tracking-[0.32em] text-white/45">Left bottom copy</p>
+                <p className={`mt-3 whitespace-pre-line text-white/88 ${fontSizeClass}`}>
+                  {captionPreview}
+                </p>
+              </div>
+            </div>
+          </>
+        ) : null}
+      </div>
       <p className="max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">{t('home.subtitle')}</p>
       <div className="flex flex-wrap gap-3">
         <Link to="/videos"><Button as="span" variant="primary">{t('home.viewVideos', 'View Videos')}</Button></Link>

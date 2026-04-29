@@ -20,11 +20,12 @@ function Home() {
   const { featuredImages, featuredVideos } = useMemo(() => splitFeaturedByMediaType(items), [items]);
   const homeVideoUrl = config?.homeVideoUrl || featuredVideos[0]?.videoUrl || featuredVideos[0]?.mainVideoUrl || '';
   const homeVideoTitle = config?.homeVideoTitle || featuredVideos[0]?.title || '';
+  const homeVideoCaption = config?.homeVideoCaption || '';
 
   return (
     <main className="min-h-screen bg-[#050507] px-6 pb-20 pt-20 text-zinc-100 md:px-10 md:pt-24">
       <section className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <HomeHeroSection t={t} homeVideoUrl={homeVideoUrl} homeVideoTitle={homeVideoTitle} />
+        <HomeHeroSection t={t} homeVideoUrl={homeVideoUrl} homeVideoTitle={homeVideoTitle} homeVideoCaption={homeVideoCaption} />
         <HomeHighlightsSection highlights={highlights} />
         <HomeFeaturedSection featuredImages={featuredImages} featuredVideos={featuredVideos} />
         <HomeStructureSection locale={t('locale', 'en')} t={t} />
