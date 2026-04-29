@@ -20,6 +20,34 @@ function SectionShell({ eyebrow, title, subtitle, children, className = '' }) {
   );
 }
 
+function PrivateFileRow({ file, index, onUpdate, onRemove }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+      <div className="grid gap-3 md:grid-cols-2">
+        <label className="block">
+          <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Title</p>
+          <Input value={file.title || ''} onChange={(event) => onUpdate(index, { title: event.target.value })} />
+        </label>
+        <label className="block">
+          <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Kind</p>
+          <Input value={file.kind || 'file'} onChange={(event) => onUpdate(index, { kind: event.target.value })} />
+        </label>
+        <label className="block md:col-span-2">
+          <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">URL</p>
+          <Input value={file.url || ''} onChange={(event) => onUpdate(index, { url: event.target.value })} />
+        </label>
+        <label className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-200 md:col-span-2">
+          <input type="checkbox" checked={file.isPrivate !== false} onChange={(event) => onUpdate(index, { isPrivate: event.target.checked })} />
+          <span>Private</span>
+        </label>
+      </div>
+      <div className="mt-4 flex justify-end">
+        <Button type="button" variant="danger" onClick={() => onRemove(index)}>REMOVE</Button>
+      </div>
+    </div>
+  );
+}
+
 export function ProjectBasicInfoSection({ draft, onUpdateDraft, onRefresh }) {
   return (
     <SectionShell eyebrow="BASIC INFO" title="Project Details" subtitle="基础信息和项目可见内容。">
@@ -273,29 +301,7 @@ export function ProjectPrivateFilesSection({ draft, onUpdateDraft }) {
       <div className="mt-4 grid gap-3">
         {files.length === 0 ? <p className="text-sm text-zinc-500">No private files yet.</p> : null}
         {files.map((file, index) => (
-          <div key={`${file.url || 'private-file'}-${index}`} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-            <div className="grid gap-3 md:grid-cols-2">
-              <label className="block">
-                <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Title</p>
-                <Input value={file.title || ''} onChange={(event) => updateFile(index, { title: event.target.value })} />
-              </label>
-              <label className="block">
-                <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">Kind</p>
-                <Input value={file.kind || 'file'} onChange={(event) => updateFile(index, { kind: event.target.value })} />
-              </label>
-              <label className="block md:col-span-2">
-                <p className="mb-2 text-xs tracking-[0.12em] text-zinc-400">URL</p>
-                <Input value={file.url || ''} onChange={(event) => updateFile(index, { url: event.target.value })} />
-              </label>
-              <label className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-200 md:col-span-2">
-                <input type="checkbox" checked={file.isPrivate !== false} onChange={(event) => updateFile(index, { isPrivate: event.target.checked })} />
-                <span>Private</span>
-              </label>
-            </div>
-            <div className="mt-4 flex justify-end">
-              <Button type="button" variant="danger" onClick={() => removeFile(index)}>REMOVE</Button>
-            </div>
-          </div>
+          <PrivateFileRow key={`${file.url || 'private-file'}-${index}`} file={file} index={index} onUpdate={updateFile} onRemove={removeFile} />
         ))}
       </div>
     </SectionShell>

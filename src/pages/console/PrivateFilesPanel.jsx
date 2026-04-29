@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchJson, uploadFile } from '../../utils/api.js';
+import { fetchJson } from '../../utils/api.js';
 import Badge from '../../components/Badge.jsx';
 import Button from '../../components/Button.jsx';
 import Modal from '../../components/Modal.jsx';
 import Input from '../../components/Input.jsx';
-import MediaPicker from '../../components/MediaPicker.jsx';
-import ProjectMediaUploader from '../../components/ProjectMediaUploader.jsx';
 import ConsolePanelShell from './ConsolePanelShell.jsx';
 
 function createDraft(file = {}) {
@@ -28,15 +26,11 @@ export default function PrivateFilesPanel() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [listOpen, setListOpen] = useState(false);
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [draft, setDraft] = useState(createDraft());
+  const [editor, setEditor] = useState({ open: false, project: null, file: null, draft: createDraft() });
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [uploadStatus, setUploadStatus] = useState('');
   const [uploadError, setUploadError] = useState('');
-  const [pageItems, setPageItems] = useState([]);
 
   const load = async () => {
     setLoading(true);
@@ -85,38 +79,33 @@ export default function PrivateFilesPanel() {
   const totalFiles = filteredRows.reduce((sum, item) => sum + item.files.length, 0);
 
   const openEditor = (project, file = null) => {
-    setSelectedProject(project);
-    setSelectedFile(file);
-    setDraft(createDraft(file || {}));
+    setEditor({ open: true, project, file, draft: createDraft(file || {}) });
     setUploadStatus('');
     setUploadError('');
-    setEditorOpen(true);
   };
 
   const saveFile = async () => {
-    if (!selectedProject) return;
+    if (!editor.project) return;
     setSaving(true);
     setError('');
     try {
-      const currentFiles = Array.isArray(selectedProject.privateFiles) ? selectedProject.privateFiles : [];
-      const nextFiles = selectedFile
-        ? currentFiles.map((file) => (file.id === selectedFile.id ? { ...file, ...draft } : file))
-        : [...currentFiles, { id: crypto.randomUUID(), ...draft }];
+      const currentFiles = Array.isArray(editor.project.privateFiles) ? editor.project.privateFiles : [];
+      const nextFiles = editor.file
+        ? currentFiles.map((file) => (file.id === editor.file.id ? { ...file, ...editor.draft } : file))
+        : [...currentFiles, { id: crypto.randomUUID(), ...editor.draft }];
 
-      await fetchJson(`/projects/${selectedProject.id}`, {
+      await fetchJson(`/projects/${editor.project.id}`, {
         method: 'PUT',
         data: {
-          ...selectedProject,
-          customerName: draft.customerName || selectedProject.customerName || '',
-          accessPassword: draft.accessPassword || selectedProject.accessPassword || '',
+          ...editor.project,
+          customerName: editor.draft.customerName || editor.project.customerName || '',
+          accessPassword: editor.draft.accessPassword || editor.project.accessPassword || '',
           privateFiles: nextFiles,
         },
       });
 
       await load();
-      setEditorOpen(false);
-      setSelectedProject(null);
-      setSelectedFile(null);
+      setEditor({ open: false, project: null, file: null, draft: createDraft() });
     } catch (err) {
       setError(err?.message || 'Failed to save private file.');
     } finally {
@@ -124,39 +113,7 @@ export default function PrivateFilesPanel() {
     }
   };
 
-  const addPageItem = (file, kind, meta = {}) => {
-    if (!file) return;
-    const nextItem = {
-      id: crypto.randomUUID(),
-      title: meta.title || file.name || 'private-file',
-      label: meta.title || file.name || 'private-file',
-      name: file.name || meta.title || 'private-file',
-      url: draft.url || file.url || '',
-      kind: kind || 'image',
-      isPrivate: true,
-    };
-    setPageItems((prev) => [...prev, nextItem]);
-  };
 
-  const uploadPrivateFile = async (file) => {
-    if (!file) return;
-    const category = String(selectedProject?.category || selectedProject?.title || '默认分类').trim() || '默认分类';
-    setUploading(true);
-    setUploadError('');
-    setUploadStatus(`Uploading ${file.name}...`);
-    try {
-      const displayName = String(selectedProject?.title || draft.label || draft.name || file.name || 'private-file').trim() || 'private-file';
-      const result = await uploadFile(file, 'private', undefined, { root: 'Private Files', assetSpace: 'Private Files', category, displayName });
-      setDraft((prev) => ({ ...prev, url: result.url || file.name, name: file.name, type: file.type || prev.type }));
-      setUploadStatus(`Uploaded: ${result.url || file.name}`);
-    } catch (err) {
-      const message = err?.message || 'Failed to upload private file.';
-      setUploadError(/502/.test(message) ? '' : message);
-      setError(/502/.test(message) ? '' : message);
-    } finally {
-      setUploading(false);
-    }
-  };
 
   return (
     <>
@@ -165,7 +122,7 @@ export default function PrivateFilesPanel() {
         <div className="flex items-center justify-end gap-3 rounded-3xl border border-white/10 bg-black/25 p-4">
           <Badge tone="success">{filteredRows.length} PROJECT(S) / {totalFiles} FILE(S)</Badge>
           <Button type="button" variant="subtle" onClick={load}>REFRESH</Button>
-          <Button type="button" variant="primary" onClick={() => setListOpen(true)}>UPLOAD</Button>
+          <Button type="button" variant="primary" onClick={() => setEditor({ open: true, project: null, file: null, draft: createDraft() })}>UPLOAD</Button>
           <Button type="button" variant="subtle" onClick={() => setListOpen(true)}>OPEN PROJECT LIST</Button>
         </div>
       </ConsolePanelShell>
@@ -207,68 +164,37 @@ export default function PrivateFilesPanel() {
         </div>
       </Modal>
 
-      <Modal open={editorOpen} title="Private File Editor" onClose={() => { setEditorOpen(false); setSelectedProject(null); setSelectedFile(null); }}>
+      <Modal open={editor.open} title="Private File Editor" onClose={() => setEditor({ open: false, project: null, file: null, draft: createDraft() })}>
         <div className="grid gap-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
               <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Customer Name</p>
-              <Input value={draft.customerName} onChange={(event) => setDraft((prev) => ({ ...prev, customerName: event.target.value }))} />
+              <Input value={editor.draft.customerName} onChange={(event) => setEditor((prev) => ({ ...prev, draft: { ...prev.draft, customerName: event.target.value } }))} />
             </label>
             <label className="block">
               <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Access Password</p>
-              <Input type="password" value={draft.accessPassword} onChange={(event) => setDraft((prev) => ({ ...prev, accessPassword: event.target.value }))} />
+              <Input type="password" value={editor.draft.accessPassword} onChange={(event) => setEditor((prev) => ({ ...prev, draft: { ...prev.draft, accessPassword: event.target.value } }))} />
             </label>
           </div>
 
           <label className="block">
             <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Label</p>
-            <Input value={draft.label} onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))} />
+            <Input value={editor.draft.label} onChange={(event) => setEditor((prev) => ({ ...prev, draft: { ...prev.draft, label: event.target.value } }))} />
           </label>
           <label className="block">
             <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Name</p>
-            <Input value={draft.name} onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))} />
+            <Input value={editor.draft.name} onChange={(event) => setEditor((prev) => ({ ...prev, draft: { ...prev.draft, name: event.target.value } }))} />
           </label>
           <label className="block">
             <p className="mb-2 text-xs tracking-[0.12em] text-white/80">URL</p>
-            <Input value={draft.url} onChange={(event) => setDraft((prev) => ({ ...prev, url: event.target.value }))} />
+            <Input value={editor.draft.url} onChange={(event) => setEditor((prev) => ({ ...prev, draft: { ...prev.draft, url: event.target.value } }))} />
           </label>
 
-          <ProjectMediaUploader
-            items={pageItems}
-            uploading={uploading}
-            progress={0}
-            uploadStage={uploadError ? 'error' : uploading ? 'uploading' : 'idle'}
-            uploadStatus={uploadStatus}
-            uploadTarget="image"
-            onUpload={addPageItem}
-            onRemove={(index) => setPageItems((prev) => prev.filter((_, i) => i !== index))}
-            onUpdate={(index, nextItem) => setPageItems((prev) => prev.map((item, i) => (i === index ? nextItem : item)))}
-            onMoveUp={(index) => setPageItems((prev) => {
-              if (index <= 0) return prev;
-              const next = [...prev];
-              const [moved] = next.splice(index, 1);
-              next.splice(index - 1, 0, moved);
-              return next;
-            })}
-            onMoveDown={(index) => setPageItems((prev) => {
-              if (index >= prev.length - 1) return prev;
-              const next = [...prev];
-              const [moved] = next.splice(index, 1);
-              next.splice(index + 1, 0, moved);
-              return next;
-            })}
-            onReorder={(from, to) => setPageItems((prev) => {
-              const next = [...prev];
-              const [moved] = next.splice(from, 1);
-              next.splice(to, 0, moved);
-              return next;
-            })}
-          />
           {uploadStatus ? <p className="text-xs tracking-[0.12em] text-zinc-400">{uploadStatus}</p> : null}
           {uploadError ? <p className="text-xs text-rose-300">{uploadError}</p> : null}
 
           <div className="flex items-center justify-end gap-3">
-            <Button type="button" variant="subtle" onClick={() => { setEditorOpen(false); setSelectedProject(null); setSelectedFile(null); }}>CANCEL</Button>
+            <Button type="button" variant="subtle" onClick={() => setEditor({ open: false, project: null, file: null, draft: createDraft() })}>CANCEL</Button>
             <Button type="button" variant="primary" onClick={saveFile}>{saving ? 'SAVING...' : 'SAVE FILE'}</Button>
           </div>
         </div>

@@ -48,17 +48,6 @@ export function upsertDraftMedia(draft, patch) {
   return { ...draft, ...patch };
 }
 
-export function applyDraftMediaSync(draft, patch) {
-  return upsertDraftMedia(draft, patch);
-}
-
-export function swapBtsItems(items, from, to) {
-  const next = Array.isArray(items) ? [...items] : [];
-  if (from < 0 || to < 0 || from >= next.length || to >= next.length) return next;
-  const [moved] = next.splice(from, 1);
-  next.splice(to, 0, moved);
-  return next;
-}
 
 export function createNoticePatch(message, tone = 'success') {
   return (prev) => ({ ...prev, notice: message, noticeTone: tone, noticeId: prev.noticeId + 1 });

@@ -7,15 +7,42 @@ import {
   serializeProjectPayload,
   upsertDraftMedia,
   createNoticePatch,
-  swapBtsItems,
   buildUploadedDraft,
-  patchFeaturedProject,
   applyProjectDeletionNotice,
   applyProjectSaveNotice,
   applyProjectUploadNotice,
   applyFeaturedNotice,
   updateProjectListFeatured,
 } from './projectsPanelHelpers.js';
+
+function setUploadStartingState(fileName) {
+  return {
+    uploading: true,
+    uploadProgress: 0,
+    uploadStage: 'preparing',
+    uploadStatus: `Preparing ${fileName}...`,
+    error: '',
+    uploadFailureStage: '',
+    notice: '',
+  };
+}
+
+function setUploadProgressState(prev, stage, progress, fileName, sourceFileName) {
+  return {
+    ...prev,
+    uploadStage: stage,
+    uploadProgress: Math.max(prev.uploadProgress, progress || 0),
+    uploadStatus: stage === 'uploading-source' ? `Uploading source video ${fileName}...` : stage === 'uploading' ? `Uploading ${fileName}...` : stage === 'transcoding' ? `Transcoding ${fileName || sourceFileName}...` : prev.uploadStatus,
+  };
+}
+
+function setUploadStageMessage(prev, stage, fileName, status, message) {
+  return {
+    ...prev,
+    uploadStage: stage,
+    uploadStatus: stage === 'transcoding' ? `Transcoding ${fileName || ''} to MP4...` : stage === 'preparing' ? `Preparing ${fileName || ''}...` : stage === 'writing-back' ? 'Writing uploaded media back to project...' : status === 'completed' ? 'Transcoding complete.' : message || prev.uploadStatus,
+  };
+}
 
 export function useProjectsPanel(filterMode = 'all') {
   const [state, setState] = useState({
@@ -112,7 +139,7 @@ export function useProjectsPanel(filterMode = 'all') {
 
   const uploadAsset = async (file, kind = 'image', meta = {}) => {
     if (!file) return;
-    setState((prev) => ({ ...prev, uploading: true, uploadProgress: 0, uploadStage: 'preparing', uploadStatus: `Preparing ${file.name}...`, error: '', uploadFailureStage: '', notice: '' }));
+    setState((prev) => ({ ...prev, ...setUploadStartingState(file.name) }));
     try {
       const projectCategory = meta.category || state.draft?.category || '默认分类';
       const projectTitle = String(meta.displayName || meta.title || state.draft?.title || file.name || 'project-media').trim() || 'project-media';
@@ -122,17 +149,8 @@ export function useProjectsPanel(filterMode = 'all') {
         displayName: projectTitle,
         root: 'Projects',
         assetSpace: 'Projects',
-        onProgress: ({ stage, progress, fileName }) => setState((prev) => ({
-          ...prev,
-          uploadStage: stage,
-          uploadProgress: Math.max(prev.uploadProgress, progress || 0),
-          uploadStatus: stage === 'uploading-source' ? `Uploading source video ${fileName}...` : stage === 'uploading' ? `Uploading ${fileName}...` : stage === 'transcoding' ? `Transcoding ${fileName || file.name}...` : prev.uploadStatus,
-        })),
-        onStage: ({ stage, status, message, fileName }) => setState((prev) => ({
-          ...prev,
-          uploadStage: stage,
-          uploadStatus: stage === 'transcoding' ? `Transcoding ${fileName || file.name} to MP4...` : stage === 'preparing' ? `Preparing ${fileName || file.name}...` : stage === 'writing-back' ? 'Writing uploaded media back to project...' : status === 'completed' ? 'Transcoding complete.' : message || prev.uploadStatus,
-        })),
+        onProgress: ({ stage, progress, fileName }) => setState((prev) => setUploadProgressState(prev, stage, progress, fileName, file.name)),
+        onStage: ({ stage, status, message, fileName }) => setState((prev) => setUploadStageMessage(prev, stage, fileName, status, message)),
       });
       setState((prev) => ({ ...prev, uploadStage: 'writing-back', uploadStatus: 'Writing uploaded media back to project...' }));
       await new Promise((resolve) => setTimeout(resolve, 180));
@@ -164,14 +182,14 @@ export function useProjectsPanel(filterMode = 'all') {
   const updateBtsMedia = (items) => setState((prev) => ({ ...prev, draft: upsertDraftMedia(prev.draft, { btsMedia: items }) }));
   const addBtsItem = async (file, kind = 'image', meta = {}) => {
     if (!file) return;
-    setState((prev) => ({ ...prev, uploading: true, uploadProgress: 0, uploadStage: 'preparing', uploadStatus: `Preparing ${file.name}...`, error: '', uploadFailureStage: '' }));
+    setState((prev) => ({ ...prev, ...setUploadStartingState(file.name) }));
     try {
       const { result, file: uploadFileObject } = await uploadMediaAsset(file, {
         type: 'public',
         category: meta.category,
         displayName: meta.displayName || meta.title || file.name,
-        onProgress: ({ stage, progress, fileName }) => setState((prev) => ({ ...prev, uploadStage: stage, uploadProgress: Math.max(prev.uploadProgress, progress || 0), uploadStatus: stage === 'uploading-source' ? `Uploading source video ${fileName}...` : stage === 'uploading' ? `Uploading ${fileName}...` : stage === 'transcoding' ? `Transcoding ${fileName || file.name}...` : prev.uploadStatus })),
-        onStage: ({ stage, status, message, fileName }) => setState((prev) => ({ ...prev, uploadStage: stage, uploadStatus: stage === 'transcoding' ? `Transcoding ${fileName || file.name} to MP4...` : stage === 'preparing' ? `Preparing ${fileName || file.name}...` : stage === 'writing-back' ? 'Writing uploaded media back to project...' : status === 'completed' ? 'Transcoding complete.' : message || prev.uploadStatus })),
+        onProgress: ({ stage, progress, fileName }) => setState((prev) => setUploadProgressState(prev, stage, progress, fileName, file.name)),
+        onStage: ({ stage, status, message, fileName }) => setState((prev) => setUploadStageMessage(prev, stage, fileName, status, message)),
       });
       const resolvedKind = meta.kind || kind || (uploadFileObject.type.startsWith('video/') ? 'video' : 'image');
       const nextItem = { id: crypto.randomUUID(), title: String(meta.title || uploadFileObject.name || '').trim(), label: String(meta.title || uploadFileObject.name || '').trim(), url: result?.url, kind: resolvedKind, mediaType: resolvedKind, displayOn: resolvedKind === 'video' ? ['home', 'videos'] : ['home', 'images'] };

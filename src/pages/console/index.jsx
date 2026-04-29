@@ -11,6 +11,8 @@ import { fetchJson, getAccessToken, storeAccessToken } from '../../utils/api.js'
 import { useI18n } from '../../context/I18nContext.jsx';
 import { normalizePassword, readStoredPassword } from '../clientAccessUtils.js';
 
+const panelCardClass = 'rounded-3xl border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_0_40px_rgba(255,255,255,0.03)]';
+
 function ConsoleHome() {
   const { t } = useI18n();
   const [accessStatus, setAccessStatus] = useState('');
@@ -122,18 +124,18 @@ function ConsoleHome() {
         </ConsolePanelShell>
 
         <div key={`sync-${syncTick}`} className="grid gap-6 xl:grid-cols-2">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_0_40px_rgba(255,255,255,0.03)]">
+          <div className={panelCardClass}>
             <ProjectsPanel filterMode="all" />
           </div>
           <div className="grid gap-6">
-            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_0_40px_rgba(255,255,255,0.03)]">
+            <div className={panelCardClass}>
               <HomepageVideoPanel />
             </div>
             <div className="grid gap-6 md:grid-cols-2">
-              <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_0_40px_rgba(255,255,255,0.03)]">
+              <div className={panelCardClass}>
                 <ConfigPanel />
               </div>
-              <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_0_40px_rgba(255,255,255,0.03)]">
+              <div className={panelCardClass}>
                 <AnalyticsPanel />
               </div>
             </div>
@@ -141,10 +143,10 @@ function ConsoleHome() {
         </div>
 
         <div key={`sync-private-${syncTick}`} className="grid gap-6 xl:grid-cols-2">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_0_40px_rgba(255,255,255,0.03)]">
+          <div className={panelCardClass}>
             <PrivateFilesPanel />
           </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_0_40px_rgba(255,255,255,0.03)]">
+          <div className={panelCardClass}>
             <TestimonialsPanel />
           </div>
         </div>
