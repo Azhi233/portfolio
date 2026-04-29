@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Badge from '../../components/Badge.jsx';
 import Button from '../../components/Button.jsx';
 import Modal from '../../components/Modal.jsx';
@@ -133,18 +133,38 @@ function FeaturedQueuePanel({ featuredVideos, onReorderFeatured }) {
   );
 }
 
-function ProjectFilterPanel({ query, category, onQueryChange, onCategoryChange, loading, notice, noticeTone, error, deleting, deleteStatus }) {
+function ProjectFilterPanel({ query, category, typeFilter, onQueryChange, onCategoryChange, onTypeFilterChange, loading, notice, noticeTone, error, deleting, deleteStatus }) {
   return (
     <div className="border-b border-white/10 pb-4">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-[1fr_180px]">
         <label className="block">
           <p className="mb-2 text-[10px] uppercase tracking-[0.24em] text-zinc-500">Search</p>
           <input value={query} onChange={(event) => onQueryChange(event.target.value)} className="w-full border-b border-white/15 bg-transparent px-0 py-3 text-sm text-white outline-none transition placeholder:text-white/40 focus:border-white/40" placeholder="Search title, description, category..." />
         </label>
+        <div className="block">
+          <p className="mb-2 text-[10px] uppercase tracking-[0.24em] text-zinc-500">Type</p>
+          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-black/20 p-1">
+            {[
+              ['all', '全部'],
+              ['video', '视频'],
+              ['image', '图片'],
+            ].map(([value, label]) => (
+              <button key={value} type="button" onClick={() => onTypeFilterChange(value)} className={`rounded-xl px-3 py-2 text-xs tracking-[0.12em] transition ${typeFilter === value ? 'bg-white text-black' : 'bg-transparent text-zinc-400 hover:bg-white/5 hover:text-white'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <label className="block">
           <p className="mb-2 text-[10px] uppercase tracking-[0.24em] text-zinc-500">Category</p>
           <input value={category} onChange={(event) => onCategoryChange(event.target.value)} className="w-full border-b border-white/15 bg-transparent px-0 py-3 text-sm text-white outline-none transition placeholder:text-white/40 focus:border-white/40" placeholder="all" />
         </label>
+        <div className="flex items-end">
+          <p className="text-xs tracking-[0.16em] text-zinc-500">Filter projects by name, category and media type.</p>
+        </div>
       </div>
 
       <div className="mt-4 grid gap-2 text-sm">
@@ -158,11 +178,28 @@ function ProjectFilterPanel({ query, category, onQueryChange, onCategoryChange, 
   );
 }
 
-function ProjectListModal({ open, items, onClose, onEdit, onToggleFeatured, onDelete }) {
+function ProjectListModal({ open, items, onClose, onEdit, onToggleFeatured, onDelete, query, category, typeFilter, onQueryChange, onCategoryChange, onTypeFilterChange }) {
   return (
     <Modal open={open} title="Project List" onClose={onClose}>
-      <div className="overflow-hidden border-b border-white/10">
-        <table className="w-full border-collapse text-left">
+      <div className="grid gap-4 xl:grid-cols-[300px_1fr]">
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+          <ProjectFilterPanel
+            query={query}
+            category={category}
+            typeFilter={typeFilter}
+            onQueryChange={onQueryChange}
+            onCategoryChange={onCategoryChange}
+            onTypeFilterChange={onTypeFilterChange}
+            loading={false}
+            notice=""
+            noticeTone="success"
+            error=""
+            deleting={false}
+            deleteStatus=""
+          />
+        </div>
+        <div className="overflow-hidden border-b border-white/10">
+          <table className="w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-white/10 text-[10px] uppercase tracking-[0.24em] text-zinc-500">
               <th className="w-16 py-3 pr-3 font-normal">#</th>
@@ -190,6 +227,17 @@ function ProjectListModal({ open, items, onClose, onEdit, onToggleFeatured, onDe
 
 export default function ProjectsOverviewSection({ liveCount, featuredVideos, onRefresh, onUpload, query, category, onQueryChange, onCategoryChange, loading, notice, noticeTone, error, deleting, deleteStatus, filtered, onEdit, onToggleFeatured, onDelete, onReorderFeatured }) {
   const [listOpen, setListOpen] = useState(false);
+  const [listQuery, setListQuery] = useState('');
+  const [listCategory, setListCategory] = useState('');
+  const [listType, setListType] = useState('all');
+  const modalItems = useMemo(() => filtered.filter((item) => {
+    const q = String(listQuery || '').trim().toLowerCase();
+    const matchesQuery = !q || [item.title, item.category].filter(Boolean).some((value) => String(value).toLowerCase().includes(q));
+    const kind = String(item.mediaType || item.kind || (item.videoUrl || item.mainVideoUrl ? 'video' : 'image')).toLowerCase();
+    const matchesType = listType === 'all' || kind === listType;
+    const matchesCategory = !String(listCategory || '').trim() || String(item.category || '').toLowerCase().includes(String(listCategory || '').trim().toLowerCase());
+    return matchesQuery && matchesType && matchesCategory;
+  }), [filtered, listQuery, listCategory, listType]);
   return (
     <section className="space-y-6">
       <div className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-end lg:justify-between">
@@ -213,7 +261,20 @@ export default function ProjectsOverviewSection({ liveCount, featuredVideos, onR
       <div className="flex justify-end">
         <Button type="button" variant="subtle" onClick={() => setListOpen(true)}>OPEN PROJECT LIST</Button>
       </div>
-      <ProjectListModal open={listOpen} items={filtered} onClose={() => setListOpen(false)} onEdit={onEdit} onToggleFeatured={onToggleFeatured} onDelete={onDelete} />
+      <ProjectListModal
+        open={listOpen}
+        items={modalItems}
+        onClose={() => setListOpen(false)}
+        onEdit={onEdit}
+        onToggleFeatured={onToggleFeatured}
+        onDelete={onDelete}
+        query={listQuery}
+        category={listCategory}
+        typeFilter={listType}
+        onQueryChange={setListQuery}
+        onCategoryChange={setListCategory}
+        onTypeFilterChange={setListType}
+      />
     </section>
   );
 }
