@@ -177,9 +177,16 @@ export default function HomepageVideoPanel() {
       >
         {state.loading ? <p className="text-sm text-white/75">Loading homepage video...</p> : null}
         {state.error ? <p className="text-sm text-rose-300">{state.error}</p> : null}
-        <div className="space-y-3">
-          <p className="text-xs tracking-[0.16em] text-white/60">{state.draft?.homeVideoTitle || 'No homepage video selected yet.'}</p>
-          <p className="text-sm text-white/75">{state.draft?.homeVideoUrl || 'Upload a looping hero video for the homepage.'}</p>
+        <div className="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 md:grid-cols-[1.2fr_0.8fr] md:items-center">
+          <div className="space-y-2">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-white/55">Current Caption</p>
+            <p className="text-base tracking-[0.08em] text-white">{state.draft?.homeVideoTitle || 'No homepage video selected yet.'}</p>
+            <p className="break-all text-sm text-white/70">{state.draft?.homeVideoUrl || 'Upload a looping hero video for the homepage.'}</p>
+          </div>
+          <div className="flex flex-wrap gap-3 md:justify-end">
+            <Button type="button" variant="subtle" onClick={openEditor}>EDIT TEXT</Button>
+            <Button type="button" variant="danger" onClick={removeHomepageVideo}>DELETE</Button>
+          </div>
         </div>
       </ConsolePanelShell>
 
