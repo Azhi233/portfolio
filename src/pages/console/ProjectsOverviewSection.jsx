@@ -238,27 +238,10 @@ export default function ProjectsOverviewSection({ liveCount, featuredVideos, onR
   }), [filtered, listQuery, listCategory, listType]);
   return (
     <section className="space-y-6">
-      <div className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="max-w-2xl">
-          <p className="text-[10px] uppercase tracking-[0.32em] text-zinc-500">Editorial Projects</p>
-          <h2 className="mt-3 text-3xl font-medium tracking-[0.08em] text-zinc-900 md:text-4xl">Projects</h2>
-          <p className="mt-3 max-w-xl text-sm leading-7 text-zinc-600">这里集中管理项目、精选状态和首页展示顺序。精选项目会出现在首页作品区。</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Badge tone="success">{liveCount} LIVE</Badge>
-          <Button type="button" variant="subtle" onClick={onRefresh}>REFRESH</Button>
-          <Button type="button" variant="primary" onClick={onUpload}>UPLOAD</Button>
-        </div>
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-        <FeaturedQueuePanel featuredVideos={featuredVideos} onReorderFeatured={onReorderFeatured} />
-        <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-500">
-          Project filtering is available in the Project List modal.
-        </div>
-      </div>
-
-      <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-3">
+        <Badge tone="success">{liveCount} LIVE</Badge>
+        <Button type="button" variant="subtle" onClick={onRefresh}>REFRESH</Button>
+        <Button type="button" variant="primary" onClick={onUpload}>UPLOAD</Button>
         <Button type="button" variant="subtle" onClick={() => setListOpen(true)}>OPEN PROJECT LIST</Button>
       </div>
       <ProjectListModal
