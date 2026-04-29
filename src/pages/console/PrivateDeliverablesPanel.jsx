@@ -304,7 +304,7 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
       const { result, file: uploadFileObject } = await uploadMediaAsset(file, {
         type: 'private',
         root: 'Private Files',
-        assetSpace: categoryFolder,
+        assetSpace: clientFolder,
         category: categoryFolder,
         displayName: mergedMeta.title || file.name,
         onProgress: ({ stage, progress, fileName }) => setState((prev) => progressPatch(prev, stage, progress, fileName || file.name)),
@@ -453,7 +453,7 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {privateProjects.length === 0 ? <p className="rounded-3xl border border-white/10 bg-black/20 p-5 text-sm text-zinc-500">暂无私密项目，请先新建。</p> : null}
                 {privateProjects.map((project) => (
-                  <button key={project.id} type="button" onClick={() => setSelectedProject(makePrivateDraft(cloneDraft(project)))} className="rounded-3xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-200/40 hover:bg-white/[0.04]">
+                  <button key={project.id} type="button" onClick={() => openManagerProject(project)} className="rounded-3xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-200/40 hover:bg-white/[0.04]">
                     <p className="text-[10px] uppercase tracking-[0.24em] text-violet-200/60">{project.category || 'Client Deliverables'}</p>
                     <h3 className="mt-2 text-lg tracking-[0.08em] text-white">{project.title}</h3>
                     <p className="mt-2 text-sm text-zinc-500">{project.clientAgency || 'Private client'}</p>
@@ -470,8 +470,8 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
                   <p className="mt-2 text-xs text-zinc-600">{selectedProject.privateFiles?.length || 0} private files</p>
                 </div>
                 <div className="md:col-span-2 flex flex-wrap items-start justify-end gap-2">
-                  <Button type="button" variant="subtle" onClick={() => setSelectedProject(null)}>切换项目</Button>
-                  <Button type="button" variant="primary" onClick={() => { setDraft(selectedProject); setUploadMeta((prev) => ({ ...prev, category: selectedProject.category || prev.category || 'Client Deliverables' })); }}>加载到编辑区</Button>
+                  <Button type="button" variant="subtle" onClick={() => { setSelectedProject(null); setDraft(makePrivateDraft()); }}>切换项目</Button>
+                  <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-xs text-emerald-100">已加载到上传区</span>
                 </div>
               </div>
             )}
