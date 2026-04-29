@@ -181,6 +181,10 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
 
       const normalizedRest = {
         ...rest,
+        btsMedia: parseJsonField(rest.btsMedia, existingProject.btsMedia || []),
+        privateFiles: parseJsonField(rest.privateFiles, existingProject.privateFiles || []),
+        outlineTags: parseJsonField(rest.outlineTags, existingProject.outlineTags || []),
+        displayOn: parseDisplayOn(rest.displayOn || rest.display_on),
         isFeatured: rest.isFeatured === 'true' || rest.isFeatured === true,
         isVisible: rest.isVisible === 'false' || rest.isVisible === false ? false : rest.isVisible,
       };
@@ -210,7 +214,7 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
         thumbnailUrl: String(normalizedRest.thumbnailUrl || payload.coverUrl || '').trim() || payload.coverUrl,
         kind: normalizeKind(normalizedRest),
         mediaType: normalizeMediaType(normalizedRest),
-        displayOn: parseDisplayOn(normalizedRest.displayOn || normalizedRest.display_on),
+        displayOn: normalizedRest.displayOn,
         featuredOrder: normalizedRest.isFeatured ? normalizedRest.featuredOrder : null,
       });
 
