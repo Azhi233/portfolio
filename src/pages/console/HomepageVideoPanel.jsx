@@ -47,7 +47,7 @@ function StepDot({ state }) {
 }
 
 export default function HomepageVideoPanel() {
-  const [state, setState] = useState({ loading: true, saving: false, uploading: false, error: '', draft: createDraft(), isOpen: false, uploadStage: 'idle', uploadProgress: 0, uploadStatus: '', uploadFailureStage: '' });
+  const [state, setState] = useState({ loading: true, saving: false, uploading: false, error: '', draft: createDraft(), isOpen: false, isTextEditorOpen: false, uploadStage: 'idle', uploadProgress: 0, uploadStatus: '', uploadFailureStage: '' });
 
   const load = async () => {
     setState((prev) => ({ ...prev, loading: true, error: '' }));
@@ -140,7 +140,7 @@ export default function HomepageVideoPanel() {
   };
 
   const openEditor = () => {
-    setState((prev) => ({ ...prev, isOpen: true, uploadStage: 'idle', uploadProgress: 0, uploadStatus: '', uploadFailureStage: '' }));
+    setState((prev) => ({ ...prev, isTextEditorOpen: true, uploadStage: 'idle', uploadProgress: 0, uploadStatus: '', uploadFailureStage: '' }));
   };
 
   const clear = () => {
@@ -190,6 +190,23 @@ export default function HomepageVideoPanel() {
         </div>
       </ConsolePanelShell>
 
+      <Modal open={state.isTextEditorOpen} title="Edit Homepage Text" onClose={() => setState((prev) => ({ ...prev, isTextEditorOpen: false }))}>
+        <div className="grid gap-4">
+          <label className="block">
+            <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Homepage Video Caption</p>
+            <Input value={state.draft?.homeVideoTitle || ''} onChange={(event) => updateDraft('homeVideoTitle', event.target.value)} placeholder="左下角文案" />
+          </label>
+          <label className="block">
+            <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Homepage Video URL</p>
+            <Input value={state.draft?.homeVideoUrl || ''} onChange={(event) => updateDraft('homeVideoUrl', event.target.value)} />
+          </label>
+        </div>
+        <div className="mt-6 flex items-center justify-end gap-3">
+          <Button type="button" variant="subtle" onClick={() => setState((prev) => ({ ...prev, isTextEditorOpen: false }))}>CANCEL</Button>
+          <Button type="button" variant="primary" onClick={save}>{state.saving ? 'SAVING...' : 'SAVE'}</Button>
+        </div>
+      </Modal>
+
       <Modal open={state.isOpen} title="Homepage Video" onClose={() => setState((prev) => ({ ...prev, isOpen: false }))}>
         <div className="grid gap-5">
           <MediaPicker label="Upload Homepage Video" accept="video/*" onPick={uploadHomeVideo} value={state.draft?.homeVideoUrl} uploading={state.uploading} helperText="Upload the homepage hero video here." />
@@ -218,21 +235,11 @@ export default function HomepageVideoPanel() {
             </div>
             <div className="mt-4 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/75">{state.uploadStatus || '等待上传...'}</div>
           </div>
-
-          <label className="block">
-            <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Homepage Video Caption</p>
-            <Input value={state.draft?.homeVideoTitle || ''} onChange={(event) => updateDraft('homeVideoTitle', event.target.value)} placeholder="左下角文案" />
-          </label>
-          <label className="block">
-            <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Homepage Video URL</p>
-            <Input value={state.draft?.homeVideoUrl || ''} onChange={(event) => updateDraft('homeVideoUrl', event.target.value)} />
-          </label>
         </div>
 
         <div className="mt-6 flex items-center justify-end gap-3">
           <Button type="button" variant="subtle" onClick={() => { resetUploadState(); setState((prev) => ({ ...prev, isOpen: false })); }}>CANCEL</Button>
           <Button type="button" variant="subtle" onClick={() => { clear(); }}>CLEAR</Button>
-          <Button type="button" variant="primary" onClick={save}>{state.saving ? 'SAVING...' : 'SAVE'}</Button>
         </div>
       </Modal>
     </>
