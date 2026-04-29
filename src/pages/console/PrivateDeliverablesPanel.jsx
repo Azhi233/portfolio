@@ -227,16 +227,9 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
     setModalMode('workspace');
   };
 
-  const openProjectUpload = (project) => {
-    const normalized = makePrivateDraft(cloneDraft(project));
-    setDraft(normalized);
-    setUploadMeta((prev) => ({ ...prev, category: normalized.category || prev.category || 'Client Deliverables' }));
-    setProjectDirty(false);
-    setModalMode('workspace');
-  };
-
   const openManagerProject = (project) => {
     const normalized = makePrivateDraft(cloneDraft(project));
+    setSelectedProject(normalized);
     setDraft(normalized);
     setUploadMeta((prev) => ({ ...prev, category: normalized.category || prev.category || 'Client Deliverables' }));
     setProjectDirty(false);
@@ -281,7 +274,8 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
     try {
       const saved = await saveDraft();
       setState((prev) => ({ ...prev, saving: false, notice: '私密交付项目已保存。' }));
-      setModalMode('upload');
+      setSelectedProject(saved);
+      setModalMode('workspace');
       return saved;
     } catch (error) {
       setState((prev) => ({ ...prev, saving: false, error: error.message || '保存失败。' }));
@@ -441,36 +435,49 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
         </div>
       </div>
 
-      <Modal open={modalMode === 'existing'} title="选择已有私密项目" onClose={closeAllModals}>
-        <div className="grid gap-4">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-zinc-400">选择一个已有项目后进入上传弹窗。</p>
-            <Button type="button" variant="subtle" onClick={() => loadPrivateProjects().catch(() => {})}>刷新列表</Button>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {privateProjects.length === 0 ? <p className="rounded-3xl border border-white/10 bg-black/20 p-5 text-sm text-zinc-500">暂无私密项目，请先新建。</p> : null}
-            {privateProjects.map((project) => (
-              <button key={project.id} type="button" onClick={() => { openProjectUpload(project); setModalMode('upload'); }} className="rounded-3xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-200/40 hover:bg-white/[0.04]">
-                <p className="text-[10px] uppercase tracking-[0.24em] text-violet-200/60">{project.category || 'Client Deliverables'}</p>
-                <h3 className="mt-2 text-lg tracking-[0.08em] text-white">{project.title}</h3>
-                <p className="mt-2 text-sm text-zinc-500">{project.clientAgency || 'Private client'}</p>
-                <p className="mt-3 text-xs text-zinc-600">{Array.isArray(project.privateFiles) ? project.privateFiles.length : 0} files</p>
-              </button>
-            ))}
-          </div>
-        </div>
-      </Modal>
-
-      <Modal open={uploadModalOpen} title={modalMode === 'new' ? '新建私密交付项目' : '上传私密交付文件'} onClose={closeAllModals}>
+      <Modal open={uploadModalOpen} title="Private Deliverables Workspace" onClose={closeAllModals}>
         <div className="grid gap-5">
-          {selectedProject ? <p className="text-xs uppercase tracking-[0.18em] text-violet-200/60">Selected project · {selectedProject.title}</p> : null}
-          <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-            <div className="mb-4 flex items-center justify-between gap-3">
+          <section className="grid gap-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[10px] uppercase tracking-[0.26em] text-zinc-500">Project Level</p>
-                <h3 className="mt-1 text-lg tracking-[0.08em] text-white">项目设置</h3>
+                <p className="text-[10px] uppercase tracking-[0.26em] text-zinc-500">Workspace</p>
+                <h3 className="mt-1 text-lg tracking-[0.08em] text-white">{selectedProject ? 'Selected Project' : 'Create or Pick a Project'}</h3>
               </div>
               {draft.id ? <a className="text-xs uppercase tracking-[0.18em] text-violet-100/70 hover:text-white" href={`/client-deliverables/${draft.id}`} target="_blank" rel="noreferrer">打开交付页</a> : null}
+            </div>
+
+            {!selectedProject ? (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {privateProjects.length === 0 ? <p className="rounded-3xl border border-white/10 bg-black/20 p-5 text-sm text-zinc-500">暂无私密项目，请先新建。</p> : null}
+                {privateProjects.map((project) => (
+                  <button key={project.id} type="button" onClick={() => setSelectedProject(makePrivateDraft(cloneDraft(project)))} className="rounded-3xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-200/40 hover:bg-white/[0.04]">
+                    <p className="text-[10px] uppercase tracking-[0.24em] text-violet-200/60">{project.category || 'Client Deliverables'}</p>
+                    <h3 className="mt-2 text-lg tracking-[0.08em] text-white">{project.title}</h3>
+                    <p className="mt-2 text-sm text-zinc-500">{project.clientAgency || 'Private client'}</p>
+                    <p className="mt-3 text-xs text-zinc-600">{Array.isArray(project.privateFiles) ? project.privateFiles.length : 0} files</p>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-3 rounded-3xl border border-white/10 bg-black/20 p-4 md:grid-cols-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-zinc-500">Current</p>
+                  <h4 className="mt-2 text-xl tracking-[0.08em] text-white">{selectedProject.title}</h4>
+                  <p className="mt-2 text-sm text-zinc-400">{selectedProject.clientAgency || 'Private client'}</p>
+                  <p className="mt-2 text-xs text-zinc-600">{selectedProject.privateFiles?.length || 0} private files</p>
+                </div>
+                <div className="md:col-span-2 flex flex-wrap items-start justify-end gap-2">
+                  <Button type="button" variant="subtle" onClick={() => setSelectedProject(null)}>切换项目</Button>
+                  <Button type="button" variant="primary" onClick={() => { setDraft(selectedProject); setUploadMeta((prev) => ({ ...prev, category: selectedProject.category || prev.category || 'Client Deliverables' })); }}>加载到编辑区</Button>
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="mb-4">
+              <p className="text-[10px] uppercase tracking-[0.26em] text-zinc-500">Project Level</p>
+              <h3 className="mt-1 text-lg tracking-[0.08em] text-white">项目设置</h3>
             </div>
             <ProjectFields draft={draft} setDraft={(updater) => {
               setProjectDirty(true);
@@ -480,6 +487,7 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
               <Button type="button" variant="primary" onClick={handleSave} disabled={state.saving}>{state.saving ? 'SAVING...' : '保存项目'}</Button>
               {state.error ? <span className="text-sm text-rose-200">{state.error}</span> : null}
               {state.notice ? <span className="text-sm text-emerald-200">{state.notice}</span> : null}
+              {projectDirty ? <span className="text-xs text-amber-200">项目已修改，上传前会自动保存。</span> : null}
             </div>
           </section>
 
@@ -487,7 +495,7 @@ export default function PrivateDeliverablesPanel({ projects = [], onRefresh }) {
             <div className="mb-4">
               <p className="text-[10px] uppercase tracking-[0.26em] text-zinc-500">Upload Metadata</p>
               <h3 className="mt-1 text-lg tracking-[0.08em] text-white">上传信息</h3>
-              <p className="mt-1 text-sm text-zinc-500">这里设置将写入单个/批量上传文件的名称、分类和介绍；批量里单个文件标题会优先使用列表内标题。</p>
+              <p className="mt-1 text-sm text-zinc-500">这里设置将写入单个/批量上传文件的名称、分类和介绍。</p>
             </div>
             <div className="grid gap-3 md:grid-cols-3">
               <label className="block">
