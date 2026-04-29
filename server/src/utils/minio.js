@@ -88,23 +88,9 @@ export async function uploadFile(fileStream, fileName, isPrivate = false, conten
   await ensureBucket(bucketName);
   await minioClient.putObject(bucketName, objectName, fileStream, undefined, { 'Content-Type': contentType });
 
-  if (!isPrivate) {
-    const explicitBaseUrl = getPublicBaseUrl(options);
-    if (explicitBaseUrl) {
-      return { url: `${explicitBaseUrl}/${bucketName}/${objectName}`, objectName, isPrivate: false };
-    }
-
-    const endpoint = process.env.MINIO_ENDPOINT || '';
-    const port = process.env.MINIO_PORT || '9000';
-    const useSSL = String(process.env.MINIO_USE_SSL || '').toLowerCase() === 'true';
-    const protocol = useSSL ? 'https' : 'http';
-    const host = port && !['80', '443'].includes(String(port)) ? `${endpoint}:${port}` : endpoint;
-    return { url: `${protocol}://${host}/${bucketName}/${objectName}`, objectName, isPrivate: false };
-  }
-
   const explicitBaseUrl = getPublicBaseUrl(options);
   if (explicitBaseUrl) {
-    return { url: `${explicitBaseUrl}/${bucketName}/${objectName}`, objectName, isPrivate: true };
+    return { url: `${explicitBaseUrl}/${bucketName}/${objectName}`, objectName, isPrivate };
   }
 
   const endpoint = process.env.MINIO_ENDPOINT || '';
@@ -112,7 +98,7 @@ export async function uploadFile(fileStream, fileName, isPrivate = false, conten
   const useSSL = String(process.env.MINIO_USE_SSL || '').toLowerCase() === 'true';
   const protocol = useSSL ? 'https' : 'http';
   const host = port && !['80', '443'].includes(String(port)) ? `${endpoint}:${port}` : endpoint;
-  return { url: `${protocol}://${host}/${bucketName}/${objectName}`, objectName, isPrivate: true };
+  return { url: `${protocol}://${host}/${bucketName}/${objectName}`, objectName, isPrivate };
 }
 
 export async function deleteObject(bucketName, objectName) {
