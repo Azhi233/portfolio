@@ -12,7 +12,7 @@ function AboutContact() {
             {[
               ['Email', 'moses233@qq.com'],
               ['WeChat', 'zhiazhia233'],
-              ['Resume', 'PDF available'],
+              ['Phone', '+86 19314345676'],
             ].map(([label, value]) => (
               <div key={label} className="text-[15px] text-[#141414]/62">
                 <p className="text-[10px] uppercase tracking-[0.24em] text-[#8f6f52]">{label}</p>

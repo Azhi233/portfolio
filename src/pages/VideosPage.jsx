@@ -30,7 +30,7 @@ export default function VideosPage() {
           <div className="mt-5 grid gap-6 lg:grid-cols-[1.08fr_0.92fr] lg:items-end">
             <div>
               <h1 className="max-w-xl text-[2.85rem] font-light leading-[0.94] tracking-[0.1em] text-[#a97a4c] md:text-[4.65rem]">{t('videos.title', 'Video')}</h1>
-              <p className="mt-5 max-w-lg text-sm leading-8 text-[#7a6b5b]">A calm, editorial video archive inspired by Peter Belanger’s layout rhythm.</p>
+              <p className="mt-5 max-w-lg text-sm leading-8 text-[#7a6b5b]">不同风格的视频作品展示</p>
             </div>
             <div className="lg:justify-self-end">
               <p className="text-[10px] uppercase tracking-[0.42em] text-[#b08c62]">{items.length} works</p>

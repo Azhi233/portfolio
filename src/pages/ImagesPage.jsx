@@ -105,7 +105,7 @@ function ImagesPage() {
             <p className="text-[10px] uppercase tracking-[0.42em] text-[#8f7a66]">Selected Images</p>
             <h1 className="mt-4 text-5xl font-light tracking-[0.04em] text-[#6f5947] md:text-7xl">{t('images.title', 'Images')}</h1>
             <p className="mt-5 max-w-2xl text-sm leading-7 text-[#6e6158] md:text-base">
-              {t('images.subtitle', 'A quiet public wall of curated still images.')}
+              {t('images.subtitle', '不同类型的图片作品展示')}
             </p>
           </div>
           <div className="flex items-center gap-5 text-[10px] uppercase tracking-[0.3em] text-[#8f7a66]">
