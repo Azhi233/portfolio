@@ -157,19 +157,6 @@ function VideoDetailPage() {
 
         <div className="mt-10 space-y-8 md:mt-12 md:space-y-10">
           <DetailHero video={activeVideo} ratio={ratio} onDetectRatio={detectRatio} />
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <MetaCard label="Poster" value={activeVideo.poster || '—'} />
-            <MetaCard label="Video URL" value={activeVideo.videoUrl || '—'} />
-            <MetaCard label="Aspect Ratio" value={activeVideo.aspectRatio || 'video'} />
-          </div>
-
-          <div className="rounded-[2rem] border border-[#d8c9b3]/55 bg-white/75 p-6 shadow-[0_18px_55px_rgba(148,120,82,0.08)] backdrop-blur-sm">
-            <p className="text-[11px] uppercase tracking-[0.28em] text-[#b58e62]">Notes</p>
-            <p className="mt-4 text-sm leading-7 text-[#75685b]">
-              The detail view now follows the same editorial language as the new video archive: calmer spacing, softer surfaces, and a media-first focus.
-            </p>
-          </div>
         </div>
       </section>
     </main>

@@ -2,10 +2,20 @@ function pickFirstString(...values) {
   return String(values.find((value) => String(value || '').trim()) || '').trim();
 }
 
+function maybeResolveLocalAsset(url) {
+  const value = String(url || '').trim();
+  if (!value) return '';
+  if (/^(?:[a-z]+:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) return value;
+  if (value.startsWith('/api/')) return value;
+  if (value.startsWith('/private-docs/') || value.startsWith('/public-assets/')) return value;
+  if (value.startsWith('/')) return value;
+  return value;
+}
+
 export function normalizeImageItem(item, index) {
   if (!item) return null;
 
-  const url = pickFirstString(
+  const url = maybeResolveLocalAsset(pickFirstString(
     item.coverUrl,
     item.cover_url,
     item.coverAssetUrl,
@@ -17,7 +27,7 @@ export function normalizeImageItem(item, index) {
     item.imageUrl,
     item.image_url,
     item.url,
-  );
+  ));
   if (!url) return null;
 
   return {

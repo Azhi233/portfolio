@@ -35,16 +35,26 @@ function pickFirstString(...values) {
   return String(values.find((value) => String(value || '').trim()) || '').trim();
 }
 
+function maybeResolveLocalAsset(url) {
+  const value = String(url || '').trim();
+  if (!value) return '';
+  if (/^(?:[a-z]+:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) return value;
+  if (value.startsWith('/api/')) return value;
+  if (value.startsWith('/private-docs/') || value.startsWith('/public-assets/')) return value;
+  if (value.startsWith('/')) return value;
+  return value;
+}
+
 export function normalizeVideoItem(item, index = 0) {
-  const videoUrl = pickFirstString(
+  const videoUrl = maybeResolveLocalAsset(pickFirstString(
     item?.videoUrl,
     item?.video_url,
     item?.mainVideoUrl,
     item?.main_video_url,
     item?.url,
     item?.src,
-  );
-  const coverUrl = pickFirstString(
+  ));
+  const coverUrl = maybeResolveLocalAsset(pickFirstString(
     item?.coverUrl,
     item?.cover_url,
     item?.coverAssetUrl,
@@ -55,7 +65,7 @@ export function normalizeVideoItem(item, index = 0) {
     item?.poster_url,
     item?.previewUrl,
     item?.preview_url,
-  );
+  ));
   const fallbackTitle = `Video ${String(index + 1).padStart(2, '0')}`;
 
   return {
