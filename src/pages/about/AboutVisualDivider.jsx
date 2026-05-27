@@ -9,9 +9,7 @@ function AboutVisualDivider() {
               克制、准确、干净。
             </h2>
           </div>
-          <p className="max-w-xl text-[15px] leading-8 text-[#141414]/55 md:text-[16px] md:leading-9">
-            页面尽量减少装饰和多余信息，把空间、字体和层级留给作品与内容本身。
-          </p>
+
         </div>
       </div>
     </section>
