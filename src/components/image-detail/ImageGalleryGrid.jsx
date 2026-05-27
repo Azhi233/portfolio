@@ -1,6 +1,9 @@
 import Card from '../Card.jsx';
+import { resolveResourceUrl } from '../../utils/api.js';
 
 function ImageTile({ item, index, onSelect, label }) {
+  const resolvedSrc = resolveResourceUrl(item.url);
+
   return (
     <button
       type="button"
@@ -8,7 +11,7 @@ function ImageTile({ item, index, onSelect, label }) {
       className="overflow-hidden rounded-2xl border border-white/10 bg-black/20 text-left transition hover:border-white/20 hover:bg-white/5"
     >
       <div className="aspect-[4/3] bg-black/40">
-        <img src={item.url} alt={item.title || item.label || `Image ${index + 1}`} className="h-full w-full object-cover" />
+        <img src={resolvedSrc} alt={item.title || item.label || `Image ${index + 1}`} className="h-full w-full object-cover" />
       </div>
       <div className="p-3">
         <p className="text-sm text-zinc-200">{item.title || item.label || `${label} ${index + 1}`}</p>

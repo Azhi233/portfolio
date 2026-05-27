@@ -59,7 +59,7 @@ function ImageDetailPage() {
       const mappedMedia = mediaItems
         .map((media, index) => {
           if (!media) return null;
-          const url = String(media.url || media.coverUrl || media.thumbnailUrl || '').trim();
+          const url = String(media.url || media.coverUrl || media.cover_url || media.thumbnailUrl || media.thumbnail_url || '').trim();
           if (!url) return null;
           return {
             id: media.id || `${item.id || 'image'}-${index}`,

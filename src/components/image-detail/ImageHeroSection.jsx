@@ -1,11 +1,14 @@
 import Card from '../Card.jsx';
+import { resolveResourceUrl } from '../../utils/api.js';
 
 function ImageBox({ src, title }) {
-  if (!src) {
+  const resolvedSrc = resolveResourceUrl(src);
+
+  if (!resolvedSrc) {
     return <div className="flex h-full min-h-[320px] items-center justify-center text-sm text-zinc-500">No image available.</div>;
   }
 
-  return <img src={src} alt={title || 'Image preview'} className="h-full w-full object-cover" />;
+  return <img src={resolvedSrc} alt={title || 'Image preview'} className="h-full w-full object-cover" />;
 }
 
 export default function ImageHeroSection({ imageUrl, title, description, category, featuredLabel }) {
