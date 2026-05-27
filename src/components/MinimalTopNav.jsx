@@ -4,7 +4,6 @@ const NAV_ITEMS = [
   { label: 'Home', to: '/' },
   { label: 'Images', to: '/images' },
   { label: 'Videos', to: '/videos' },
-  { label: 'Studio Notes', to: '/studio-notes' },
   { label: 'About', to: '/about' },
   { label: 'Client Deliverables', to: '/client-access' },
 ];
