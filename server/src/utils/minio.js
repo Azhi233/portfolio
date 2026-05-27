@@ -80,6 +80,20 @@ function getPublicBaseUrl(options = {}) {
   );
 }
 
+function buildPublicUrl(baseUrl, bucketName, objectName) {
+  const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+  if (!normalizedBaseUrl) return '';
+
+  const bucketPrefix = `/${bucketName}`;
+  const hasBucketPrefix = normalizedBaseUrl.endsWith(bucketPrefix) || normalizedBaseUrl.endsWith(`/${bucketName}/`);
+
+  if (hasBucketPrefix) {
+    return `${normalizedBaseUrl.replace(/\/+$/, '')}/${objectName}`;
+  }
+
+  return `${normalizedBaseUrl}/${bucketName}/${objectName}`;
+}
+
 export async function uploadFile(fileStream, fileName, isPrivate = false, contentType = 'application/octet-stream', options = {}) {
   ensureClient();
   const bucketName = isPrivate ? PRIVATE_BUCKET : PUBLIC_BUCKET;
@@ -89,7 +103,7 @@ export async function uploadFile(fileStream, fileName, isPrivate = false, conten
 
   const explicitBaseUrl = getPublicBaseUrl(options);
   if (explicitBaseUrl) {
-    return { url: `${explicitBaseUrl}/${bucketName}/${objectName}`, objectName, isPrivate };
+    return { url: buildPublicUrl(explicitBaseUrl, bucketName, objectName), objectName, isPrivate };
   }
 
   const endpoint = process.env.MINIO_ENDPOINT || '';
