@@ -27,8 +27,8 @@ function AboutHero() {
 
         <div className="overflow-hidden bg-[#f4f0ea]">
           <img
-            src="https://images.unsplash.com/photo-1520315342629-6ea920342047?auto=format&fit=crop&w=1200&q=80"
-            alt="Editorial still"
+            src="/me.png"
+            alt="Portrait of Wang Mingdi"
             className="aspect-[4/5] w-full object-cover"
           />
         </div>

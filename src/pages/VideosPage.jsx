@@ -38,10 +38,10 @@ export default function VideosPage() {
           </div>
         </header>
 
-        <div className="mx-auto mt-24 max-w-5xl">
-          <div className="border-t border-[#d8c9b3]/45 pt-12">
+        <div className="mx-auto mt-14 max-w-5xl">
+          <div className="pt-8">
             <p className="text-[10px] uppercase tracking-[0.42em] text-[#b58e62]">All videos</p>
-            <div className="mt-12 space-y-32">
+            <div className="mt-10 space-y-32">
               {items.map((video, index) => {
                 const reverse = index % 2 === 1;
                 return (
