@@ -31,9 +31,31 @@ export const placeholderVideos = [
   },
 ];
 
+function pickFirstString(...values) {
+  return String(values.find((value) => String(value || '').trim()) || '').trim();
+}
+
 export function normalizeVideoItem(item, index = 0) {
-  const videoUrl = String(item?.videoUrl || item?.mainVideoUrl || item?.url || item?.src || '').trim();
-  const coverUrl = String(item?.coverUrl || item?.coverAssetUrl || item?.thumbnailUrl || item?.posterUrl || item?.previewUrl || '').trim();
+  const videoUrl = pickFirstString(
+    item?.videoUrl,
+    item?.video_url,
+    item?.mainVideoUrl,
+    item?.main_video_url,
+    item?.url,
+    item?.src,
+  );
+  const coverUrl = pickFirstString(
+    item?.coverUrl,
+    item?.cover_url,
+    item?.coverAssetUrl,
+    item?.cover_asset_url,
+    item?.thumbnailUrl,
+    item?.thumbnail_url,
+    item?.posterUrl,
+    item?.poster_url,
+    item?.previewUrl,
+    item?.preview_url,
+  );
   const fallbackTitle = `Video ${String(index + 1).padStart(2, '0')}`;
 
   return {
@@ -44,9 +66,9 @@ export function normalizeVideoItem(item, index = 0) {
     year: item?.year || item?.releaseYear || '',
     videoUrl,
     coverUrl: coverUrl || videoUrl,
-    poster: coverUrl,
-    aspectRatio: item?.aspectRatio || item?.ratio || 'video',
-    isFeatured: Boolean(item?.isFeatured),
+    poster: coverUrl || videoUrl,
+    aspectRatio: item?.aspectRatio || item?.aspect_ratio || item?.ratio || 'video',
+    isFeatured: Boolean(item?.isFeatured || item?.is_featured),
   };
 }
 

@@ -1,14 +1,30 @@
+function pickFirstString(...values) {
+  return String(values.find((value) => String(value || '').trim()) || '').trim();
+}
+
 export function normalizeImageItem(item, index) {
   if (!item) return null;
 
-  const url = String(item.coverUrl || item.coverAssetUrl || item.thumbnailUrl || item.mainImageUrl || item.imageUrl || item.url || '').trim();
+  const url = pickFirstString(
+    item.coverUrl,
+    item.cover_url,
+    item.coverAssetUrl,
+    item.cover_asset_url,
+    item.thumbnailUrl,
+    item.thumbnail_url,
+    item.mainImageUrl,
+    item.main_image_url,
+    item.imageUrl,
+    item.image_url,
+    item.url,
+  );
   if (!url) return null;
 
   return {
     id: item.id || `image-${index + 1}`,
     url,
     title: item.title || item.name || item.subtitle || `Image ${String(index + 1).padStart(2, '0')}`,
-    size: item.size === 'wide' || item.aspectRatio === '16:9' ? 'wide' : index % 3 === 1 ? 'wide' : 'tall',
+    size: item.size === 'wide' || item.aspectRatio === '16:9' || item.aspect_ratio === '16:9' ? 'wide' : index % 3 === 1 ? 'wide' : 'tall',
   };
 }
 
