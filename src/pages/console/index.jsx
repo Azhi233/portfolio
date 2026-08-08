@@ -6,10 +6,11 @@ import AnalyticsPanel from './AnalyticsPanel.jsx';
 import HomepageCopyPanel from './HomepageCopyPanel.jsx';
 import AboutProfilesPanel from './AboutProfilesPanel.jsx';
 import Button from '../../components/Button.jsx';
+import Input from '../../components/Input.jsx';
 import ConsolePanelShell from './ConsolePanelShell.jsx';
 import { fetchJson, getAccessToken, storeAccessToken } from '../../utils/api.js';
 import { useI18n } from '../../context/I18nContext.jsx';
-import { normalizePassword, readStoredPassword } from '../clientAccessUtils.js';
+import { normalizePassword, readStoredPassword, storePassword } from '../clientAccessUtils.js';
 
 const panelCardClass = 'rounded-3xl border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_0_40px_rgba(255,255,255,0.03)]';
 
@@ -19,6 +20,7 @@ function ConsoleHome() {
   const [syncState, setSyncState] = useState({ status: 'idle', message: '' });
   const [syncTick, setSyncTick] = useState(0);
   const [projectsState, setProjectsState] = useState({ items: [], refresh: null });
+  const [unlockPassword, setUnlockPassword] = useState(readStoredPassword());
 
   useEffect(() => {
     const token = getAccessToken();
@@ -32,6 +34,7 @@ function ConsoleHome() {
       return;
     }
 
+    setUnlockPassword(password);
     setAccessStatus('Restoring client access token...');
     fetchJson('/client-access/unlock', { method: 'POST', data: { password } })
       .then((response) => {
@@ -143,6 +146,56 @@ function ConsoleHome() {
             <AboutProfilesPanel />
           </div>
         </div>
+
+        <ConsolePanelShell
+          eyebrow="BACKEND ACCESS"
+          title="线上后台访问"
+          description="可直接通过网址登录后修改 About 资料，保存后会同步到前台。"
+          badge={{ label: 'LIVE EDIT', tone: 'success' }}
+        >
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+            <label className="block">
+              <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Password</p>
+              <Input
+                type="password"
+                value={unlockPassword}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setUnlockPassword(next);
+                  storePassword(next);
+                  setAccessStatus('');
+                }}
+                placeholder="Enter the shared access password"
+              />
+            </label>
+            <Button
+              type="button"
+              variant="subtle"
+              onClick={async () => {
+                const password = normalizePassword(unlockPassword);
+                if (!password) {
+                  setAccessStatus('Please enter a password.');
+                  return;
+                }
+                setAccessStatus('Restoring client access token...');
+                try {
+                  const response = await fetchJson('/client-access/unlock', { method: 'POST', data: { password } });
+                  if (response?.token) {
+                    storeAccessToken(response.token);
+                    storePassword(password);
+                    setAccessStatus('Client access token restored.');
+                  } else {
+                    setAccessStatus('Client access unlock returned no token.');
+                  }
+                } catch (error) {
+                  setAccessStatus(error?.message ? `Failed to restore access token: ${error.message}` : 'Failed to restore access token.');
+                }
+              }}
+            >
+              Restore Access
+            </Button>
+          </div>
+        </ConsolePanelShell>
 
         <div key={`sync-private-${syncTick}`} className="grid gap-6 xl:grid-cols-1">
           <div className={panelCardClass}>
