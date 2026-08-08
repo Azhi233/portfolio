@@ -149,6 +149,26 @@ export function subscribeAboutProfilesUpdates(handler) {
   };
 }
 
+export function subscribeAboutProfilesServerUpdates(handler) {
+  if (typeof window === 'undefined' || typeof EventSource === 'undefined') return () => {};
+  const source = new EventSource('/api/events');
+  const onConfigUpdated = (event) => {
+    try {
+      const payload = JSON.parse(event.data || '{}');
+      if (payload?.scope === 'aboutProfiles') {
+        handler?.();
+      }
+    } catch {
+      handler?.();
+    }
+  };
+  source.addEventListener('config-updated', onConfigUpdated);
+  return () => {
+    source.removeEventListener('config-updated', onConfigUpdated);
+    source.close();
+  };
+}
+
 export function createEmptyAboutProfile(index = 0) {
   return {
     id: `about-profile-${Date.now()}-${index}`,

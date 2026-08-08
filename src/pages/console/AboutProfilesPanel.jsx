@@ -6,7 +6,7 @@ import Modal from '../../components/Modal.jsx';
 import ConsolePanelShell from './ConsolePanelShell.jsx';
 import { fetchJson, getAccessToken, resolveResourceUrl, storeAccessToken, uploadFile } from '../../utils/api.js';
 import { normalizePassword, readStoredPassword } from '../clientAccessUtils.js';
-import { aboutProfileToFormValue, createEmptyAboutProfile, formValueToPayload, normalizeAboutProfile, broadcastAboutProfilesUpdate, getAboutProfilesLocalFallback, persistAboutProfilesLocalFallback } from '../../utils/aboutProfiles.js';
+import { aboutProfileToFormValue, createEmptyAboutProfile, formValueToPayload, normalizeAboutProfile, broadcastAboutProfilesUpdate, getAboutProfilesLocalFallback, persistAboutProfilesLocalFallback, subscribeAboutProfilesServerUpdates } from '../../utils/aboutProfiles.js';
 
 function createDraft(profile, index = 0) {
   return aboutProfileToFormValue(profile || createEmptyAboutProfile(index), index);
@@ -65,7 +65,7 @@ async function transcodePortraitFile(file) {
 }
 
 function AboutProfilesPanel() {
-  const [profiles, setProfiles] = useState(getAboutProfilesLocalFallback());
+  const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -88,12 +88,11 @@ function AboutProfilesPanel() {
       .catch(() => {});
   }, []);
 
-  const applyProfiles = (nextProfiles) => {
-    const normalized = persistAboutProfilesLocalFallback(nextProfiles);
-    setProfiles(normalized);
-    broadcastAboutProfilesUpdate();
-    return normalized;
-  };
+  useEffect(() => {
+    const refresh = () => load();
+    const unsubscribe = subscribeAboutProfilesServerUpdates(refresh);
+    return () => unsubscribe?.();
+  }, []);
 
   useEffect(() => {
     setPortraitPreview(draft.portraitUrl ? resolveResourceUrl(draft.portraitUrl) : '');
@@ -105,18 +104,13 @@ function AboutProfilesPanel() {
     try {
       const data = await fetchJson('/about-profiles');
       const next = Array.isArray(data) ? data.map((item, index) => normalizeAboutProfile(item, index)) : [];
-      if (next.length) {
-        applyProfiles(next);
-      } else {
-        setProfiles(getAboutProfilesLocalFallback());
-      }
+      setProfiles(next);
       if (!editingId && next[0]) {
         setDraft(createDraft(next[0], 0));
       }
     } catch (err) {
-      const fallback = getAboutProfilesLocalFallback();
-      setProfiles(fallback);
-      setError(`Using local fallback: ${err?.message || 'Failed to load about profiles.'}`);
+      setProfiles([]);
+      setError(err?.message || 'Failed to load about profiles.');
     } finally {
       setLoading(false);
     }
@@ -175,22 +169,16 @@ function AboutProfilesPanel() {
     setError('');
     try {
       const payload = formValueToPayload(draft);
-      let next;
-      try {
-        next = editingId
-          ? await fetchJson(`/about-profiles/${editingId}`, { method: 'PUT', data: payload })
-          : await fetchJson('/about-profiles', { method: 'POST', data: payload });
-      } catch (remoteError) {
-        const merged = editingId
-          ? profiles.map((item) => (item.id === editingId ? { ...item, ...payload } : item))
-          : [...profiles, payload];
-        next = persistAboutProfilesLocalFallback(merged);
-        setError(`Saved locally only: ${remoteError?.message || 'backend unavailable'}`);
-      }
+      const next = editingId
+        ? await fetchJson(`/about-profiles/${editingId}`, { method: 'PUT', data: payload })
+        : await fetchJson('/about-profiles', { method: 'POST', data: payload });
       const normalized = Array.isArray(next) ? next.map((item, index) => normalizeAboutProfile(item, index)) : [];
-      applyProfiles(normalized.length ? normalized : profiles);
+      setProfiles(normalized);
       setEditorOpen(false);
       setEditingId('');
+      if (normalized[0] && !editingId) {
+        setDraft(createDraft(normalized[0], 0));
+      }
     } catch (err) {
       setError(err?.message || 'Failed to save profile.');
     } finally {
@@ -203,16 +191,9 @@ function AboutProfilesPanel() {
     setSaving(true);
     setError('');
     try {
-      let next;
-      try {
-        next = await fetchJson(`/about-profiles/${profile.id}`, { method: 'DELETE' });
-      } catch (remoteError) {
-        next = profiles.filter((item) => item.id !== profile.id);
-        next = persistAboutProfilesLocalFallback(next);
-        setError(`Deleted locally only: ${remoteError?.message || 'backend unavailable'}`);
-      }
+      const next = await fetchJson(`/about-profiles/${profile.id}`, { method: 'DELETE' });
       const normalized = Array.isArray(next) ? next.map((item, index) => normalizeAboutProfile(item, index)) : [];
-      applyProfiles(normalized);
+      setProfiles(normalized);
       if (editingId === profile.id) {
         setEditorOpen(false);
         setEditingId('');
@@ -230,13 +211,15 @@ function AboutProfilesPanel() {
     const [item] = next.splice(fromIndex, 1);
     next.splice(toIndex, 0, item);
     const withOrder = next.map((profile, index) => ({ ...profile, sortOrder: index }));
-    setProfiles(withOrder);
+    setSaving(true);
+    setError('');
     try {
       const saved = await fetchJson('/about-profiles', { method: 'PUT', data: withOrder });
-      applyProfiles(Array.isArray(saved) ? saved.map((item, index) => normalizeAboutProfile(item, index)) : withOrder);
+      setProfiles(Array.isArray(saved) ? saved.map((item, index) => normalizeAboutProfile(item, index)) : withOrder);
     } catch (err) {
-      applyProfiles(withOrder);
-      setError(`Reordered locally only: ${err?.message || 'backend unavailable'}`);
+      setError(err?.message || 'Failed to reorder profiles.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -273,10 +256,10 @@ function AboutProfilesPanel() {
                   <p className="mt-2 max-w-3xl text-sm leading-7 text-white/65">{profile.summary}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="subtle" onClick={() => move(index, index - 1)} disabled={index === 0}>UP</Button>
-                  <Button type="button" variant="subtle" onClick={() => move(index, index + 1)} disabled={index === profiles.length - 1}>DOWN</Button>
+                  <Button type="button" variant="subtle" onClick={() => move(index, index - 1)} disabled={index === 0 || saving}>UP</Button>
+                  <Button type="button" variant="subtle" onClick={() => move(index, index + 1)} disabled={index === profiles.length - 1 || saving}>DOWN</Button>
                   <Button type="button" variant="subtle" onClick={() => openEdit(profile)}>EDIT</Button>
-                  <Button type="button" variant="danger" onClick={() => remove(profile)}>DELETE</Button>
+                  <Button type="button" variant="danger" onClick={() => remove(profile)} disabled={saving}>DELETE</Button>
                 </div>
               </div>
             </article>

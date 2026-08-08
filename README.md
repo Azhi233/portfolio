@@ -1,16 +1,52 @@
-# React + Vite
+# Portfolio
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A cinematic portfolio with a React/Vite frontend and an Express/MySQL backend.
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Install dependencies:
 
-## React Compiler
+```bash
+npm install
+npm install --prefix server
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+2. Configure environment variables:
 
-## Expanding the ESLint configuration
+- Root `.env` / `.env.local`
+  - `VITE_API_BASE_URL=/api`
+  - `VITE_BACKEND_PORT=8789`
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- `server/.env`
+  - `PORT=8789`
+  - `JWT_SECRET=<your-secret>`
+  - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
+  - `CONFIG_FILE_FALLBACK=false`
+
+3. Start both frontend and backend with one command:
+
+```bash
+npm run dev
+```
+
+That command runs:
+
+- Vite frontend on the default dev port
+- Express backend on port `8789`
+- Frontend API requests proxied to the backend
+
+## Useful commands
+
+```bash
+npm run dev:frontend
+npm run dev --prefix server
+npm run build
+npm run lint
+npm run healthcheck
+```
+
+## Notes
+
+- The backend is designed to use MySQL as the primary persistence layer.
+- If MySQL is unreachable, save operations will fail instead of silently falling back to local-only storage.
+- `http://localhost:8789/` shows the API landing page, not the frontend app.

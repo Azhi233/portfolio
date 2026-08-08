@@ -141,11 +141,21 @@ function ConsoleHome() {
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-1">
+        <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-4 md:p-5">
+          <div className="mb-4 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-[11px] tracking-[0.32em] text-violet-200/80">ABOUT PAGE</p>
+              <h2 className="mt-2 text-2xl tracking-[0.08em] text-white md:text-3xl">About Page Content</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-7 text-white/65">
+                这里单独管理 About 页面的人物资料卡，保存后会直接同步到前台 About 页面。
+              </p>
+            </div>
+            <span className="rounded-full border border-violet-300/20 bg-violet-300/10 px-3 py-1 text-[10px] tracking-[0.18em] text-violet-100">ABOUT CMS</span>
+          </div>
           <div className={panelCardClass}>
             <AboutProfilesPanel />
           </div>
-        </div>
+        </section>
 
         <ConsolePanelShell
           eyebrow="BACKEND ACCESS"

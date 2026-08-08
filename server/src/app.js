@@ -80,6 +80,39 @@ export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged,
   const eventsController = createEventsController({ sseClients, uploadEvents });
   eventsController.attachUploadEvents(broadcastEvent);
 
+  app.get('/', async (_req, res) => {
+    res.type('html').send(`<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Portfolio API</title>
+    <style>
+      body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0b0b0f; color: #f5f5f7; }
+      .card { width: min(720px, calc(100vw - 32px)); border: 1px solid rgba(255,255,255,.1); border-radius: 24px; padding: 32px; background: rgba(255,255,255,.04); box-shadow: 0 24px 80px rgba(0,0,0,.35); }
+      h1 { margin: 0 0 12px; font-size: 28px; letter-spacing: .04em; }
+      p { margin: 0 0 10px; line-height: 1.75; color: rgba(245,245,247,.72); }
+      a { color: #7dd3fc; text-decoration: none; }
+      code { background: rgba(255,255,255,.08); padding: 2px 6px; border-radius: 8px; }
+      ul { padding-left: 20px; color: rgba(245,245,247,.72); line-height: 1.8; }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Portfolio API 已运行</h1>
+      <p>你现在打开的是后端服务根路径，<code>GET /</code> 不提供前端页面，所以会显示这个提示而不是报错。</p>
+      <p>常用入口：</p>
+      <ul>
+        <li><a href="/health">/health</a> - 服务状态</li>
+        <li><a href="/api/health">/api/health</a> - API 健康检查</li>
+        <li>前端通常运行在 Vite 的开发端口，例如 <code>http://localhost:5173</code></li>
+      </ul>
+      <p>如果你希望这个端口直接打开前端首页，需要再启动前端开发服务，或者给后端加静态页面托管。</p>
+    </main>
+  </body>
+</html>`);
+  });
+
   app.get('/api/health', async (_req, res) => {
     res.json({ ok: true, service: 'oss-policy-api-sts', databaseReady: true });
   });

@@ -3,7 +3,7 @@ import PageShell from '../components/PageShell.jsx';
 import MinimalTopNav from '../components/MinimalTopNav.jsx';
 import AboutProfilesCarousel from './about/AboutProfilesCarousel.jsx';
 import { fetchJson } from '../utils/api.js';
-import { getAboutProfilesLocalFallback, persistAboutProfilesLocalFallback, subscribeAboutProfilesUpdates } from '../utils/aboutProfiles.js';
+import { getAboutProfilesLocalFallback, persistAboutProfilesLocalFallback, subscribeAboutProfilesServerUpdates } from '../utils/aboutProfiles.js';
 
 function AboutPage() {
   const [profiles, setProfiles] = useState([]);
@@ -27,7 +27,7 @@ function AboutPage() {
     };
 
     loadProfiles();
-    const unsubscribe = subscribeAboutProfilesUpdates(loadProfiles);
+    const unsubscribe = subscribeAboutProfilesServerUpdates(loadProfiles);
 
     return () => {
       mounted = false;
