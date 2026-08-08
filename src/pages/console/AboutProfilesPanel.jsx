@@ -4,7 +4,8 @@ import Input from '../../components/Input.jsx';
 import Textarea from '../../components/Textarea.jsx';
 import Modal from '../../components/Modal.jsx';
 import ConsolePanelShell from './ConsolePanelShell.jsx';
-import { fetchJson, resolveResourceUrl, uploadFile } from '../../utils/api.js';
+import { fetchJson, getAccessToken, resolveResourceUrl, storeAccessToken, uploadFile } from '../../utils/api.js';
+import { normalizePassword, readStoredPassword } from '../clientAccessUtils.js';
 import { aboutProfileToFormValue, createEmptyAboutProfile, formValueToPayload, normalizeAboutProfile, broadcastAboutProfilesUpdate, getAboutProfilesLocalFallback, persistAboutProfilesLocalFallback } from '../../utils/aboutProfiles.js';
 
 function createDraft(profile, index = 0) {
@@ -74,6 +75,18 @@ function AboutProfilesPanel() {
   const [uploadingPortrait, setUploadingPortrait] = useState(false);
   const [portraitPreview, setPortraitPreview] = useState('');
   const portraitInputRef = useRef(null);
+
+  useEffect(() => {
+    const token = getAccessToken();
+    if (token) return;
+    const password = normalizePassword(readStoredPassword());
+    if (!password) return;
+    fetchJson('/client-access/unlock', { method: 'POST', data: { password } })
+      .then((response) => {
+        if (response?.token) storeAccessToken(response.token);
+      })
+      .catch(() => {});
+  }, []);
 
   const applyProfiles = (nextProfiles) => {
     const normalized = persistAboutProfilesLocalFallback(nextProfiles);

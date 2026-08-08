@@ -3,7 +3,7 @@ import PageShell from '../components/PageShell.jsx';
 import MinimalTopNav from '../components/MinimalTopNav.jsx';
 import AboutProfilesCarousel from './about/AboutProfilesCarousel.jsx';
 import { fetchJson } from '../utils/api.js';
-import { subscribeAboutProfilesUpdates } from '../utils/aboutProfiles.js';
+import { getAboutProfilesLocalFallback, persistAboutProfilesLocalFallback, subscribeAboutProfilesUpdates } from '../utils/aboutProfiles.js';
 
 function AboutPage() {
   const [profiles, setProfiles] = useState([]);
@@ -14,9 +14,15 @@ function AboutPage() {
     const loadProfiles = async () => {
       try {
         const data = await fetchJson('/about-profiles');
-        if (mounted) setProfiles(Array.isArray(data) ? data : []);
+        if (!mounted) return;
+        const serverProfiles = Array.isArray(data) ? data : [];
+        if (serverProfiles.length) {
+          setProfiles(persistAboutProfilesLocalFallback(serverProfiles));
+          return;
+        }
+        setProfiles(getAboutProfilesLocalFallback());
       } catch {
-        if (mounted) setProfiles([]);
+        if (mounted) setProfiles(getAboutProfilesLocalFallback());
       }
     };
 
