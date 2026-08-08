@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Button from '../../components/Button.jsx';
 import Input from '../../components/Input.jsx';
-import Textarea from '../../components/TextArea.jsx';
+import Textarea from '../../components/Textarea.jsx';
 import Modal from '../../components/Modal.jsx';
 import ConsolePanelShell from './ConsolePanelShell.jsx';
 import { fetchJson } from '../../utils/api.js';
