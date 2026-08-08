@@ -37,6 +37,51 @@ function normalizeLinks(value) {
     .filter(Boolean);
 }
 
+const DEFAULT_ABOUT_PROFILES = [
+  {
+    id: 'about-profile-1',
+    name: '王鸣笛',
+    role: 'Visual Engineer / Commercial Photographer',
+    summary: '专注商业摄影、视频制作与视觉策划，将品牌需求转化为克制、准确且具有传播力的影像。',
+    portraitUrl: '/me.png',
+    accent: 'warm',
+    capabilities: ['Commercial Photography', 'Video Production', 'Visual Planning'],
+    experience: ['独立工作室主理人', '企业内部视觉内容建设', '商业项目执行'],
+    contact: {
+      email: 'moses233@qq.com',
+      phone: '+86 19314345676',
+      wechat: 'zhiazhia233',
+      location: 'China',
+    },
+    links: [{ label: 'Contact', url: '#contact' }],
+    sortOrder: 0,
+    enabled: true,
+  },
+  {
+    id: 'about-profile-2',
+    name: '示例人员 B',
+    role: 'Creative Producer',
+    summary: '用于团队介绍的第二张资料卡。你可以在后台继续编辑它，所有设备都会同步显示。',
+    portraitUrl: '',
+    accent: 'cool',
+    capabilities: ['Creative Direction', 'Cross-media Delivery'],
+    experience: ['项目统筹', '视觉资产管理'],
+    contact: {
+      email: 'example-b@example.com',
+      phone: '',
+      wechat: '',
+      location: 'Shanghai',
+    },
+    links: [],
+    sortOrder: 1,
+    enabled: true,
+  },
+];
+
+export function getDefaultAboutProfiles() {
+  return DEFAULT_ABOUT_PROFILES.map((item, index) => normalizeAboutProfile(item, index));
+}
+
 export function normalizeAboutProfile(item, index = 0) {
   const source = isPlainObject(item) ? item : {};
   const contact = isPlainObject(source.contact) ? source.contact : {};
@@ -78,7 +123,8 @@ export function normalizeAboutProfiles(value) {
 
 export async function getAboutProfiles() {
   const config = await getConfig();
-  return normalizeAboutProfiles(config?.['about-profiles'] || config?.aboutProfiles || []);
+  const profiles = normalizeAboutProfiles(config?.['about-profiles'] || config?.aboutProfiles || []);
+  return profiles.length ? profiles : getDefaultAboutProfiles();
 }
 
 export async function saveAboutProfiles(payload) {
