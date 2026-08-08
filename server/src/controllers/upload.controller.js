@@ -2,6 +2,7 @@ import multer from 'multer';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import sharp from 'sharp';
 import { createVideoTranscodeTask, getVideoTranscodeTaskByTaskId, updateVideoTranscodeTask } from '../db/videoTranscode.repository.js';
 import { createTaskId, isVideoFile, processVideoTask } from './upload.helpers.js';
 import { uploadFile } from '../utils/minio.js';
@@ -9,6 +10,15 @@ import { createMediaAsset, listMediaAssets } from '../services/media.service.js'
 import { emitTaskEvent } from '../utils/taskEvents.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20480 * 1024 * 1024 } });
+
+async function transcodeImageBuffer(buffer, fileName = 'image') {
+  const image = sharp(buffer, { failOn: 'none' }).rotate();
+  const metadata = await image.metadata();
+  const width = metadata.width ? Math.min(metadata.width, 1600) : 1600;
+  const output = await image.resize({ width, withoutEnlargement: true }).webp({ quality: 86 }).toBuffer();
+  const baseName = String(fileName || 'image').replace(/\.[^.]+$/, '') || 'image';
+  return { buffer: output, fileName: `${baseName}.webp`, mimeType: 'image/webp' };
+}
 
 export function createUploadController() {
   async function getUploads(_req, res, next) {
@@ -57,7 +67,7 @@ export function createUploadController() {
         return res.status(202).json({ ok: true, data: { taskId, status: 'processing', fileName: file.originalname, fileType: file.mimetype || 'application/octet-stream' } });
       }
 
-      const uploadBuffer = file.buffer;
+      const rawBuffer = file.buffer;
       const uploadName = file.originalname;
       const uploadMime = file.mimetype || 'application/octet-stream';
       const mediaKind = uploadMime.startsWith('video/') ? 'video' : 'image';
@@ -65,21 +75,26 @@ export function createUploadController() {
       const root = String(req.body?.root || assetSpace || 'Projects').trim() || assetSpace || 'Projects';
       const displayName = String(req.body?.displayName || req.body?.title || uploadName.replace(/\.[^.]+$/, '') || 'file').trim() || 'file';
       const sections = [root, category];
-      const result = await uploadFile(uploadBuffer, uploadName, isPrivate, uploadMime, { baseUrl: publicBaseUrl || proxyBaseUrl || baseUrl, sections, displayName });
+      const isImage = uploadMime.startsWith('image/');
+      const transcoded = isImage ? await transcodeImageBuffer(rawBuffer, uploadName) : null;
+      const uploadBuffer = transcoded?.buffer || rawBuffer;
+      const finalName = transcoded?.fileName || uploadName;
+      const finalMime = transcoded?.mimeType || uploadMime;
+      const result = await uploadFile(uploadBuffer, finalName, isPrivate, finalMime, { baseUrl: publicBaseUrl || proxyBaseUrl || baseUrl, sections, displayName });
       await createMediaAsset({
         id: result.id || `asset-${Date.now()}`,
         kind: mediaKind,
         url: result.url || '',
         meta: {
-          fileName: uploadName,
+          fileName: finalName,
           size: uploadBuffer.length,
-          mimeType: uploadMime,
+          mimeType: finalMime,
           path: result.path || '',
-          convertedFrom: '',
+          convertedFrom: isImage ? uploadName : '',
         },
       });
 
-      return res.status(201).json({ ok: true, data: { ...result, fileType: uploadMime, fileName: uploadName, size: uploadBuffer.length, convertedFrom: '' } });
+      return res.status(201).json({ ok: true, data: { ...result, fileType: finalMime, fileName: finalName, size: uploadBuffer.length, convertedFrom: isImage ? uploadName : '' } });
     } catch (error) {
       return next(error);
     }

@@ -1,14 +1,66 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Button from '../../components/Button.jsx';
 import Input from '../../components/Input.jsx';
 import Textarea from '../../components/Textarea.jsx';
 import Modal from '../../components/Modal.jsx';
 import ConsolePanelShell from './ConsolePanelShell.jsx';
-import { fetchJson } from '../../utils/api.js';
+import { fetchJson, resolveResourceUrl, uploadFile } from '../../utils/api.js';
 import { aboutProfileToFormValue, createEmptyAboutProfile, formValueToPayload, normalizeAboutProfile, broadcastAboutProfilesUpdate, getAboutProfilesLocalFallback, persistAboutProfilesLocalFallback } from '../../utils/aboutProfiles.js';
 
 function createDraft(profile, index = 0) {
   return aboutProfileToFormValue(profile || createEmptyAboutProfile(index), index);
+}
+
+const PORTRAIT_MAX_SIZE = 1600;
+
+async function transcodePortraitFile(file) {
+  if (!file || !String(file.type || '').startsWith('image/')) {
+    throw new Error('Please choose an image file.');
+  }
+
+  const sourceUrl = URL.createObjectURL(file);
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const next = new Image();
+      next.onload = () => resolve(next);
+      next.onerror = () => reject(new Error('Failed to load the selected image.'));
+      next.src = sourceUrl;
+    });
+
+    const naturalWidth = image.naturalWidth || image.width || 0;
+    const naturalHeight = image.naturalHeight || image.height || 0;
+    if (!naturalWidth || !naturalHeight) {
+      throw new Error('The selected image is invalid.');
+    }
+
+    const scale = Math.min(1, PORTRAIT_MAX_SIZE / Math.max(naturalWidth, naturalHeight));
+    const width = Math.max(1, Math.round(naturalWidth * scale));
+    const height = Math.max(1, Math.round(naturalHeight * scale));
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) {
+      throw new Error('Canvas is not available in this browser.');
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    context.drawImage(image, 0, 0, width, height);
+
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob((nextBlob) => {
+        if (!nextBlob) {
+          reject(new Error('Failed to transcode the image.'));
+          return;
+        }
+        resolve(nextBlob);
+      }, 'image/webp', 0.88);
+    });
+
+    const baseName = String(file.name || 'portrait').replace(/\.[^.]+$/, '') || 'portrait';
+    return new File([blob], `${baseName}.webp`, { type: 'image/webp', lastModified: Date.now() });
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
 }
 
 function AboutProfilesPanel() {
@@ -19,6 +71,9 @@ function AboutProfilesPanel() {
   const [draft, setDraft] = useState(createDraft(null, 0));
   const [editingId, setEditingId] = useState('');
   const [editorOpen, setEditorOpen] = useState(false);
+  const [uploadingPortrait, setUploadingPortrait] = useState(false);
+  const [portraitPreview, setPortraitPreview] = useState('');
+  const portraitInputRef = useRef(null);
 
   const applyProfiles = (nextProfiles) => {
     const normalized = persistAboutProfilesLocalFallback(nextProfiles);
@@ -26,6 +81,10 @@ function AboutProfilesPanel() {
     broadcastAboutProfilesUpdate();
     return normalized;
   };
+
+  useEffect(() => {
+    setPortraitPreview(draft.portraitUrl ? resolveResourceUrl(draft.portraitUrl) : '');
+  }, [draft.portraitUrl]);
 
   const load = async () => {
     setLoading(true);
@@ -70,6 +129,33 @@ function AboutProfilesPanel() {
   const updateField = (key, value) => setDraft((prev) => ({ ...prev, [key]: value }));
   const updateContact = (key, value) => setDraft((prev) => ({ ...prev, contact: { ...(prev.contact || {}), [key]: value } }));
   const updateListField = (key, value) => setDraft((prev) => ({ ...prev, [key]: String(value || '').split('\n').map((item) => item.trim()).filter(Boolean) }));
+
+  const uploadPortrait = async (file) => {
+    if (!file) return;
+    setUploadingPortrait(true);
+    setError('');
+    try {
+      const transcoded = await transcodePortraitFile(file);
+      const uploaded = await uploadFile(transcoded, 'public', undefined, {
+        type: 'image',
+        assetSpace: 'About',
+        root: 'About',
+        category: 'Portraits',
+        displayName: draft.name || transcoded.name.replace(/\.[^.]+$/, '') || 'portrait',
+      });
+      const nextUrl = uploaded?.url || '';
+      if (!nextUrl) {
+        throw new Error('Upload succeeded but no URL was returned.');
+      }
+      setDraft((prev) => ({ ...prev, portraitUrl: nextUrl }));
+      setError('');
+    } catch (err) {
+      setError(err?.message || 'Failed to upload portrait.');
+    } finally {
+      setUploadingPortrait(false);
+      if (portraitInputRef.current) portraitInputRef.current.value = '';
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -202,10 +288,43 @@ function AboutProfilesPanel() {
             <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Role</p>
             <Input value={draft.role || ''} onChange={(event) => updateField('role', event.target.value)} placeholder="Role" />
           </label>
-          <label className="block lg:col-span-2">
-            <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Portrait URL</p>
-            <Input value={draft.portraitUrl || ''} onChange={(event) => updateField('portraitUrl', event.target.value)} placeholder="Image URL" />
-          </label>
+          <div className="block lg:col-span-2">
+            <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Portrait</p>
+            <div className="grid gap-3 lg:grid-cols-[180px_1fr] lg:items-start">
+              <button
+                type="button"
+                onClick={() => portraitInputRef.current?.click()}
+                className="group flex aspect-[4/5] w-full items-center justify-center overflow-hidden rounded-2xl border border-dashed border-white/18 bg-black/20 text-left transition hover:border-cyan-300/40 hover:bg-black/30"
+              >
+                {portraitPreview ? (
+                  <img src={portraitPreview} alt="Portrait preview" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="px-4 text-center">
+                    <p className="text-[11px] tracking-[0.22em] text-white/55">UPLOAD PORTRAIT</p>
+                    <p className="mt-2 text-xs leading-5 text-white/35">Choose a local image. It will be converted to WebP automatically.</p>
+                  </div>
+                )}
+              </button>
+              <div className="grid gap-3">
+                <input
+                  ref={portraitInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => uploadPortrait(event.target.files?.[0])}
+                />
+                <Input value={draft.portraitUrl || ''} readOnly placeholder="Auto-generated image URL" />
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="subtle" onClick={() => portraitInputRef.current?.click()} disabled={uploadingPortrait}>
+                    {uploadingPortrait ? 'UPLOADING...' : 'CHOOSE FILE'}
+                  </Button>
+                  <Button type="button" variant="subtle" onClick={() => updateField('portraitUrl', '')} disabled={uploadingPortrait}>
+                    CLEAR
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
           <label className="block lg:col-span-2">
             <p className="mb-2 text-xs tracking-[0.12em] text-white/80">Summary</p>
             <Textarea value={draft.summary || ''} onChange={(event) => updateField('summary', event.target.value)} placeholder="Short introduction" />
