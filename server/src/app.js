@@ -26,6 +26,8 @@ import { createUploadRouter } from './routes/upload.routes.js';
 import { createSyncController } from './controllers/sync.controller.js';
 import { createSyncRouter } from './routes/sync.routes.js';
 import { createHealthcheckRouter } from './routes/healthcheck.routes.js';
+import { createAboutProfilesController } from './controllers/aboutProfiles.controller.js';
+import { createAboutProfilesRouter } from './routes/aboutProfiles.routes.js';
 import { readProjects } from './db/projects.repository.js';
 
 export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged, uploadEvents, sseClients }) {
@@ -89,6 +91,7 @@ export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged,
   app.use('/api/events', createEventsRouter(eventsController));
   app.use('/api', createAuthRouter(createAuthController({ pool, jwtSecret: JWT_SECRET })));
   app.use('/api/config', createConfigRouter(createConfigController({ notifyConfigChanged, broadcastEvent, authMiddleware })));
+  app.use('/api/about-profiles', createAboutProfilesRouter(createAboutProfilesController({ notifyConfigChanged, broadcastEvent, authMiddleware })));
   app.use('/api/reviews', createReviewsRouter(createReviewsController()));
   app.use('/api/projects', createProjectsRouter(createProjectsController({ uploadProjectImage, notifyConfigChanged, pool }), upload));
   app.use('/api', createUnlocksRouter(createUnlocksController()));

@@ -4,6 +4,7 @@ import PrivateDeliverablesPanel from './PrivateDeliverablesPanel.jsx';
 import HomepageVideoPanel from './HomepageVideoPanel.jsx';
 import AnalyticsPanel from './AnalyticsPanel.jsx';
 import HomepageCopyPanel from './HomepageCopyPanel.jsx';
+import AboutProfilesPanel from './AboutProfilesPanel.jsx';
 import Button from '../../components/Button.jsx';
 import ConsolePanelShell from './ConsolePanelShell.jsx';
 import { fetchJson, getAccessToken, storeAccessToken } from '../../utils/api.js';
@@ -134,6 +135,12 @@ function ConsoleHome() {
             <div className={panelCardClass}>
               <AnalyticsPanel />
             </div>
+          </div>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-1">
+          <div className={panelCardClass}>
+            <AboutProfilesPanel />
           </div>
         </div>
 
