@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
-import jwt from 'jsonwebtoken';
 import { pool } from './db.js';
 import { createProjectsController } from './controllers/projects.controller.js';
 import { createConfigController } from './controllers/config.controller.js';
@@ -26,8 +25,9 @@ import { createUploadRouter } from './routes/upload.routes.js';
 import { createSyncController } from './controllers/sync.controller.js';
 import { createSyncRouter } from './routes/sync.routes.js';
 import { createHealthcheckRouter } from './routes/healthcheck.routes.js';
-import { readProjects } from './db/projects.repository.js';
+import { readProjects, findProjectById } from './db/projects.repository.js';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js';
+import { createWriteAuthMiddleware } from './middlewares/auth.middleware.js';
 
 export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged, uploadEvents, sseClients }) {
   const app = express();
@@ -53,17 +53,7 @@ export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged,
   app.use(express.urlencoded({ limit: '20480mb', extended: true }));
 
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20480 * 1024 * 1024 } });
-  const authMiddleware = (req, res, next) => {
-    const header = req.headers.authorization || '';
-    const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
-    if (!token) return res.status(401).json({ ok: false, message: 'Unauthorized' });
-    try {
-      req.user = jwt.verify(token, JWT_SECRET);
-      return next();
-    } catch {
-      return res.status(403).json({ ok: false, message: 'Forbidden' });
-    }
-  };
+  const writeAuth = createWriteAuthMiddleware({ JWT_SECRET, findProjectById });
 
   const broadcastEvent = (eventName, payload) => {
     for (const client of sseClients) {
@@ -89,22 +79,22 @@ export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged,
 
   app.use('/api/events', createEventsRouter(eventsController));
   app.use('/api', createAuthRouter(createAuthController({ pool, jwtSecret: JWT_SECRET })));
-  app.use('/api/config', createConfigRouter(createConfigController({ notifyConfigChanged, broadcastEvent, authMiddleware })));
+  app.use('/api/config', createConfigRouter(createConfigController({ notifyConfigChanged, broadcastEvent, authMiddleware: writeAuth })));
   app.use('/api/reviews', createReviewsRouter(createReviewsController()));
-  app.use('/api/projects', createProjectsRouter(createProjectsController({ uploadProjectImage, notifyConfigChanged, pool }), upload));
+  app.use('/api/projects', createProjectsRouter(createProjectsController({ uploadProjectImage, notifyConfigChanged, pool }), upload, writeAuth));
   app.use('/api', createUnlocksRouter(createUnlocksController()));
-  app.use('/api/media-assets', createMediaRouter(createMediaController()));
+  app.use('/api/media-assets', createMediaRouter(createMediaController(), writeAuth));
   app.get('/api/clients', async (_req, res) => {
     const projects = await readProjects();
     const clients = projects.filter((project) => project.visibility === 'private');
     res.json({ ok: true, data: clients });
   });
   app.use('/api/review-audit-logs', createReviewAuditRouter(createReviewAuditController()));
-  app.use('/api/translation-review-items', createTranslationReviewRouter(createTranslationReviewController()));
+  app.use('/api/translation-review-items', createTranslationReviewRouter(createTranslationReviewController(), writeAuth));
   const uploadController = createUploadController();
-  app.use('/api/uploads', createUploadRouter(uploadController));
+  app.use('/api/uploads', createUploadRouter(uploadController, writeAuth));
   const syncController = createSyncController();
-  app.use('/api/sync', createSyncRouter(syncController));
+  app.use('/api/sync', createSyncRouter(syncController, writeAuth));
   app.use('/api/healthcheck', createHealthcheckRouter());
 
   // 统一 404 与错误响应(必须注册在所有路由之后)
