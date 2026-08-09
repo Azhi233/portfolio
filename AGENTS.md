@@ -10,7 +10,7 @@ This file provides guidance to Lingma (lingma.aliyun.com) when working with code
 
 - `npm run dev` — 同时启动 Vite 前端与 Express 后端(`concurrently`);`npm run dev:frontend` 仅前端,`npm run dev --prefix server` 仅后端
 - `npm run build` / `npm run lint` — 构建 / ESLint
-- `npm run preflight` / `npm run preflight:quick` — 发布前检查(构建 + SEO/i18n 断言)。注意:脚本检查 `src/pages/DirectorConsole`、`/services` 路由等**旧代码路径**,与当前结构(`src/pages/console/`、实际路由)不同步,可能误报失败
+- `npm run preflight` / `npm run preflight:quick` — 发布前检查(构建 + SEO/i18n/路由/鉴权回归断言,29 项)
 - `npm run healthcheck` — 环境健康检查(`scripts/env-health-check.mjs`)
 - `npm run sync:i18n` — 列出 `src/i18n/zh.js` 中 `en.js` 缺失的翻译键
 - 无测试框架
@@ -31,15 +31,15 @@ This file provides guidance to Lingma (lingma.aliyun.com) when working with code
 - Express 工厂模式:每个资源一对 `createXxxController()` + `createXxxRouter()`,在 `src/app.js` 中统一装配;`pool`、`JWT_SECRET`、`sseClients` 等依赖通过闭包注入
 - MySQL(`mysql2/promise` pool):`src/db.js` 的 `initDB()` 负责建表(`global_config`、`projects`、`users`、`media_assets`、`reviews`、`review_audit_logs`、`project_unlocks`、`delivery_unlocks`、`video_transcode_tasks`);仓储层在 `src/db/`(repository),业务逻辑在 `src/services/`
 - 容错设计:MySQL 或 MinIO 不可达时服务器**仍以降级模式启动**(有界重试 + 警告日志),页面核心功能依赖前端 localStorage 快照;`better-sqlite3` 在依赖中但代码未引用(`server/portfolio.db*` 为遗留文件)
-- 认证:JWT Bearer(`authMiddleware`);默认 admin 用户由 `server/initAdmin.js` 在启动时种子化(仅当不存在)
+- 认证:双凭证写鉴权(`src/middlewares/auth.middleware.js`)——admin JWT(`/api/login`,`ALLOW_REGISTER` 默认关闭注册)或 client token(`unlocks` 口令换取的 `private-<id>-<ts>-<sig>` HMAC 签名凭证,7 天有效);读接口经 `optionalAuth` 按鉴权状态脱敏(未鉴权不返回 `accessPassword`/`deliveryPin`/`privateFiles`);`JWT_SECRET` 生产环境缺失或为默认值时拒绝启动;admin 种子账号密码不再内置源码,由 `ADMIN_INIT_PASSWORD` 提供或随机生成打印一次
 - 客户端访问控制:`unlocks` 相关表记录 project/delivery 解锁状态
 
 ### 媒体上传与视频转码(核心链路)
 
-1. 上传走 `POST /api/uploads`(`multer` 内存存储,限制 20GB),图片与已转码 mp4 直接上传 MinIO(`public-assets`/`private-docs` bucket)并写入 `media_assets`
+1. 上传走 `POST /api/uploads`(`multer` 磁盘存储,限制 20GB),图片与已转码 mp4 直接上传 MinIO(`public-assets` 公共读/`private-docs` 私有+预签名)并写入 `media_assets`;私有桶不设公共读策略
 2. 非 mp4 视频(mov 等):立即返回 `202 + taskId` 并创建 `video_transcode_tasks` 记录;后台 `spawn ffmpeg` 转码为 H.264 mp4 后上传 MinIO,期间通过 SSE(`/api/events`)推送 `task-started/completed/failed` 事件
-3. 前端 `hooks/useVideoUploadTask.js` 通过 SSE + 轮询 `/api/uploads/status/:taskId` 等待完成(180s 超时)
-4. 私有文件使用 MinIO 预签名 URL(默认 30 天);`src/utils/signedMedia.js` + `src/components/AutoRefreshMedia.jsx` 会在过期前 30 分钟自动调用 `POST /api/uploads/sign` 刷新 URL(媒体渲染组件应优先使用 `AutoRefreshMedia`)
+3. 前端 `src/services/ossUpload.js` 通过 SSE + 轮询 `/api/uploads/status/:taskId` 等待完成;SSE 广播负载不携带 URL 字段
+4. 私有文件使用 MinIO 预签名 URL(默认 30 天);`src/utils/signedMedia.js` + `src/components/AutoRefreshMedia.jsx` 会在过期前自动调用 `POST /api/uploads/sign`(挂写鉴权)刷新 URL;项目详情的 `privateFiles` 在响应时实时重签(媒体渲染组件应优先使用 `AutoRefreshMedia`)
 
 ### 路由与 i18n
 
@@ -49,7 +49,7 @@ This file provides guidance to Lingma (lingma.aliyun.com) when working with code
 
 ### 部署
 
-- GitHub Actions(`.github/workflows/deploy.yml`):push main → `npm ci` + `npm run build` → SCP `dist/` 与 `server/`(排除 `.env`、`node_modules`、`uploads`)到宝塔服务器 → `npm ci --omit=dev` + pm2 启动(服务器 Node v20.20.2);CI 使用 Node 22
+- GitHub Actions(`.github/workflows/deploy.yml`):push main → `npm ci` + `npm run build` → SCP `dist/` 与 `server/`(排除 `.env`、`node_modules`、`uploads`)到宝塔服务器 → `npm ci --omit=dev` + `NODE_ENV=production` pm2 启动(服务器 Node v20.20.2);CI 使用 Node 22
 - `vercel.json` 提供 SPA rewrites(备选部署方式)
 
 ## 注意事项

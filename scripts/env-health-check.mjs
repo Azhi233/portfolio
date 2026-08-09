@@ -14,12 +14,13 @@ const reportDir = reportDirArgIndex >= 0 ? process.argv[reportDirArgIndex + 1] :
 const rootEnv = parseEnvFile('.env');
 const serverEnv = parseEnvFile('server/.env');
 const apiBaseUrl = (() => {
-  const candidate = String(rootEnv.VITE_API_BASE_URL || rootEnv.VITE_API_URL || 'http://localhost:8788/api').trim();
-  const port = serverEnv.PORT || 8788;
+  const candidate = String(rootEnv.VITE_API_BASE_URL || rootEnv.VITE_API_URL || 'http://localhost:8789/api').trim();
+  const port = serverEnv.PORT || rootEnv.VITE_BACKEND_PORT || 8789;
   if (/^https?:\/\//i.test(candidate)) return candidate.replace(/\/+$/, '');
   if (candidate.startsWith('/')) return `http://localhost:${port}${candidate}`.replace(/\/+$/, '');
   return `http://localhost:${port}/${candidate}`.replace(/\/+$/, '');
 })();
+let adminToken = '';
 const testPrefix = 'portfolio/healthcheck';
 const trackedObjects = [];
 const testFiles = [
@@ -147,13 +148,36 @@ function parseObjectNameFromUrl(url) {
   }
 }
 
+async function acquireAdminToken() {
+  const username = process.env.HEALTHCHECK_ADMIN_USER || serverEnv.ADMIN_INIT_USERNAME || rootEnv.ADMIN_INIT_USERNAME || 'zhizhi';
+  const password = process.env.HEALTHCHECK_ADMIN_PASSWORD || serverEnv.ADMIN_INIT_PASSWORD || rootEnv.ADMIN_INIT_PASSWORD || '';
+  if (!password) {
+    addResult('admin credentials', false, 'set HEALTHCHECK_ADMIN_PASSWORD (or ADMIN_INIT_PASSWORD) to enable upload/cleanup tests', 'optional');
+    return;
+  }
+  const response = await fetchJson(`${apiBaseUrl.replace(/\/+$/, '')}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  const token = response.data?.data?.token || '';
+  if (!token) {
+    addResult('admin login', false, `login failed HTTP ${response.status}`, 'required');
+    return;
+  }
+  adminToken = token;
+  addResult('admin login', true, `authenticated as ${username}`);
+}
+
 async function deleteTrackedObjects() {
   const cleanupResults = [];
+  const headers = { 'Content-Type': 'application/json' };
+  if (adminToken) headers.Authorization = `Bearer ${adminToken}`;
   for (const item of trackedObjects) {
     try {
       const response = await fetchJson(`${apiBaseUrl.replace(/\/+$/, '')}/healthcheck/minio-object`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ bucketName: item.bucketName, objectName: item.objectName }),
       });
       cleanupResults.push(response.ok ? `deleted ${item.objectName}` : `failed ${item.objectName}`);
@@ -166,11 +190,16 @@ async function deleteTrackedObjects() {
 
 async function runUploadTests() {
   const uploadUrl = `${apiBaseUrl.replace(/\/+$/, '')}/uploads`;
+  const authHeaders = adminToken ? { Authorization: `Bearer ${adminToken}` } : {};
+  if (!adminToken) {
+    addResult('upload tests', false, 'no admin credentials — upload tests skipped', 'optional');
+    return;
+  }
   for (const file of testFiles) {
     const form = new FormData();
     form.append('type', 'public');
     form.append('file', createBlob(file.text, file.type), file.name);
-    const response = await fetchJson(uploadUrl, { method: 'POST', body: form });
+    const response = await fetchJson(uploadUrl, { method: 'POST', headers: authHeaders, body: form });
     addResult(`upload ${file.kind} test`, response.ok, response.ok ? `HTTP ${response.status}` : `HTTP ${response.status} ${response.text}`, 'required');
 
     const data = response.data?.data || response.data || {};
@@ -284,10 +313,11 @@ checkUploadFlow();
 checkMinioReceipt();
 runProcessChecks();
 await checkHomepageRender();
+await acquireAdminToken();
 await runUploadTests();
 if (!keepTestFiles) {
   const cleanupResults = await deleteTrackedObjects();
-  addResult('cleanup test objects', cleanupResults.every((item) => item.startsWith('deleted ')), cleanupResults.join('; '));
+  addResult('cleanup test objects', cleanupResults.every((item) => item.startsWith('deleted ')), cleanupResults.join('; '), adminToken ? 'required' : 'optional');
 }
 
 const requiredFailures = results.filter((item) => item.severity === 'required' && !item.pass);

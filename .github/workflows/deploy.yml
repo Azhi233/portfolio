@@ -68,7 +68,7 @@ jobs:
             test -f package.json
             npm ci --omit=dev
             if command -v pm2 >/dev/null 2>&1; then
-              pm2 start src/index.js --name portfolio-server --update-env || pm2 restart portfolio-server --update-env
+              NODE_ENV=production pm2 start src/index.js --name portfolio-server --update-env || NODE_ENV=production pm2 restart portfolio-server --update-env
               pm2 save
             else
               pkill -f "node src/index.js" || true

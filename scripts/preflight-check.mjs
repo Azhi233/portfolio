@@ -149,7 +149,7 @@ if (configDefaults) {
 // 10) Server security regression checks (write endpoints must stay authenticated)
 const authMw = safeRead('server/src/middlewares/auth.middleware.js');
 if (authMw) {
-  checkIncludesAll('Dual-credential auth middleware exports', authMw, ['createAdminAuthMiddleware', 'createWriteAuthMiddleware']);
+  checkIncludesAll('Dual-credential auth middleware exports', authMw, ['createAdminAuthMiddleware', 'createWriteAuthMiddleware', 'createOptionalAuthMiddleware', 'createClientToken']);
 } else {
   addCheck('auth.middleware.js exists', false, 'server/src/middlewares/auth.middleware.js not found');
 }
@@ -171,6 +171,8 @@ const protectedWrites = [
   ['server/src/routes/sync.routes.js', 'writeAuth', ['router.post']],
   ['server/src/routes/media.routes.js', 'writeAuth', ['router.post']],
   ['server/src/routes/translation-review.routes.js', 'writeAuth', ['router.post', 'router.patch']],
+  ['server/src/routes/unlocks.routes.js', 'writeAuth', ['router.post']],
+  ['server/src/routes/healthcheck.routes.js', 'writeAuth', ['router.delete']],
 ];
 for (const [filePath, guard, writeVerbs] of protectedWrites) {
   const source = safeRead(filePath);
