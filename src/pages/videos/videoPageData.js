@@ -38,6 +38,12 @@ function pickFirstString(...values) {
 function maybeResolveLocalAsset(url) {
   const value = String(url || '').trim();
   if (!value) return '';
+
+  const localMinioMatch = value.match(/^https?:\/\/[^/]+:9000(\/.*)$/i);
+  if (localMinioMatch) {
+    return `${window.location.origin}${encodeURI(localMinioMatch[1])}`;
+  }
+
   if (/^(?:[a-z]+:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) return value;
   if (value.startsWith('/api/')) return value;
   if (value.startsWith('/private-docs/') || value.startsWith('/public-assets/')) return value;

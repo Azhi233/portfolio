@@ -55,7 +55,7 @@ export default function HomepageVideoPanel() {
     try {
       const config = await fetchJson('/config');
       const homepageVideo = config?.['homepage-video'] || {};
-      setState((prev) => ({ ...prev, loading: false, error: '', draft: { homeVideoTitle: homepageVideo?.homeVideoTitle || '', homeVideoUrl: homepageVideo?.homeVideoUrl || '', homeVideoCaption: homepageVideo?.homeVideoCaption || '' } }));
+      setState((prev) => ({ ...prev, loading: false, error: '', draft: { homeVideoTitle: homepageVideo?.homeVideoTitle || '', homeVideoUrl: homepageVideo?.homeVideoUrl || '', homeVideoCaption: homepageVideo?.homeVideoCaption || '', homeVideoPosterUrl: homepageVideo?.homeVideoPosterUrl || homepageVideo?.posterUrl || '' } }));
     } catch (error) {
       setState((prev) => ({ ...prev, loading: false, error: error.message || 'Failed to load homepage video.' }));
     }
@@ -110,7 +110,7 @@ export default function HomepageVideoPanel() {
         uploadStage: 'writing-back',
         uploadStatus: 'Writing uploaded video back to homepage config...',
       }));
-      await fetchJson('/config/homepage-video', { method: 'POST', data: { homeVideoTitle: nextDraft.homeVideoTitle, homeVideoUrl: nextDraft.homeVideoUrl, homeVideoCaption: nextDraft.homeVideoCaption || '' } });
+      await fetchJson('/config/homepage-video', { method: 'POST', data: { homeVideoTitle: nextDraft.homeVideoTitle, homeVideoUrl: nextDraft.homeVideoUrl, homeVideoCaption: nextDraft.homeVideoCaption || '', homeVideoPosterUrl: result?.posterUrl || uploadFileObject?.posterUrl || '' } });
       await load();
       setState((prev) => ({
         ...prev,
@@ -130,7 +130,7 @@ export default function HomepageVideoPanel() {
   const save = async () => {
     setState((prev) => ({ ...prev, saving: true, error: '', isOpen: true }));
     try {
-      await fetchJson('/config/homepage-video', { method: 'POST', data: { homeVideoTitle: state.draft?.homeVideoTitle || '', homeVideoUrl: state.draft?.homeVideoUrl || '', homeVideoCaption: state.draft?.homeVideoCaption || '' } });
+      await fetchJson('/config/homepage-video', { method: 'POST', data: { homeVideoTitle: state.draft?.homeVideoTitle || '', homeVideoUrl: state.draft?.homeVideoUrl || '', homeVideoCaption: state.draft?.homeVideoCaption || '', homeVideoPosterUrl: state.draft?.homeVideoPosterUrl || '' } });
       await load();
       setState((prev) => ({ ...prev, saving: false, uploadStage: 'done', uploadStatus: 'Homepage video saved.' }));
     } catch (error) {
@@ -151,7 +151,7 @@ export default function HomepageVideoPanel() {
   const removeHomepageVideo = async () => {
     setState((prev) => ({ ...prev, saving: true, error: '', uploadStatus: 'Deleting homepage video...' }));
     try {
-      await fetchJson('/config/homepage-video', { method: 'POST', data: { homeVideoTitle: '', homeVideoUrl: '', homeVideoCaption: '' } });
+      await fetchJson('/config/homepage-video', { method: 'POST', data: { homeVideoTitle: '', homeVideoUrl: '', homeVideoCaption: '', homeVideoPosterUrl: '' } });
       await load();
       setState((prev) => ({ ...prev, saving: false, draft: createDraft(), uploadStage: 'idle', uploadProgress: 0, uploadStatus: 'Homepage video removed.' }));
     } catch (error) {

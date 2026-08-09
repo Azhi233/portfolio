@@ -30,8 +30,20 @@ const API_ORIGIN = API_BASE_URL.startsWith('/') ? getWindowOrigin() : (() => {
   }
 })();
 
+function rewriteMinioUrl(value) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return '';
+
+  const localMinioMatch = trimmed.match(/^https?:\/\/[^/]+:9000(\/.*)$/i);
+  if (localMinioMatch) {
+    return `${window.location.origin}${encodeURI(localMinioMatch[1])}`;
+  }
+
+  return trimmed;
+}
+
 export function resolveResourceUrl(url) {
-  const value = String(url || '').trim();
+  const value = rewriteMinioUrl(url);
   if (!value) return '';
   if (/^(?:[a-z]+:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) return value;
   if (value.startsWith('/api/')) return value;

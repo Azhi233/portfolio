@@ -3,9 +3,18 @@ import { pool } from '../db.js';
 export async function createVideoTranscodeTask(task) {
   const payload = { ...(task || {}) };
   await pool.execute(
-    `INSERT INTO video_transcode_tasks (task_id, status, original_path, target_url, error_msg, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-    [payload.taskId, payload.status || 'processing', payload.originalPath || '', payload.targetUrl || null, payload.errorMsg || null],
+    `INSERT INTO video_transcode_tasks (task_id, status, original_path, target_url, poster_url, poster_object_name, poster_file_name, error_msg, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+    [
+      payload.taskId,
+      payload.status || 'processing',
+      payload.originalPath || '',
+      payload.targetUrl || null,
+      payload.posterUrl || null,
+      payload.posterObjectName || null,
+      payload.posterFileName || null,
+      payload.errorMsg || null,
+    ],
   );
   return getVideoTranscodeTaskByTaskId(payload.taskId);
 }
@@ -20,6 +29,18 @@ export async function updateVideoTranscodeTask(taskId, patch = {}) {
   if (Object.prototype.hasOwnProperty.call(patch, 'targetUrl')) {
     fields.push('target_url = ?');
     values.push(patch.targetUrl || null);
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'posterUrl')) {
+    fields.push('poster_url = ?');
+    values.push(patch.posterUrl || null);
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'posterObjectName')) {
+    fields.push('poster_object_name = ?');
+    values.push(patch.posterObjectName || null);
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'posterFileName')) {
+    fields.push('poster_file_name = ?');
+    values.push(patch.posterFileName || null);
   }
   if (Object.prototype.hasOwnProperty.call(patch, 'errorMsg')) {
     fields.push('error_msg = ?');
@@ -41,7 +62,7 @@ export async function updateVideoTranscodeTask(taskId, patch = {}) {
 
 export async function getVideoTranscodeTaskByTaskId(taskId) {
   const [rows] = await pool.execute(
-    `SELECT id, task_id, status, original_path, target_url, error_msg, created_at, updated_at
+    `SELECT id, task_id, status, original_path, target_url, poster_url, poster_object_name, poster_file_name, error_msg, created_at, updated_at
      FROM video_transcode_tasks
      WHERE task_id = ?
      LIMIT 1`,
@@ -55,6 +76,9 @@ export async function getVideoTranscodeTaskByTaskId(taskId) {
     status: row.status,
     originalPath: row.original_path,
     targetUrl: row.target_url,
+    posterUrl: row.poster_url,
+    posterObjectName: row.poster_object_name,
+    posterFileName: row.poster_file_name,
     errorMsg: row.error_msg,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

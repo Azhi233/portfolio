@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_BASE || 'http://47.114.95.49:8787').replace(/\/$/, '');
+const API_BASE = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '');
 
 const SIGNED_URL_REFRESH_BUFFER_MS = 30 * 60 * 1000;
 const SIGNED_URL_PATTERN = /[?&]X-Amz-Expires=|[?&]X-Amz-Signature=|[?&]X-Amz-Credential=/i;

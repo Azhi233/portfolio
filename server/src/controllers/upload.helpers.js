@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import sharp from 'sharp';
 import { updateVideoTranscodeTask } from '../db/videoTranscode.repository.js';
 import { emitTaskEvent } from '../utils/taskEvents.js';
 import { uploadFile } from '../utils/minio.js';
@@ -78,6 +79,76 @@ function buildUploadSections(reqMeta = {}) {
   return [root, category];
 }
 
+function extractPosterTime(durationSeconds) {
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return '00:00:00.12';
+  const target = Math.min(Math.max(durationSeconds * 0.08, 0.12), Math.max(durationSeconds - 0.2, 0.12));
+  const seconds = target.toFixed(2).padStart(5, '0');
+  return `00:00:${seconds}`;
+}
+
+async function runFfmpegPosterExtract(inputPath, outputPath) {
+  return new Promise((resolve, reject) => {
+    const args = [
+      '-y',
+      '-ss',
+      '00:00:00.12',
+      '-i',
+      inputPath,
+      '-frames:v',
+      '1',
+      '-vf',
+      'scale=1280:-2',
+      '-q:v',
+      '2',
+      outputPath,
+    ];
+    const child = spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    let stderr = '';
+    let settled = false;
+
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
+
+    child.stderr?.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on('error', fail);
+    child.on('exit', (code, signal) => {
+      if (code === 0) {
+        if (!settled) {
+          settled = true;
+          resolve();
+        }
+        return;
+      }
+      const reason = signal ? `signal ${signal}` : `code ${code}`;
+      fail(new Error(`ffmpeg poster extraction exited with ${reason}${stderr ? `: ${stderr.slice(-500)}` : ''}`));
+    });
+    child.on('close', (code, signal) => {
+      if (settled) return;
+      const reason = signal ? `signal ${signal}` : `code ${code}`;
+      fail(new Error(`ffmpeg poster extraction closed with ${reason}${stderr ? `: ${stderr.slice(-500)}` : ''}`));
+    });
+  });
+}
+
+async function createVideoPoster(inputPath, uploadName, reqMeta = {}) {
+  const tempPosterPath = path.join(path.dirname(inputPath), `${path.basename(uploadName, path.extname(uploadName)) || 'video'}-poster.jpg`);
+  await runFfmpegPosterExtract(inputPath, tempPosterPath);
+  const posterBuffer = await fs.readFile(tempPosterPath);
+  const posterResult = await uploadFile(posterBuffer, path.basename(tempPosterPath), false, 'image/jpeg', {
+    baseUrl: reqMeta.baseUrl,
+    sections: [safePathSegment(reqMeta.root || reqMeta.assetSpace || reqMeta.type || 'Homepage', 'Homepage'), safePathSegment(reqMeta.category || reqMeta.folder || '首页封面', '首页封面')],
+    displayName: safePathSegment(`${reqMeta?.displayName || path.basename(uploadName, path.extname(uploadName)) || 'video'} poster`, 'video-poster'),
+    keepOriginalName: true,
+  });
+  await fs.rm(tempPosterPath, { force: true }).catch(() => {});
+  return { posterUrl: posterResult.url || '', posterObjectName: posterResult.objectName || '', posterFileName: path.basename(tempPosterPath) };
+}
+
 export async function processVideoTask(taskId, originalName, buffer, reqMeta) {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'portfolio-video-'));
   const inputPath = path.join(tempDir, originalName || 'input');
@@ -86,6 +157,7 @@ export async function processVideoTask(taskId, originalName, buffer, reqMeta) {
   try {
     await updateVideoTranscodeTask(taskId, { status: 'processing' });
     await fs.writeFile(inputPath, buffer);
+    const posterPromise = createVideoPoster(inputPath, originalName || 'video.mp4', reqMeta).catch(() => null);
     await runFfmpegTranscode(inputPath, outputPath);
     const uploadBuffer = await fs.readFile(outputPath);
     const uploadName = `${path.basename(originalName, path.extname(originalName)) || 'video'}.mp4`;
@@ -96,8 +168,16 @@ export async function processVideoTask(taskId, originalName, buffer, reqMeta) {
       keepOriginalName: true,
     });
 
-    await updateVideoTranscodeTask(taskId, { status: 'completed', targetUrl: result.url, errorMsg: null });
-    emitTaskEvent({ event: 'task-completed', taskId, status: 'completed', targetUrl: result.url, errorMsg: null });
+    const poster = await posterPromise;
+    await updateVideoTranscodeTask(taskId, {
+      status: 'completed',
+      targetUrl: result.url,
+      posterUrl: poster?.posterUrl || null,
+      posterObjectName: poster?.posterObjectName || null,
+      posterFileName: poster?.posterFileName || null,
+      errorMsg: null,
+    });
+    emitTaskEvent({ event: 'task-completed', taskId, status: 'completed', targetUrl: result.url, posterUrl: poster?.posterUrl || null, errorMsg: null });
   } catch (error) {
     const errorMsg = error?.message || 'transcode_failed';
     await updateVideoTranscodeTask(taskId, { status: 'failed', errorMsg });

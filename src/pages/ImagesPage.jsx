@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchJson } from '../utils/api.js';
+import { fetchJson, resolveResourceUrl } from '../utils/api.js';
 import { useI18n } from '../context/I18nContext.jsx';
 import MinimalTopNav from '../components/MinimalTopNav.jsx';
 
 function normalizeImageItem(item, index) {
   if (!item) return null;
 
-  const url = String(item.coverUrl || item.coverAssetUrl || item.thumbnailUrl || item.mainImageUrl || item.imageUrl || item.url || '').trim();
+  const url = resolveResourceUrl(String(item.coverUrl || item.coverAssetUrl || item.thumbnailUrl || item.mainImageUrl || item.imageUrl || item.url || '').trim());
   if (!url) return null;
 
   return {
@@ -30,7 +30,7 @@ function parseImageSources(rawValue) {
         if (url) {
           return {
             id: parsed?.id || `featured-${index + 1}`,
-            url,
+            url: resolveResourceUrl(url),
             title: parsed?.title || parsed?.name || `Featured ${String(index + 1).padStart(2, '0')}`,
             size: parsed?.size === 'wide' ? 'wide' : 'tall',
           };
@@ -42,7 +42,7 @@ function parseImageSources(rawValue) {
       const [url, title, size] = value.split('|').map((part) => part.trim());
       return {
         id: `featured-${index + 1}`,
-        url,
+        url: resolveResourceUrl(url),
         title: title || `Featured ${String(index + 1).padStart(2, '0')}`,
         size: size === 'wide' ? 'wide' : 'tall',
       };
@@ -75,9 +75,9 @@ function ImagesPage() {
       const imagesFromMediaAssets = Array.isArray(mediaAssets)
         ? mediaAssets.filter((asset) => String(asset?.kind || 'image') === 'image').map(normalizeImageItem).filter(Boolean)
         : [];
+      const fallbackImages = imagesFromProjects.length ? imagesFromProjects : imagesFromConfigAssets.length ? imagesFromConfigAssets : imagesFromMediaAssets.length ? imagesFromMediaAssets : imagesFromConfig;
 
-      const images =
-        imagesFromProjects.length ? imagesFromProjects : imagesFromConfigAssets.length ? imagesFromConfigAssets : imagesFromMediaAssets.length ? imagesFromMediaAssets : imagesFromConfig;
+      const images = fallbackImages.filter((image) => Boolean(image?.url));
 
       setState((prev) => ({
         ...prev,
