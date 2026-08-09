@@ -1,15 +1,21 @@
-const LOCAL_API_BASE = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8787/api' : 'http://47.114.95.49/api')).replace(/\/+$/, '');
+import { API_BASE_URL, getAccessToken } from '../utils/api.js';
+
 const SIGNED_URL_REFRESH_BUFFER_MS = 60 * 1000;
 const UPLOAD_TIMEOUT_MS = 60 * 60 * 1000;
 const SSE_RETRY_DELAY_MS = 1500;
+
+function authHeaders(extra = {}) {
+  const token = getAccessToken();
+  return token ? { ...extra, Authorization: `Bearer ${token}` } : extra;
+}
 
 function wait(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function buildEventSourceUrl() {
-  if (typeof window === 'undefined') return `${LOCAL_API_BASE}/events`;
-  const directBase = LOCAL_API_BASE.replace(/\/api$/, '');
+  if (typeof window === 'undefined') return `${API_BASE_URL}/events`;
+  const directBase = API_BASE_URL.replace(/\/api$/, '');
   return `${directBase}/api/events`;
 }
 
@@ -19,7 +25,7 @@ function openEventSource() {
 }
 
 async function fetchTaskStatus(taskId) {
-  const response = await fetch(`${LOCAL_API_BASE}/uploads/status/${encodeURIComponent(taskId)}`);
+  const response = await fetch(`${API_BASE_URL}/uploads/status/${encodeURIComponent(taskId)}`, { headers: authHeaders() });
   if (!response.ok) return null;
   const result = await response.json();
   return result?.data || null;
@@ -106,9 +112,9 @@ async function waitForTaskCompletion(taskId, { timeoutMs = UPLOAD_TIMEOUT_MS } =
 }
 
 async function refreshSignedUrl(path) {
-  const response = await fetch(`${LOCAL_API_BASE}/uploads`, {
+  const response = await fetch(`${API_BASE_URL}/uploads`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ path }),
   });
 
@@ -133,8 +139,9 @@ export async function uploadFileToOSS({ file, dir = 'uploads', onProgress }) {
   formData.append('dir', dir);
   formData.append('type', 'public');
 
-  const response = await fetch(`${LOCAL_API_BASE}/uploads`, {
+  const response = await fetch(`${API_BASE_URL}/uploads`, {
     method: 'POST',
+    headers: authHeaders(),
     body: formData,
   });
 
