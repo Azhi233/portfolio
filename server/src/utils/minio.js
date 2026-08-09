@@ -20,7 +20,9 @@ function safePathSegment(value = '', fallback = 'untitled') {
   const segment = String(value)
     .trim()
     .replace(/[\\/]+/g, '-')
-    .replace(/[<>:"|?*\u0000-\u001f]/g, '')
+    .replace(/[<>:"|?*]/g, '')
+    // eslint-disable-next-line no-control-regex -- 需移除文件名字符串中的控制字符
+    .replace(/[\u0000-\u001f]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '');
