@@ -28,6 +28,8 @@ import { createSyncRouter } from './routes/sync.routes.js';
 import { createHealthcheckRouter } from './routes/healthcheck.routes.js';
 import { createAboutProfilesController } from './controllers/aboutProfiles.controller.js';
 import { createAboutProfilesRouter } from './routes/aboutProfiles.routes.js';
+import { createDeployController } from './controllers/deploy.controller.js';
+import { createDeployRouter } from './routes/deploy.routes.js';
 import { readProjects } from './db/projects.repository.js';
 
 export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged, uploadEvents, sseClients }) {
@@ -50,7 +52,14 @@ export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged,
   app.use(cors(corsOptions));
   app.options('*', cors(corsOptions));
   app.set('trust proxy', true);
-  app.use(express.json({ limit: '20480mb' }));
+  app.use(express.json({
+    limit: '20480mb',
+    verify(req, _res, buffer) {
+      if (String(req.originalUrl || '').startsWith('/api/deploy/webhook')) {
+        req.rawBody = Buffer.isBuffer(buffer) ? buffer.toString('utf8') : Buffer.from(buffer || []).toString('utf8');
+      }
+    },
+  }));
   app.use(express.urlencoded({ limit: '20480mb', extended: true }));
 
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20480 * 1024 * 1024 } });
@@ -140,6 +149,7 @@ export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged,
   app.use('/api/uploads', createUploadRouter(uploadController));
   const syncController = createSyncController();
   app.use('/api/sync', createSyncRouter(syncController));
+  app.use('/api/deploy', createDeployRouter(createDeployController()));
   app.use('/api/healthcheck', createHealthcheckRouter());
 
   return app;
