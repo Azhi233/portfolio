@@ -1,4 +1,5 @@
 import { listDeliveryUnlocks, listProjectUnlocks, setDeliveryUnlock, setProjectUnlock, unlockClientAccess } from '../services/unlocks.service.js';
+import { asyncHandler } from '../middlewares/error.middleware.js';
 
 export function createUnlocksController() {
   async function getProjectUnlocks(_req, res) {
@@ -31,5 +32,11 @@ export function createUnlocksController() {
     return res.json({ ok: true, data: match });
   }
 
-  return { getProjectUnlocks, postProjectUnlocks, getDeliveryUnlocks, postDeliveryUnlocks, postClientAccessUnlock };
+  return {
+    getProjectUnlocks: asyncHandler(getProjectUnlocks),
+    postProjectUnlocks: asyncHandler(postProjectUnlocks),
+    getDeliveryUnlocks: asyncHandler(getDeliveryUnlocks),
+    postDeliveryUnlocks: asyncHandler(postDeliveryUnlocks),
+    postClientAccessUnlock: asyncHandler(postClientAccessUnlock),
+  };
 }

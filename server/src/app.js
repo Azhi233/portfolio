@@ -27,6 +27,7 @@ import { createSyncController } from './controllers/sync.controller.js';
 import { createSyncRouter } from './routes/sync.routes.js';
 import { createHealthcheckRouter } from './routes/healthcheck.routes.js';
 import { readProjects } from './db/projects.repository.js';
+import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js';
 
 export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged, uploadEvents, sseClients }) {
   const app = express();
@@ -105,6 +106,10 @@ export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged,
   const syncController = createSyncController();
   app.use('/api/sync', createSyncRouter(syncController));
   app.use('/api/healthcheck', createHealthcheckRouter());
+
+  // 统一 404 与错误响应(必须注册在所有路由之后)
+  app.use(notFoundHandler);
+  app.use(errorHandler);
 
   return app;
 }

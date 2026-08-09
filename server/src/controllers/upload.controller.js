@@ -7,6 +7,7 @@ import { createTaskId, isVideoFile, processVideoTask } from './upload.helpers.js
 import { uploadFile } from '../utils/minio.js';
 import { createMediaAsset, listMediaAssets } from '../services/media.service.js';
 import { emitTaskEvent } from '../utils/taskEvents.js';
+import { asyncHandler } from '../middlewares/error.middleware.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20480 * 1024 * 1024 } });
 
@@ -91,5 +92,5 @@ export function createUploadController() {
     return res.json({ ok: true, data: task });
   }
 
-  return { upload, getUploads, postUpload, getUploadStatus };
+  return { upload, getUploads, postUpload, getUploadStatus: asyncHandler(getUploadStatus) };
 }

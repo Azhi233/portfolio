@@ -1,4 +1,5 @@
 import { listTranslationReviewItems, seedTranslationReviewItems, updateTranslationReviewStatus } from '../services/translation-review.service.js';
+import { asyncHandler } from '../middlewares/error.middleware.js';
 
 export function createTranslationReviewController() {
   async function getItems(_req, res) {
@@ -19,5 +20,5 @@ export function createTranslationReviewController() {
     return res.json({ ok: true, data: item });
   }
 
-  return { getItems, postSeed, patchStatus };
+  return { getItems: asyncHandler(getItems), postSeed: asyncHandler(postSeed), patchStatus: asyncHandler(patchStatus) };
 }

@@ -1,4 +1,5 @@
 import { createReview, listReviews } from '../services/reviews.service.js';
+import { asyncHandler } from '../middlewares/error.middleware.js';
 
 export function createReviewsController() {
   async function getReviews(_req, res) {
@@ -15,5 +16,5 @@ export function createReviewsController() {
     return res.status(201).json({ ok: true, data: created });
   }
 
-  return { getReviews, postReview };
+  return { getReviews: asyncHandler(getReviews), postReview: asyncHandler(postReview) };
 }

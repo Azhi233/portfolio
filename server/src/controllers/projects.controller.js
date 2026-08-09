@@ -12,6 +12,7 @@ import {
   parseDisplayOn,
   parseJsonField,
 } from './projects.controller.helpers.js';
+import { asyncHandler } from '../middlewares/error.middleware.js';
 
 export function createProjectsController({ uploadProjectImage, notifyConfigChanged }) {
   async function getProjects(req, res) {
@@ -62,7 +63,6 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
 
     res.json({ ok: true, data: withPrivateGroups, groups: grouped });
   }
-
   async function hydratePrivateFileUrls(project, { persistBackfill = false } = {}) {
     if (!Array.isArray(project?.privateFiles) || project.privateFiles.length === 0) return project;
     let shouldPersist = false;
@@ -195,7 +195,7 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
       return res.status(201).json({ ok: true, data: attachVideoAspectRatio(created) });
     } catch (error) {
       console.error('Failed to create project:', error);
-      return res.status(500).json({ ok: false, message: 'Failed to create project.', detail: error?.message || '' });
+      return res.status(500).json({ ok: false, message: 'Failed to create project.' });
     }
   }
 
@@ -331,7 +331,7 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
       return res.json({ ok: true, data: attachVideoAspectRatio(updated) });
     } catch (error) {
       console.error('Failed to update project:', error);
-      return res.status(500).json({ ok: false, message: 'Failed to update project.', detail: error?.message || '' });
+      return res.status(500).json({ ok: false, message: 'Failed to update project.' });
     }
   }
 
@@ -373,5 +373,11 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
     return res.json({ ok: true, data: { id: req.params.id } });
   }
 
-  return { getProjects, getProject, postProject, putProject, deleteProject };
+  return {
+    getProjects: asyncHandler(getProjects),
+    getProject: asyncHandler(getProject),
+    postProject,
+    putProject,
+    deleteProject: asyncHandler(deleteProject),
+  };
 }

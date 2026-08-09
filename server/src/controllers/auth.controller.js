@@ -1,4 +1,5 @@
 import { loginUser, registerUser } from '../services/auth.service.js';
+import { asyncHandler } from '../middlewares/error.middleware.js';
 
 export function createAuthController({ jwtSecret }) {
   async function login(req, res) {
@@ -22,5 +23,5 @@ export function createAuthController({ jwtSecret }) {
     return res.status(201).json({ ok: true, data: result });
   }
 
-  return { login, register };
+  return { login: asyncHandler(login), register: asyncHandler(register) };
 }

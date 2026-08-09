@@ -1,4 +1,5 @@
 import { getConfig, saveConfig } from '../services/config.service.js';
+import { asyncHandler } from '../middlewares/error.middleware.js';
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -59,5 +60,12 @@ export function createConfigController({ notifyConfigChanged, broadcastEvent, au
     return res.json({ ok: true, data: config.editorLayout || payload });
   }
 
-  return { getConfigHandler, postConfigHandler, postHomepageVideoHandler, getEditorLayoutHandler, putEditorLayoutHandler, authMiddleware };
+  return {
+    getConfigHandler: asyncHandler(getConfigHandler),
+    postConfigHandler: asyncHandler(postConfigHandler),
+    postHomepageVideoHandler: asyncHandler(postHomepageVideoHandler),
+    getEditorLayoutHandler: asyncHandler(getEditorLayoutHandler),
+    putEditorLayoutHandler: asyncHandler(putEditorLayoutHandler),
+    authMiddleware,
+  };
 }

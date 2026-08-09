@@ -57,18 +57,13 @@ function safePathSegment(value = '', fallback = 'video') {
   const segment = String(value)
     .trim()
     .replace(/[\\/]+/g, '-')
-    .replace(/[<>:"|?*\u0000-\u001f]/g, '')
+    .replace(/[<>:"|?*]/g, '')
+    // eslint-disable-next-line no-control-regex -- 需移除文件名字符串中的控制字符
+    .replace(/[\u0000-\u001f]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '');
   return segment || fallback;
-}
-
-function detectMimeKind(mime = '', fileName = '') {
-  const lowerMime = String(mime).toLowerCase();
-  const lowerName = String(fileName).toLowerCase();
-  if (lowerMime.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(lowerName)) return '照片';
-  return '视频';
 }
 
 function buildUploadSections(reqMeta = {}) {
