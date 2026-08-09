@@ -1,7 +1,10 @@
 import crypto from 'node:crypto';
-import { spawn } from 'node:child_process';
+import { spawn, execFile as execFileCb } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { promisify } from 'node:util';
+
+const execFile = promisify(execFileCb);
 
 function readSecret() {
   return String(process.env.GITHUB_WEBHOOK_SECRET || process.env.DEPLOY_WEBHOOK_SECRET || '').trim();
@@ -40,6 +43,11 @@ function runCommand(command, args, options = {}) {
       reject(error);
     });
   });
+}
+
+async function runGit(cwd, args) {
+  const result = await execFile('git', args, { cwd, maxBuffer: 10 * 1024 * 1024 });
+  return { stdout: String(result.stdout || ''), stderr: String(result.stderr || '') };
 }
 
 async function ensureDir(dirPath) {
@@ -146,7 +154,7 @@ export function createDeployController() {
 
     try {
       await ensureDir(repoPath);
-      const pullResult = await runCommand('git', ['pull', '--ff-only', 'origin', 'main'], { cwd: repoPath });
+      const pullResult = await runGit(repoPath, ['pull', '--ff-only', 'origin', 'main']);
       const installResult = await runCommand(process.platform === 'win32' ? 'cmd' : 'sh', getShellArgs(serverInstall), { cwd: path.join(repoPath, 'server') });
       const frontendResult = await runCommand(process.platform === 'win32' ? 'cmd' : 'sh', getShellArgs(frontendBuild), { cwd: repoPath });
       const restartResult = await restartServices(services, extra);
