@@ -1,6 +1,5 @@
 import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { updateVideoTranscodeTask } from '../db/videoTranscode.repository.js';
 import { emitTaskEvent } from '../utils/taskEvents.js';
@@ -73,22 +72,23 @@ function buildUploadSections(reqMeta = {}) {
   return [root, category];
 }
 
-export async function processVideoTask(taskId, originalName, buffer, reqMeta) {
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'portfolio-video-'));
-  const inputPath = path.join(tempDir, originalName || 'input');
+export async function processVideoTask(taskId, originalName, inputPath, reqMeta) {
+  const tempDir = path.dirname(inputPath);
   const outputPath = path.join(tempDir, `${path.basename(originalName, path.extname(originalName)) || 'video'}.mp4`);
 
   try {
     await updateVideoTranscodeTask(taskId, { status: 'processing' });
-    await fs.writeFile(inputPath, buffer);
     await runFfmpegTranscode(inputPath, outputPath);
-    const uploadBuffer = await fs.readFile(outputPath);
+    const uploadStat = await fs.stat(outputPath);
     const uploadName = `${path.basename(originalName, path.extname(originalName)) || 'video'}.mp4`;
-    const result = await uploadFile(uploadBuffer, uploadName, false, 'video/mp4', {
+    // 隐私遵循请求的 type 字段,不再硬编码为 public(修复私有视频被公开上传的问题)
+    const isPrivateUpload = String(reqMeta?.privacy || '').toLowerCase() === 'private';
+    const result = await uploadFile(fs.createReadStream(outputPath), uploadName, isPrivateUpload, 'video/mp4', {
       baseUrl: reqMeta.baseUrl,
       sections: buildUploadSections(reqMeta, uploadName, 'video/mp4'),
       displayName: safePathSegment(reqMeta?.displayName || path.basename(uploadName, path.extname(uploadName)) || 'video', 'video'),
       keepOriginalName: true,
+      size: uploadStat.size,
     });
 
     await updateVideoTranscodeTask(taskId, { status: 'completed', targetUrl: result.url, errorMsg: null });

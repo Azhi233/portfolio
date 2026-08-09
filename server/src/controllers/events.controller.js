@@ -27,7 +27,9 @@ export function createEventsController({ sseClients, uploadEvents }) {
   function attachUploadEvents(broadcastSse) {
     uploadEvents.on('task-event', (payload) => {
       if (!payload?.event) return;
-      broadcastSse(payload.event, payload);
+      // 广播负载剥离 URL 类字段:匿名 SSE 连接不应获得上传文件地址
+      const { targetUrl, url, ...safePayload } = payload;
+      broadcastSse(payload.event, safePayload);
     });
   }
 

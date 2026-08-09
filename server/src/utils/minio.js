@@ -65,7 +65,12 @@ export async function initMinio() {
   await ensureBucket(PUBLIC_BUCKET);
   await ensureBucket(PRIVATE_BUCKET);
   await minioClient.setBucketPolicy(PUBLIC_BUCKET, JSON.stringify(buildPublicReadPolicy(PUBLIC_BUCKET)));
-  await minioClient.setBucketPolicy(PRIVATE_BUCKET, JSON.stringify(buildPublicReadPolicy(PRIVATE_BUCKET)));
+  // 私有桶保持私有:移除历史公共读策略(旧版本曾误设为公共读)
+  try {
+    await minioClient.removeBucketPolicy(PRIVATE_BUCKET);
+  } catch {
+    // 忽略:SDK 不支持该方法或桶上本就无策略
+  }
 }
 
 function normalizeBaseUrl(baseUrl = '') {
@@ -101,7 +106,8 @@ export async function uploadFile(fileStream, fileName, isPrivate = false, conten
   const bucketName = isPrivate ? PRIVATE_BUCKET : PUBLIC_BUCKET;
   const objectName = buildObjectName(fileName, options);
   await ensureBucket(bucketName);
-  await minioClient.putObject(bucketName, objectName, fileStream, undefined, { 'Content-Type': contentType });
+  // stream 必须携带 size(见 minio-js putObject 约定);Buffer 时 size 可为空
+  await minioClient.putObject(bucketName, objectName, fileStream, options.size, { 'Content-Type': contentType });
 
   const explicitBaseUrl = getPublicBaseUrl(options);
   if (explicitBaseUrl) {
@@ -124,8 +130,9 @@ export async function deleteObject(bucketName, objectName) {
   await minioClient.removeObject(bucketName, objectName);
 }
 
-export async function getPresignedUrl(objectName) {
+export async function getPresignedUrl(bucketName, objectName) {
   ensureClient();
-  await ensureBucket(PRIVATE_BUCKET);
-  return minioClient.presignedGetObject(PRIVATE_BUCKET, objectName, minioPresignExpiresSeconds);
+  const bucket = String(bucketName || PRIVATE_BUCKET);
+  await ensureBucket(bucket);
+  return minioClient.presignedGetObject(bucket, objectName, minioPresignExpiresSeconds);
 }

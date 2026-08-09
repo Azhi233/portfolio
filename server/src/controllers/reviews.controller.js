@@ -12,7 +12,8 @@ export function createReviewsController() {
       return res.status(400).json({ ok: false, message: 'projectId, projectName and content are required.' });
     }
 
-    const created = await createReview({ ...payload, status: payload.status || 'pending' });
+    // 客户端提交的评论状态强制为 pending,不允许自定审核状态(审批仅由管理端完成)
+    const created = await createReview({ ...payload, status: 'pending' });
     return res.status(201).json({ ok: true, data: created });
   }
 
