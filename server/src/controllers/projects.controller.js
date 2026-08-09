@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { createProject, editProject, getProjectById, listProjects, removeProject } from '../services/projects.service.js';
-import { deleteObject } from '../utils/minio.js';
+import { PRIVATE_BUCKET, deleteObject, getPresignedUrl } from '../utils/minio.js';
 import { createMediaAsset } from '../services/media.service.js';
 import {
   attachVideoAspectRatio,
@@ -12,11 +12,19 @@ import {
   parseDisplayOn,
   parseJsonField,
 } from './projects.controller.helpers.js';
+import { asyncHandler } from '../middlewares/error.middleware.js';
 
 export function createProjectsController({ uploadProjectImage, notifyConfigChanged }) {
+  /** 剥离敏感字段:accessPassword/deliveryPin/password/privateFiles 仅对已鉴权请求返回 */
+  function sanitizeProjectForPublicView(project = {}) {
+    const { accessPassword, deliveryPin, password, privateFiles, ...rest } = project;
+    return rest;
+  }
+
   async function getProjects(req, res) {
     const kind = String(req.query.kind || 'all').toLowerCase();
     const page = String(req.query.page || '').toLowerCase();
+    const isAuthed = req.authKind === 'admin' || req.authKind === 'client';
     const items = await listProjects();
     const normalized = items.map((item) => ({
       ...attachVideoAspectRatio(item),
@@ -47,6 +55,11 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
           ? pageFiltered.filter((item) => item.visibility === 'private')
           : pageFiltered.filter((item) => item.visibility !== 'private');
 
+    // private 项目列表仅对已鉴权请求开放(匿名请求不暴露私密项目存在性)
+    if (kind === 'private' && !isAuthed) {
+      return res.json({ ok: true, data: [], groups: {} });
+    }
+
     const withPrivateGroups = filtered.map((item) => {
       if (item.visibility !== 'private' || !item.accessPassword) return item;
       const group = privateGroupIds.get(String(item.accessPassword).trim()) || [];
@@ -60,9 +73,10 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
       return acc;
     }, {});
 
-    res.json({ ok: true, data: withPrivateGroups, groups: grouped });
-  }
+    const responseData = isAuthed ? withPrivateGroups : withPrivateGroups.map(sanitizeProjectForPublicView);
 
+    res.json({ ok: true, data: responseData, groups: grouped });
+  }
   async function hydratePrivateFileUrls(project, { persistBackfill = false } = {}) {
     if (!Array.isArray(project?.privateFiles) || project.privateFiles.length === 0) return project;
     let shouldPersist = false;
@@ -81,8 +95,12 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
         return directUrl ? { ...file, bucketName, url: directUrl } : file;
       }
 
-      const url = publicBaseUrl ? `${publicBaseUrl}/${bucketName || 'private-docs'}/${objectName}` : directUrl;
-      return { ...file, bucketName: bucketName || 'private-docs', objectName, url: url || directUrl };
+      const resolvedBucket = String(bucketName || '').trim() || PRIVATE_BUCKET;
+      const isPrivateBucket = String(resolvedBucket).toLowerCase() === String(PRIVATE_BUCKET).toLowerCase();
+      const url = isPrivateBucket
+        ? await getPresignedUrl(resolvedBucket, objectName).catch(() => directUrl)
+        : publicBaseUrl ? `${publicBaseUrl}/${resolvedBucket}/${objectName}` : directUrl;
+      return { ...file, bucketName: resolvedBucket, objectName, url: url || directUrl };
     }));
 
     const hydrated = { ...project, privateFiles };
@@ -97,7 +115,13 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
     if (!project) {
       return res.status(404).json({ ok: false, message: 'Project not found.' });
     }
-    return res.json({ ok: true, data: attachVideoAspectRatio(await hydratePrivateFileUrls(project, { persistBackfill: true })) });
+    const isPrivateProject = String(project.visibility || '').toLowerCase() === 'private';
+    const isAuthed = req.authKind === 'admin' || (req.authKind === 'client' && req.client?.projectId === String(project.id));
+    if (isPrivateProject && !isAuthed) {
+      return res.status(404).json({ ok: false, message: 'Project not found.' });
+    }
+    const data = attachVideoAspectRatio(await hydratePrivateFileUrls(project, { persistBackfill: isAuthed }));
+    return res.json({ ok: true, data: isAuthed ? data : sanitizeProjectForPublicView(data) });
   }
 
   async function postProject(req, res) {
@@ -195,7 +219,7 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
       return res.status(201).json({ ok: true, data: attachVideoAspectRatio(created) });
     } catch (error) {
       console.error('Failed to create project:', error);
-      return res.status(500).json({ ok: false, message: 'Failed to create project.', detail: error?.message || '' });
+      return res.status(500).json({ ok: false, message: 'Failed to create project.' });
     }
   }
 
@@ -331,7 +355,7 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
       return res.json({ ok: true, data: attachVideoAspectRatio(updated) });
     } catch (error) {
       console.error('Failed to update project:', error);
-      return res.status(500).json({ ok: false, message: 'Failed to update project.', detail: error?.message || '' });
+      return res.status(500).json({ ok: false, message: 'Failed to update project.' });
     }
   }
 
@@ -373,5 +397,11 @@ export function createProjectsController({ uploadProjectImage, notifyConfigChang
     return res.json({ ok: true, data: { id: req.params.id } });
   }
 
-  return { getProjects, getProject, postProject, putProject, deleteProject };
+  return {
+    getProjects: asyncHandler(getProjects),
+    getProject: asyncHandler(getProject),
+    postProject,
+    putProject,
+    deleteProject: asyncHandler(deleteProject),
+  };
 }

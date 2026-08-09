@@ -1,4 +1,5 @@
 import { createMediaAsset, listMediaAssets } from '../services/media.service.js';
+import { asyncHandler } from '../middlewares/error.middleware.js';
 
 export function createMediaController() {
   async function getMediaAssets(_req, res) {
@@ -15,5 +16,5 @@ export function createMediaController() {
     return res.status(201).json({ ok: true, data });
   }
 
-  return { getMediaAssets, postMediaAsset };
+  return { getMediaAssets: asyncHandler(getMediaAssets), postMediaAsset: asyncHandler(postMediaAsset) };
 }

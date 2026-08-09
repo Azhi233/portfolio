@@ -1,6 +1,7 @@
 import { loginUser, registerUser } from '../services/auth.service.js';
+import { asyncHandler } from '../middlewares/error.middleware.js';
 
-export function createAuthController({ jwtSecret }) {
+export function createAuthController({ jwtSecret, allowRegister = false }) {
   async function login(req, res) {
     const { username, password } = req.body || {};
     if (!username || !password) return res.status(400).json({ ok: false, message: 'username and password are required.' });
@@ -11,6 +12,11 @@ export function createAuthController({ jwtSecret }) {
   }
 
   async function register(req, res) {
+    // 公开注册会直接签发 admin JWT,默认关闭;需显式设置 ALLOW_REGISTER=true 才开放
+    if (!allowRegister) {
+      return res.status(403).json({ ok: false, message: 'Registration is disabled.' });
+    }
+
     const { username, password } = req.body || {};
     if (!username || !password) return res.status(400).json({ ok: false, message: 'username and password are required.' });
 
@@ -22,5 +28,5 @@ export function createAuthController({ jwtSecret }) {
     return res.status(201).json({ ok: true, data: result });
   }
 
-  return { login, register };
+  return { login: asyncHandler(login), register: asyncHandler(register) };
 }

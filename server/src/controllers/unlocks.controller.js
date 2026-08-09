@@ -1,6 +1,7 @@
 import { listDeliveryUnlocks, listProjectUnlocks, setDeliveryUnlock, setProjectUnlock, unlockClientAccess } from '../services/unlocks.service.js';
+import { asyncHandler } from '../middlewares/error.middleware.js';
 
-export function createUnlocksController() {
+export function createUnlocksController({ clientTokenSecret } = {}) {
   async function getProjectUnlocks(_req, res) {
     res.json({ ok: true, data: await listProjectUnlocks() });
   }
@@ -25,11 +26,17 @@ export function createUnlocksController() {
     const password = String(req.body?.password || '').trim();
     if (!password) return res.status(400).json({ ok: false, message: 'password is required.' });
 
-    const match = await unlockClientAccess(password);
+    const match = await unlockClientAccess(password, { secret: clientTokenSecret });
     if (!match) return res.status(404).json({ ok: false, message: 'No matching private project found.' });
 
     return res.json({ ok: true, data: match });
   }
 
-  return { getProjectUnlocks, postProjectUnlocks, getDeliveryUnlocks, postDeliveryUnlocks, postClientAccessUnlock };
+  return {
+    getProjectUnlocks: asyncHandler(getProjectUnlocks),
+    postProjectUnlocks: asyncHandler(postProjectUnlocks),
+    getDeliveryUnlocks: asyncHandler(getDeliveryUnlocks),
+    postDeliveryUnlocks: asyncHandler(postDeliveryUnlocks),
+    postClientAccessUnlock: asyncHandler(postClientAccessUnlock),
+  };
 }

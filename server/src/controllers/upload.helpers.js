@@ -1,8 +1,6 @@
 import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
-import sharp from 'sharp';
 import { updateVideoTranscodeTask } from '../db/videoTranscode.repository.js';
 import { emitTaskEvent } from '../utils/taskEvents.js';
 import { uploadFile } from '../utils/minio.js';
@@ -58,18 +56,13 @@ function safePathSegment(value = '', fallback = 'video') {
   const segment = String(value)
     .trim()
     .replace(/[\\/]+/g, '-')
-    .replace(/[<>:"|?*\u0000-\u001f]/g, '')
+    .replace(/[<>:"|?*]/g, '')
+    // eslint-disable-next-line no-control-regex -- 需移除文件名字符串中的控制字符
+    .replace(/[\u0000-\u001f]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '');
   return segment || fallback;
-}
-
-function detectMimeKind(mime = '', fileName = '') {
-  const lowerMime = String(mime).toLowerCase();
-  const lowerName = String(fileName).toLowerCase();
-  if (lowerMime.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(lowerName)) return '照片';
-  return '视频';
 }
 
 function buildUploadSections(reqMeta = {}) {
@@ -77,13 +70,6 @@ function buildUploadSections(reqMeta = {}) {
   const root = safePathSegment(reqMeta.root || assetSpace, assetSpace);
   const category = safePathSegment(reqMeta.category || reqMeta.folder || reqMeta.subfolder || '默认分类', '默认分类');
   return [root, category];
-}
-
-function extractPosterTime(durationSeconds) {
-  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return '00:00:00.12';
-  const target = Math.min(Math.max(durationSeconds * 0.08, 0.12), Math.max(durationSeconds - 0.2, 0.12));
-  const seconds = target.toFixed(2).padStart(5, '0');
-  return `00:00:${seconds}`;
 }
 
 async function runFfmpegPosterExtract(inputPath, outputPath) {
@@ -149,23 +135,24 @@ async function createVideoPoster(inputPath, uploadName, reqMeta = {}) {
   return { posterUrl: posterResult.url || '', posterObjectName: posterResult.objectName || '', posterFileName: path.basename(tempPosterPath) };
 }
 
-export async function processVideoTask(taskId, originalName, buffer, reqMeta) {
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'portfolio-video-'));
-  const inputPath = path.join(tempDir, originalName || 'input');
+export async function processVideoTask(taskId, originalName, inputPath, reqMeta) {
+  const tempDir = path.dirname(inputPath);
   const outputPath = path.join(tempDir, `${path.basename(originalName, path.extname(originalName)) || 'video'}.mp4`);
 
   try {
     await updateVideoTranscodeTask(taskId, { status: 'processing' });
-    await fs.writeFile(inputPath, buffer);
     const posterPromise = createVideoPoster(inputPath, originalName || 'video.mp4', reqMeta).catch(() => null);
     await runFfmpegTranscode(inputPath, outputPath);
-    const uploadBuffer = await fs.readFile(outputPath);
+    const uploadStat = await fs.stat(outputPath);
     const uploadName = `${path.basename(originalName, path.extname(originalName)) || 'video'}.mp4`;
-    const result = await uploadFile(uploadBuffer, uploadName, false, 'video/mp4', {
+    // 隐私遵循请求的 type 字段,不再硬编码为 public(修复私有视频被公开上传的问题)
+    const isPrivateUpload = String(reqMeta?.privacy || '').toLowerCase() === 'private';
+    const result = await uploadFile(fs.createReadStream(outputPath), uploadName, isPrivateUpload, 'video/mp4', {
       baseUrl: reqMeta.baseUrl,
       sections: buildUploadSections(reqMeta, uploadName, 'video/mp4'),
       displayName: safePathSegment(reqMeta?.displayName || path.basename(uploadName, path.extname(uploadName)) || 'video', 'video'),
       keepOriginalName: true,
+      size: uploadStat.size,
     });
 
     const poster = await posterPromise;

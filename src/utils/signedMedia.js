@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '');
+import { API_BASE_URL, resolveAuthToken } from './api.js';
 
 const SIGNED_URL_REFRESH_BUFFER_MS = 30 * 60 * 1000;
 const SIGNED_URL_PATTERN = /[?&]X-Amz-Expires=|[?&]X-Amz-Signature=|[?&]X-Amz-Credential=/i;
@@ -40,9 +40,13 @@ export function shouldRefreshUrl(url = '') {
 
 export async function refreshSignedUrl(objectPath) {
   if (!objectPath) return '';
-  const response = await fetch(`${API_BASE}/api/uploads/sign`, {
+  const token = resolveAuthToken();
+  const response = await fetch(`${API_BASE_URL}/uploads/sign`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify({ path: objectPath }),
   });
 

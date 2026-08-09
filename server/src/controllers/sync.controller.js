@@ -1,4 +1,5 @@
 import { syncMediaAssetsFromMinio } from '../services/minioSync.service.js';
+import { asyncHandler } from '../middlewares/error.middleware.js';
 
 export function createSyncController() {
   async function syncMediaAssets(_req, res, next) {
@@ -10,5 +11,5 @@ export function createSyncController() {
     }
   }
 
-  return { syncMediaAssets };
+  return { syncMediaAssets: asyncHandler(syncMediaAssets) };
 }

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getStoredToken } from '../context/configAuth.js';
 
 const fallbackBaseURL = '/api';
 
@@ -89,11 +90,20 @@ export function getAccessToken() {
   return readAccessToken();
 }
 
+/** 解析优先凭证:管理端 JWT(localStorage)优先,客户 token(sessionStorage)兑底 */
+export function resolveAuthToken() {
+  const adminToken = typeof window === 'undefined' ? '' : getStoredToken();
+  return adminToken || readAccessToken();
+}
+
 export async function fetchJson(url, options = {}) {
-  const { body, data, headers, ...rest } = options;
+  const { body, data, headers, auth = 'auto', ...rest } = options;
   const requestData = data !== undefined ? data : body;
   const isFormData = typeof FormData !== 'undefined' && requestData instanceof FormData;
-  const token = readAccessToken();
+  // auto:管理端 JWT 优先,客户 token 兑底(控制台面板的写操作由此自动携带 admin 凭证)
+  const adminToken = typeof window === 'undefined' ? '' : getStoredToken();
+  const useAdmin = auth === 'admin' || (auth === 'auto' && Boolean(adminToken));
+  const token = useAdmin ? adminToken : readAccessToken();
 
   const response = await client.request({
     url,
