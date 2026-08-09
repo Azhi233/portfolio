@@ -1,4 +1,4 @@
-import { API_BASE_URL, getAccessToken } from './api.js';
+import { API_BASE_URL, resolveAuthToken } from './api.js';
 
 const SIGNED_URL_REFRESH_BUFFER_MS = 30 * 60 * 1000;
 const SIGNED_URL_PATTERN = /[?&]X-Amz-Expires=|[?&]X-Amz-Signature=|[?&]X-Amz-Credential=/i;
@@ -40,7 +40,7 @@ export function shouldRefreshUrl(url = '') {
 
 export async function refreshSignedUrl(objectPath) {
   if (!objectPath) return '';
-  const token = getAccessToken();
+  const token = resolveAuthToken();
   const response = await fetch(`${API_BASE_URL}/uploads/sign`, {
     method: 'POST',
     headers: {

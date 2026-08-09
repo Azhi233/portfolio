@@ -1,11 +1,11 @@
-import { API_BASE_URL, getAccessToken } from '../utils/api.js';
+import { API_BASE_URL, resolveAuthToken } from '../utils/api.js';
 
 const SIGNED_URL_REFRESH_BUFFER_MS = 60 * 1000;
 const UPLOAD_TIMEOUT_MS = 60 * 60 * 1000;
 const SSE_RETRY_DELAY_MS = 1500;
 
 function authHeaders(extra = {}) {
-  const token = getAccessToken();
+  const token = resolveAuthToken();
   return token ? { ...extra, Authorization: `Bearer ${token}` } : extra;
 }
 
