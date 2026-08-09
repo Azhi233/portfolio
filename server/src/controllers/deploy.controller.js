@@ -60,8 +60,8 @@ function parseWebhookBody(rawBody = '') {
 
 function resolveBuildCommand(repoPath) {
   const frontendBuild = process.env.DEPLOY_FRONTEND_BUILD || 'npm run build';
-  const serverBuild = process.env.DEPLOY_SERVER_BUILD || 'npm run build --prefix server';
-  return { repoPath, frontendBuild, serverBuild };
+  const serverInstall = process.env.DEPLOY_SERVER_INSTALL || 'npm ci --omit=dev';
+  return { repoPath, frontendBuild, serverInstall };
 }
 
 function getShellArgs(commandLine) {
@@ -141,22 +141,22 @@ export function createDeployController() {
     running = true;
     const startedAt = new Date().toISOString();
     const repoPath = resolveRepoPath();
-    const { frontendBuild, serverBuild } = resolveBuildCommand(repoPath);
+    const { frontendBuild, serverInstall } = resolveBuildCommand(repoPath);
     const { services, extra } = resolveRestartCommands();
 
     try {
       await ensureDir(repoPath);
       const pullResult = await runCommand('git', ['pull', '--ff-only', 'origin', 'main'], { cwd: repoPath });
+      const installResult = await runCommand(process.platform === 'win32' ? 'cmd' : 'sh', getShellArgs(serverInstall), { cwd: path.join(repoPath, 'server') });
       const frontendResult = await runCommand(process.platform === 'win32' ? 'cmd' : 'sh', getShellArgs(frontendBuild), { cwd: repoPath });
-      const serverResult = await runCommand(process.platform === 'win32' ? 'cmd' : 'sh', getShellArgs(serverBuild), { cwd: repoPath });
       const restartResult = await restartServices(services, extra);
       lastResult = {
         ok: true,
         startedAt,
         repoPath,
         pull: pullResult.stdout.slice(-2000),
+        serverInstall: installResult.stdout.slice(-2000),
         frontendBuild: frontendResult.stdout.slice(-2000),
-        serverBuild: serverResult.stdout.slice(-2000),
         restartResult,
         finishedAt: new Date().toISOString(),
       };
