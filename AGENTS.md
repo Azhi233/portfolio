@@ -10,12 +10,12 @@ This file provides guidance to Lingma (lingma.aliyun.com) when working with code
 
 - `npm run dev` — 同时启动 Vite 前端与 Express 后端(`concurrently`);`npm run dev:frontend` 仅前端,`npm run dev --prefix server` 仅后端
 - `npm run build` / `npm run lint` — 构建 / ESLint
-- `npm run preflight` / `npm run preflight:quick` — 发布前检查(构建 + SEO/i18n/路由/鉴权回归断言,29 项)
-- `npm run healthcheck` — 环境健康检查(`scripts/env-health-check.mjs`)
+- `npm run preflight` / `npm run preflight:quick` — 发布前检查(构建 + SEO/i18n/路由/鉴权回归断言,31 项;新增受保护写路由时需同步更新其 `protectedWrites` 数组)
+- `npm run healthcheck` — 环境健康检查(`scripts/env-health-check.mjs`);上传/清理测试需先登录 admin(设置 `HEALTHCHECK_ADMIN_PASSWORD`),无凭据时自动跳过
 - `npm run sync:i18n` — 列出 `src/i18n/zh.js` 中 `en.js` 缺失的翻译键
 - 无测试框架
 - Windows 本地启动:`scripts/start-all.ps1`(前端+后端+MinIO)、`scripts/stop-all.ps1`;MinIO 也可用 `server/docker-compose.minio.yml`
-- 环境变量:根 `.env`(`VITE_API_BASE_URL`、`VITE_BACKEND_PORT` — Vite 代理 `/api` 的目标端口);`server/.env`(`PORT`、`JWT_SECRET`、`CORS_ORIGIN`、`DB_*`(支持 `BAOTA_*`/`MYSQL_*` 前缀别名)、`MINIO_*`)。新增前端环境变量必须以 `VITE_` 开头
+- 环境变量:根 `.env`(`VITE_API_BASE_URL`、`VITE_BACKEND_PORT` — Vite 代理 `/api` 的目标端口);`server/.env`(`PORT`、`JWT_SECRET`、`CORS_ORIGIN`、`DB_*`(支持 `BAOTA_*`/`MYSQL_*` 前缀别名)、`MINIO_*`、`ALLOW_REGISTER`、`ADMIN_INIT_USERNAME`/`ADMIN_INIT_PASSWORD`、`HEALTHCHECK_ADMIN_USER`/`HEALTHCHECK_ADMIN_PASSWORD`)。新增前端环境变量必须以 `VITE_` 开头
 
 ## 架构
 
@@ -31,7 +31,7 @@ This file provides guidance to Lingma (lingma.aliyun.com) when working with code
 - Express 工厂模式:每个资源一对 `createXxxController()` + `createXxxRouter()`,在 `src/app.js` 中统一装配;`pool`、`JWT_SECRET`、`sseClients` 等依赖通过闭包注入
 - MySQL(`mysql2/promise` pool):`src/db.js` 的 `initDB()` 负责建表(`global_config`、`projects`、`users`、`media_assets`、`reviews`、`review_audit_logs`、`project_unlocks`、`delivery_unlocks`、`video_transcode_tasks`);仓储层在 `src/db/`(repository),业务逻辑在 `src/services/`
 - 容错设计:MySQL 或 MinIO 不可达时服务器**仍以降级模式启动**(有界重试 + 警告日志),页面核心功能依赖前端 localStorage 快照;`better-sqlite3` 在依赖中但代码未引用(`server/portfolio.db*` 为遗留文件)
-- 认证:双凭证写鉴权(`src/middlewares/auth.middleware.js`)——admin JWT(`/api/login`,`ALLOW_REGISTER` 默认关闭注册)或 client token(`unlocks` 口令换取的 `private-<id>-<ts>-<sig>` HMAC 签名凭证,7 天有效);读接口经 `optionalAuth` 按鉴权状态脱敏(未鉴权不返回 `accessPassword`/`deliveryPin`/`privateFiles`);`JWT_SECRET` 生产环境缺失或为默认值时拒绝启动;admin 种子账号密码不再内置源码,由 `ADMIN_INIT_PASSWORD` 提供或随机生成打印一次
+- 认证:双凭证写鉴权(`src/middlewares/auth.middleware.js`)——admin JWT(`/api/login`,`ALLOW_REGISTER` 默认关闭注册)或 client token(`unlocks` 口令换取的 `private-<id>-<ts>-<sig>` HMAC 签名凭证,7 天有效);读接口经 `optionalAuth` 按鉴权状态脱敏(未鉴权不返回 `accessPassword`/`deliveryPin`/`privateFiles`);`JWT_SECRET` 生产环境缺失或为默认值时拒绝启动;admin 种子账号密码不再内置源码,由 `ADMIN_INIT_PASSWORD` 提供或随机生成打印一次;除 `/client-access/unlock` 与 `reviews` POST(status 服务端强制 `pending`)两个显式公开例外外,所有写接口一律挂 `writeAuth`
 - 客户端访问控制:`unlocks` 相关表记录 project/delivery 解锁状态
 
 ### 媒体上传与视频转码(核心链路)
@@ -55,7 +55,8 @@ This file provides guidance to Lingma (lingma.aliyun.com) when working with code
 ## 注意事项
 
 - 前后端均为 ESM(`"type": "module"`),使用相对路径导入
-- ESLint 对 `^[A-Z_]` 开头的未使用变量放行(组件大写命名习惯)
+- ESLint:`no-unused-vars` 对 `^[A-Z_]` 开头未使用变量放行(组件大写命名习惯)、`^_` 参数放行,并开启 `ignoreRestSiblings`(允许 `const { secret, ...rest }` 解构剥离,用于响应脱敏)
 - `scripts/*.log`、`server-backend.log` 为运行时日志,可忽略
 - `CORS_ORIGIN` 需包含所有本地开发端口(5173–5178、4173 等),新增端口时同步更新 `server/.env`
 - 服务器启动端口解析:`VITE_BACKEND_PORT || PORT`,默认 8789;Vite 代理默认指向 8788,本地两端口的配置需保持一致
+- 编码规范与安全红线(Git 提交、代码风格、鉴权、媒体上传、脚本/CI、环境变量)详见根目录 `CODING_RULES.md`;两份文档冲突时以实际代码为准并同步修正
