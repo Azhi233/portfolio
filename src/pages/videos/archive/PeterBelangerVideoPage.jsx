@@ -1,10 +1,12 @@
+// 归档说明:此页为 Peter Belanger 风格参考的原型页(米色编辑风),未接入 App.jsx 路由。
+// 若日后要启用,移回 src/pages/videos/ 并挂载路由即可。
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchJson } from '../../utils/api.js';
-import { useI18n } from '../../context/I18nContext.jsx';
-import MediaPreview from '../../components/MediaPreview.jsx';
-import MinimalTopNav from '../../components/MinimalTopNav.jsx';
-import { normalizeVideoItem, placeholderVideos, pickHeroLayout } from './videoPageData.js';
+import { fetchJson } from '../../../utils/api.js';
+import { useI18n } from '../../../context/I18nContext.jsx';
+import MediaPreview from '../../../components/MediaPreview.jsx';
+import MinimalTopNav from '../../../components/MinimalTopNav.jsx';
+import { normalizeVideoItem, placeholderVideos, pickHeroLayout } from '../videoPageData.js';
 
 function HeroMedia({ video, ratioMap, onDetectRatio }) {
   const ratioValue = ratioMap?.[video.id];

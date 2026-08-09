@@ -149,5 +149,5 @@ export function PortfolioWorkSection({ projects, layout }) {
 }
 
 export function PortfolioFooter() {
-  return <footer className="px-6 pb-10 md:px-12"><div className="mx-auto flex max-w-7xl items-center justify-between border-t border-black/5 pt-6 text-[11px] uppercase tracking-[0.24em] text-[#151515]/45"><span>© 2026</span><Link to="/oldhome" className="transition-opacity hover:opacity-60">Old Home</Link></div></footer>;
+  return <footer className="px-6 pb-10 md:px-12"><div className="mx-auto flex max-w-7xl items-center justify-between border-t border-black/5 pt-6 text-[11px] uppercase tracking-[0.24em] text-[#151515]/45"><span>© 2026</span><span className="text-[#151515]/25">DIRECTOR.VISION</span></div></footer>;
 }

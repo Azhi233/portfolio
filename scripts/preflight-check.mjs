@@ -82,11 +82,11 @@ if (app) {
     'path="/images"',
     'path="/videos"',
     'path="/about"',
+    'path="/studio-notes"',
     'path="/client-access"',
     'path="/client-deliverables/:id"',
     'path="/console"',
   ]);
-  addCheck('App has /oldhome redirect', app.includes('path="/oldhome"'));
 } else {
   addCheck('App.jsx readable', false, 'src/App.jsx not readable');
 }
@@ -106,13 +106,6 @@ if (topNav) {
   checkIncludesAll('MinimalTopNav primary links', topNav, ["to: '/'", "to: '/images'", "to: '/videos'", "to: '/about'", "to: '/client-access'"]);
 } else {
   addCheck('MinimalTopNav readable', false, 'src/components/MinimalTopNav.jsx not readable');
-}
-
-const nav = safeRead('src/components/NavBar.jsx');
-if (nav) {
-  addCheck('NavBar has locale switch', nav.includes('switchLocale'));
-} else {
-  addCheck('NavBar.jsx readable', false, 'src/components/NavBar.jsx not readable');
 }
 
 // 6) i18n checks
