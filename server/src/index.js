@@ -9,6 +9,13 @@ import { seedAdminUser } from '../initAdmin.js';
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'portfolio-dev-secret';
+
+/** 检测 JWT_SECRET 是否缺失或仍为公开默认值 */
+function isInsecureJwtSecret() {
+  const value = process.env.JWT_SECRET || '';
+  return !value || value === 'portfolio-dev-secret' || value === 'change-me-to-a-long-random-string';
+}
+
 const DEFAULT_PORT = resolvePort(process.env.VITE_BACKEND_PORT || process.env.PORT, 8789);
 const BAOTA_DB_HINT = {
   host: process.env.DB_HOST || process.env.BAOTA_DB_HOST || process.env.MYSQL_HOST || '127.0.0.1',
@@ -53,6 +60,14 @@ async function waitForMinioReady(attempts = 8, delayMs = 1000) {
 }
 
 async function bootstrap() {
+  if (process.env.NODE_ENV === 'production' && isInsecureJwtSecret()) {
+    console.error('[auth] Refusing to start: JWT_SECRET is missing or set to an insecure default in production. Set a strong JWT_SECRET in server/.env.');
+    process.exit(1);
+  }
+  if (isInsecureJwtSecret()) {
+    console.warn('[auth] JWT_SECRET is not configured; using dev fallback. Set JWT_SECRET before deploying.');
+  }
+
   try {
     await initDB();
     await initTranslationReviewTable();

@@ -25,9 +25,9 @@ import { createUploadRouter } from './routes/upload.routes.js';
 import { createSyncController } from './controllers/sync.controller.js';
 import { createSyncRouter } from './routes/sync.routes.js';
 import { createHealthcheckRouter } from './routes/healthcheck.routes.js';
-import { readProjects, findProjectById } from './db/projects.repository.js';
+import { findProjectById } from './db/projects.repository.js';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js';
-import { createWriteAuthMiddleware } from './middlewares/auth.middleware.js';
+import { createOptionalAuthMiddleware, createWriteAuthMiddleware } from './middlewares/auth.middleware.js';
 
 export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged, uploadEvents, sseClients }) {
   const app = express();
@@ -54,6 +54,7 @@ export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged,
 
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20480 * 1024 * 1024 } });
   const writeAuth = createWriteAuthMiddleware({ JWT_SECRET, findProjectById });
+  const optionalAuth = createOptionalAuthMiddleware({ JWT_SECRET, findProjectById });
 
   const broadcastEvent = (eventName, payload) => {
     for (const client of sseClients) {
@@ -78,24 +79,19 @@ export function createApp({ JWT_SECRET, uploadProjectImage, notifyConfigChanged,
   });
 
   app.use('/api/events', createEventsRouter(eventsController));
-  app.use('/api', createAuthRouter(createAuthController({ pool, jwtSecret: JWT_SECRET })));
+  app.use('/api', createAuthRouter(createAuthController({ pool, jwtSecret: JWT_SECRET, allowRegister: process.env.ALLOW_REGISTER === 'true' })));
   app.use('/api/config', createConfigRouter(createConfigController({ notifyConfigChanged, broadcastEvent, authMiddleware: writeAuth })));
   app.use('/api/reviews', createReviewsRouter(createReviewsController()));
-  app.use('/api/projects', createProjectsRouter(createProjectsController({ uploadProjectImage, notifyConfigChanged, pool }), upload, writeAuth));
-  app.use('/api', createUnlocksRouter(createUnlocksController()));
+  app.use('/api/projects', createProjectsRouter(createProjectsController({ uploadProjectImage, notifyConfigChanged, pool }), upload, writeAuth, optionalAuth));
+  app.use('/api', createUnlocksRouter(createUnlocksController({ clientTokenSecret: JWT_SECRET }), writeAuth));
   app.use('/api/media-assets', createMediaRouter(createMediaController(), writeAuth));
-  app.get('/api/clients', async (_req, res) => {
-    const projects = await readProjects();
-    const clients = projects.filter((project) => project.visibility === 'private');
-    res.json({ ok: true, data: clients });
-  });
   app.use('/api/review-audit-logs', createReviewAuditRouter(createReviewAuditController()));
   app.use('/api/translation-review-items', createTranslationReviewRouter(createTranslationReviewController(), writeAuth));
   const uploadController = createUploadController();
   app.use('/api/uploads', createUploadRouter(uploadController, writeAuth));
   const syncController = createSyncController();
   app.use('/api/sync', createSyncRouter(syncController, writeAuth));
-  app.use('/api/healthcheck', createHealthcheckRouter());
+  app.use('/api/healthcheck', createHealthcheckRouter(writeAuth));
 
   // 统一 404 与错误响应(必须注册在所有路由之后)
   app.use(notFoundHandler);
