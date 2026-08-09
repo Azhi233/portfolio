@@ -26,6 +26,7 @@ export function createAboutProfilesController({ notifyConfigChanged, broadcastEv
     const data = await saveAboutProfiles(payload);
     notifyConfigChanged('aboutProfiles');
     broadcastEvent?.('config-updated', { scope: 'aboutProfiles' });
+    broadcastEvent?.('about-profiles-updated', { scope: 'aboutProfiles' });
     return res.json({ ok: true, data });
   }
 
@@ -41,6 +42,7 @@ export function createAboutProfilesController({ notifyConfigChanged, broadcastEv
     const data = await saveAboutProfiles(next);
     notifyConfigChanged('aboutProfiles');
     broadcastEvent?.('config-updated', { scope: 'aboutProfiles' });
+    broadcastEvent?.('about-profiles-updated', { scope: 'aboutProfiles' });
     return res.json({ ok: true, data });
   }
 
@@ -65,6 +67,7 @@ export function createAboutProfilesController({ notifyConfigChanged, broadcastEv
     const data = await saveAboutProfiles(next);
     notifyConfigChanged('aboutProfiles');
     broadcastEvent?.('config-updated', { scope: 'aboutProfiles' });
+    broadcastEvent?.('about-profiles-updated', { scope: 'aboutProfiles' });
     return res.json({ ok: true, data });
   }
 

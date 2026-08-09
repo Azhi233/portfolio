@@ -155,7 +155,7 @@ export function subscribeAboutProfilesServerUpdates(handler) {
   const onConfigUpdated = (event) => {
     try {
       const payload = JSON.parse(event.data || '{}');
-      if (payload?.scope === 'aboutProfiles') {
+      if (!payload?.scope || payload.scope === 'aboutProfiles' || payload.scope === 'config') {
         handler?.();
       }
     } catch {
@@ -163,8 +163,11 @@ export function subscribeAboutProfilesServerUpdates(handler) {
     }
   };
   source.addEventListener('config-updated', onConfigUpdated);
+  source.addEventListener('about-profiles-updated', onConfigUpdated);
+  source.onerror = () => {};
   return () => {
     source.removeEventListener('config-updated', onConfigUpdated);
+    source.removeEventListener('about-profiles-updated', onConfigUpdated);
     source.close();
   };
 }
